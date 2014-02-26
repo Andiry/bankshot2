@@ -43,6 +43,7 @@ struct bankshot2_device {
 //	struct list_head	brd_list;
 
 	void *virt_addr;
+	unsigned long phys_addr;
 	unsigned long size;
 	unsigned long block_start;
 	unsigned long block_end;

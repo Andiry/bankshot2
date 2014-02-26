@@ -30,6 +30,7 @@ static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 
 	bs2_dev->virt_addr = ret;
+	bs2_dev->phys_addr = phys_addr;
 	bs2_dev->size = size;
 	return 0;
 }
@@ -37,6 +38,7 @@ static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
 static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
 {
 	iounmap(bs2_dev->virt_addr);
+	release_mem_region(bs2_dev->phys_addr, bs2_dev->size);
 }
 
 static void bankshot2_init_blocks(struct bankshot2_device *bs2_dev)
@@ -77,8 +79,12 @@ static int __init bankshot2_init(void)
 	}
 
 	bankshot2_init_blocks(bs2_dev);
-	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld\n",
-			phys_addr, cache_size);
+	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
+			"remap @%p, block start %ld, block end %ld, "
+			"free blocks %ld\n",
+			phys_addr, cache_size, bs2_dev->virt_addr,
+			bs2_dev->block_start, bs2_dev->block_end,
+			bs2_dev->num_free_blocks);
 	return 0;
 
 ioremap_fail:
