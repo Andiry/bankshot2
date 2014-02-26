@@ -30,6 +30,7 @@ static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 
 	bs2_dev->virt_addr = ret;
+	bs2_dev->size = size;
 	return 0;
 }
 
@@ -38,9 +39,23 @@ static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
 	iounmap(bs2_dev->virt_addr);
 }
 
+static void bankshot2_init_blocks(struct bankshot2_device *bs2_dev)
+{
+	bs2_dev->block_start = (BANKSHOT2_RESERVE_SPACE >> PAGE_SHIFT);
+	bs2_dev->block_end = (bs2_dev->size >> PAGE_SHIFT);
+	bs2_dev->num_free_blocks = bs2_dev->block_end - bs2_dev->block_start;
+
+}
+
 static int __init bankshot2_init(void)
 {
 	int ret;
+
+	if (cache_size <= BANKSHOT2_RESERVE_SPACE * 2) {
+		bs2_info("Minimal Bankshot2 cache size 8MB.\n");
+		ret = -ENOMEM;
+		goto check_fail;
+	}
 
 	bs2_dev = kzalloc(sizeof(struct bankshot2_device), GFP_KERNEL);
 	if (!bs2_dev)
@@ -61,6 +76,7 @@ static int __init bankshot2_init(void)
 		goto ioremap_fail;
 	}
 
+	bankshot2_init_blocks(bs2_dev);
 	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld\n",
 			phys_addr, cache_size);
 	return 0;
@@ -70,7 +86,8 @@ ioremap_fail:
 char_fail:
 	bankshot2_char_exit();
 	kfree(bs2_dev);
-	return ret;	
+check_fail:
+	return ret;
 
 }
 

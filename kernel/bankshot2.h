@@ -21,6 +21,8 @@
 #define bs2_dbg(s, args ...)	pr_debug(s, ## args)
 #define bs2_info(s, args ...)	pr_info(s, ## args)
 
+#define BANKSHOT2_RESERVE_SPACE	(4 << 20)
+
 #if 0
 /* cache.c */
 struct brd_cache_info {
@@ -41,6 +43,10 @@ struct bankshot2_device {
 //	struct list_head	brd_list;
 
 	void *virt_addr;
+	unsigned long size;
+	unsigned long block_start;
+	unsigned long block_end;
+	unsigned long num_free_blocks;
 
 	struct cdev chardev;
 	dev_t chardevnum;
