@@ -16,6 +16,28 @@ MODULE_PARM_DESC(cache_size, "Cache size");
 
 struct bankshot2_device *bs2_dev;
 
+static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
+				unsigned long phys_addr, unsigned long size)
+{
+	void *ret;
+
+	ret = request_mem_region_exclusive(phys_addr, size, "bankshot2");
+	if (!ret)
+		return -EINVAL;
+
+	ret = ioremap_cache(phys_addr, size);
+	if (!ret)
+		return -EINVAL;
+
+	bs2_dev->virt_addr = ret;
+	return 0;
+}
+
+static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
+{
+	iounmap(bs2_dev->virt_addr);
+}
+
 static int __init bankshot2_init(void)
 {
 	int ret;
@@ -27,14 +49,26 @@ static int __init bankshot2_init(void)
 	bankshot2_char_init();
 
 	ret = bankshot2_char_setup(bs2_dev);
-	if (ret)
+	if (ret) {
+		bs2_info("Bankshot2 char setup failed.\n");
 		goto char_fail;
+	}
+
+	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
+	if (ret) {
+		bs2_info("Bankshot2 ioremap failed.\n");
+		ret = -EINVAL;
+		goto ioremap_fail;
+	}
 
 	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld\n",
 			phys_addr, cache_size);
 	return 0;
 
+ioremap_fail:
+	bankshot2_char_destroy(bs2_dev);
 char_fail:
+	bankshot2_char_exit();
 	kfree(bs2_dev);
 	return ret;	
 
@@ -42,6 +76,7 @@ char_fail:
 
 static void __exit bankshot2_exit(void)
 {
+	bankshot2_iounmap(bs2_dev);
 	bankshot2_char_destroy(bs2_dev);
 	bankshot2_char_exit();
 	kfree(bs2_dev);

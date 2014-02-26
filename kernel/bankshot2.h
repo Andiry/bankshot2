@@ -40,6 +40,8 @@ struct bankshot2_device {
 //	struct gendisk		*brd_disk;
 //	struct list_head	brd_list;
 
+	void *virt_addr;
+
 	struct cdev chardev;
 	dev_t chardevnum;
 
