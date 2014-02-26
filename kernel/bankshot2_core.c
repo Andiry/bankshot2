@@ -7,6 +7,13 @@
 
 #include "bankshot2.h"
 
+static unsigned long phys_addr;
+static unsigned long cache_size;
+module_param(phys_addr, ulong, S_IRUGO);
+MODULE_PARM_DESC(phys_addr, "Start physical address");
+module_param(cache_size, ulong, S_IRUGO);
+MODULE_PARM_DESC(cache_size, "Cache size");
+
 struct bankshot2_device *bs2_dev;
 
 static int __init bankshot2_init(void)
@@ -23,6 +30,8 @@ static int __init bankshot2_init(void)
 	if (ret)
 		goto char_fail;
 
+	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld\n",
+			phys_addr, cache_size);
 	return 0;
 
 char_fail:

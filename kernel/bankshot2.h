@@ -10,6 +10,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 //#include <linux/radix-tree.h>
 #include <linux/buffer_head.h> /* invalidate_bh_lrus() */
 //#include <linux/proc_fs.h>
