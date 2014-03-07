@@ -1,4 +1,5 @@
 #include "bankshot2.h"
+#include "bankshot2_cache.h"
 
 static struct class *bankshot2_chardev_class;
 
@@ -25,6 +26,7 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
 		bs2_info("ioctl sends to device, cmd 0x%x, arg %d\n", cmd, *(int *)arg);
+		bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;

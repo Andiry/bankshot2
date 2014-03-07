@@ -15,10 +15,11 @@
 #include <linux/buffer_head.h> /* invalidate_bh_lrus() */
 //#include <linux/proc_fs.h>
 #include <linux/delay.h>
+#include <linux/file.h>
 
 #include <asm/uaccess.h>
 
-#define bs2_dbg(s, args ...)	pr_debug(s, ## args)
+#define bs2_dbg(s, args ...)	pr_info(s, ## args)
 #define bs2_info(s, args ...)	pr_info(s, ## args)
 
 #define BANKSHOT2_RESERVE_SPACE	(4 << 20)
@@ -61,6 +62,7 @@ struct bankshot2_device {
 //	struct brd_cache_info *cache_info;
 };
 
+
 #if 0
 int submit_bio_to_cache(struct brd_device *brd, struct bio *bio);
 int brd_cache_open_backing_dev(struct block_device **bdev,
@@ -76,5 +78,5 @@ void bankshot2_char_exit(void);
 int bankshot2_char_setup(struct bankshot2_device *);
 void bankshot2_char_destroy(struct bankshot2_device *);
 
-/* ioctls */
-#define BANKSHOT2_IOCTL_CACHE_DATA	0xBCD00000
+/* bankshot2_cache.c */
+int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
