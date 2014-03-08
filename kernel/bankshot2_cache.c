@@ -125,3 +125,74 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	return ret;
 
 }
+
+int bankshot2_init_cache(struct bankshot2_device *bs2_dev, char *bsdev_name)
+{
+	struct block_device *bdev;
+	dev_t dev;
+	int ret;
+
+	bdev = lookup_bdev(bsdev_name);
+	if (IS_ERR(bdev)) {
+		bs2_info("Backing device not found\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	dev = bdev->bd_dev;
+	if (!bdev->bd_inode) {
+		bs2_info("Backing device inode is NULL\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	if (dev) {
+		bdev = blkdev_get_by_dev(dev, FMODE_READ |
+					FMODE_WRITE | FMODE_EXCL, bs2_dev);
+		if(IS_ERR(bdev)) {
+			ret = -EINVAL;
+			goto fail;
+		}
+	} else {
+		bs2_info("Backing store bdisk is null\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	bs2_info("Opened handle to the block device %p\n", bdev);
+
+	if (bdev->bd_disk){
+		bs2_dev->backing_store_rqueue = bdev_get_queue(bdev);
+		bs2_info("Backing store %p request queue is %p\n",
+				bdev, bs2_dev->backing_store_rqueue);
+		if (bs2_dev->backing_store_rqueue) {
+			bs2_info("max_request_in_queue %lu, "
+				"max_sectors %d, "
+				"physical_block_size %d, "
+				"io_min %d, io_op %d, "
+				"make_request_fn %p\n",
+			bs2_dev->backing_store_rqueue->nr_requests,
+			bs2_dev->backing_store_rqueue->limits.max_sectors,
+			bs2_dev->backing_store_rqueue->limits.physical_block_size,
+		 	bs2_dev->backing_store_rqueue->limits.io_min,
+			bs2_dev->backing_store_rqueue->limits.io_opt,
+			bs2_dev->backing_store_rqueue->make_request_fn
+			);
+			bs2_info("Backing store number %d\n",
+				bdev->bd_dev);
+
+			bs2_dev->bs_bdev = bdev;
+
+			return 0;
+
+		} else
+			bs2_info("Backing store request queue "
+					"is null pointer\n");
+	} else
+		bs2_info("Backing store bdisk is null\n");
+
+	blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+	return -EINVAL;
+fail:
+	return ret;
+}

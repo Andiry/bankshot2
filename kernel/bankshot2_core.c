@@ -9,10 +9,13 @@
 
 static unsigned long phys_addr;
 static unsigned long cache_size;
+char *backing_dev_name = "/dev/ram0";
 module_param(phys_addr, ulong, S_IRUGO);
 MODULE_PARM_DESC(phys_addr, "Start physical address");
 module_param(cache_size, ulong, S_IRUGO);
 MODULE_PARM_DESC(cache_size, "Cache size");
+module_param(backing_dev_name, charp, S_IRUGO);
+MODULE_PARM_DESC(backing_dev_name, "Backing store");
 
 struct bankshot2_device *bs2_dev;
 
@@ -85,7 +88,18 @@ static int __init bankshot2_init(void)
 			phys_addr, cache_size, bs2_dev->virt_addr,
 			bs2_dev->block_start, bs2_dev->block_end,
 			bs2_dev->num_free_blocks);
+
+	ret = bankshot2_init_cache(bs2_dev, backing_dev_name);
+	if (ret) {
+		bs2_info("Bankshot2 cache init failed.\n");
+		ret = -EINVAL;
+		goto cache_fail;
+	}
+
 	return 0;
+
+cache_fail:
+	bankshot2_iounmap(bs2_dev);
 
 ioremap_fail:
 	bankshot2_char_destroy(bs2_dev);
@@ -99,6 +113,7 @@ check_fail:
 
 static void __exit bankshot2_exit(void)
 {
+	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	bankshot2_iounmap(bs2_dev);
 	bankshot2_char_destroy(bs2_dev);
 	bankshot2_char_exit();

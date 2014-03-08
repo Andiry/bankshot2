@@ -3,10 +3,10 @@
 #include <linux/moduleparam.h>
 #include <linux/major.h>
 #include <linux/device.h>
-//#include <linux/blkdev.h>
+#include <linux/blkdev.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
-//#include <linux/bio.h>
+#include <linux/bio.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
@@ -53,6 +53,9 @@ struct bankshot2_device {
 	struct cdev chardev;
 	dev_t chardevnum;
 
+	struct block_device *bs_bdev;
+	struct request_queue	*backing_store_rqueue;
+
 	/*
 	 * Backing store of pages and lock to protect it. This is the contents
 	 * of the block device.
@@ -80,3 +83,4 @@ void bankshot2_char_destroy(struct bankshot2_device *);
 
 /* bankshot2_cache.c */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
+int bankshot2_init_cache(struct bankshot2_device *, char *);
