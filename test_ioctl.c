@@ -2,15 +2,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 #include "kernel/bankshot2_cache.h"
 
 int main(void)
 {
 	int fd, fd1;
-	int a = 3, b = 4;
+//	int a = 3, b = 4;
 	struct bankshot2_cache_data data;
-	int rnw;
+	int rnw = 1;
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	data.file = fd1;
