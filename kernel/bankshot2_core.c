@@ -81,6 +81,13 @@ static int __init bankshot2_init(void)
 		goto ioremap_fail;
 	}
 
+	ret = bankshot2_init_job_queue(bs2_dev);
+	if (ret) {
+		bs2_info("Bankshot2 job queue init failed.\n");
+		ret = -EINVAL;
+		goto job_fail;
+	}
+
 	bankshot2_init_blocks(bs2_dev);
 	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
 			"remap @%p, block start %ld, block end %ld, "
@@ -99,6 +106,9 @@ static int __init bankshot2_init(void)
 	return 0;
 
 cache_fail:
+	bankshot2_destroy_job_queue(bs2_dev);
+
+job_fail:
 	bankshot2_iounmap(bs2_dev);
 
 ioremap_fail:
@@ -113,6 +123,7 @@ check_fail:
 
 static void __exit bankshot2_exit(void)
 {
+	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	bankshot2_iounmap(bs2_dev);
 	bankshot2_char_destroy(bs2_dev);

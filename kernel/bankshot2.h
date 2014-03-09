@@ -32,6 +32,64 @@ struct brd_cache_info {
 };
 #endif
 
+#define STATUS(flag)	((uint8_t)(1 << flag))
+
+struct cache_stats{
+	atomic_t hitcount;
+	atomic_t misscount;
+	atomic_t dirtycount;
+	atomic_t cleancount;
+	atomic_t evict_count;
+	atomic_t evict_chunk_count;
+	atomic_t release_chunk_count;
+	atomic_t async_wb_chunk_count;
+	atomic_t async_release_chunk_count;
+	atomic_t write_back;
+	atomic_t system_reads;
+	atomic_t system_writes;
+	atomic64_t system_writes_bytes;
+	atomic_t protmiss;
+	atomic_t sync_queued_count;
+	uint64_t async_wb_blocks;
+	uint64_t async_cleaned_blocks;
+	int async_triggered;
+	atomic_t sync_eviction_triggered;
+	
+};
+
+typedef enum {
+	WAKEUP_ON_COMPLETION=0,
+	DO_COMPLETION=1, /*End of job. Could be endio for read or write  */	
+	SYS_BIO=2, /*use orig bio to call endio and destroy job descriptor*/
+	SYS_BIO_LAST=3, /* we call endio on sys bio only once*/
+	FREE_ON_COMPLETION=4
+}JOB_TYPE;
+
+/* Valid status flags bit offsets - used to track request */
+#define JOB_QUEUED_TO_DISK	1 /* The job is added to the backing store list */
+#define JOB_ISSUED_TO_DISK	2 /* The job as been submitted to the backing store */
+#define JOB_QUEUED_TO_CACHE	3 /* THe job has been queued for cache io */ 
+#define JOB_ISSUED_TO_CACHE	4 /* The job has been submitted to cache */ 
+#define JOB_DONE		5  /* The job has completed */ 
+#define JOB_ERROR		6 /* The job has error */
+#define JOB_ABORT 		7 /* Say the cached block is accessed again, we abort eviction */
+
+struct job_descriptor{
+	struct list_head store_queue;  /* This is the queue on which the job is placed before issuing. can be backing store or cache queue. Null if no queue */ 
+	struct list_head jobs; /* List of jobs that are issued by the thread. Used to track completion */
+	struct bankshot2_device *bs2_dev;
+	struct task_struct *job_parent; /* Pointer to the task struct of the thread that initiated this job */
+	uint64_t b_offset;
+	uint64_t c_offset;
+	size_t num_bytes; 
+	atomic_t status; /* use atomic operations to set the status of the job queue. Only when the list is global we need locks. I use mb() when operating on it */
+//	uint8_t moneta_cmd;
+	unsigned long disk_cmd;
+	JOB_TYPE type; 
+	struct bio *bio;	
+	struct bio *sys_bio;
+};
+
 struct bankshot2_device {
 //	int		brd_number;
 //	int		brd_refcnt;
@@ -55,7 +113,15 @@ struct bankshot2_device {
 
 	struct block_device *bs_bdev;
 	struct request_queue	*backing_store_rqueue;
+	struct bio_set *bio_set;
+	struct kmem_cache *job_descriptor_slab;
 
+	struct cache_stats cache_stats;
+	struct list_head disk_queue;
+	struct list_head cache_queue;
+
+	atomic_t io_limit;
+	spinlock_t io_queue_lock;
 	/*
 	 * Backing store of pages and lock to protect it. This is the contents
 	 * of the block device.
@@ -84,3 +150,7 @@ void bankshot2_char_destroy(struct bankshot2_device *);
 /* bankshot2_cache.c */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
 int bankshot2_init_cache(struct bankshot2_device *, char *);
+
+/* bankshot2_io.c */
+int bankshot2_init_job_queue(struct bankshot2_device *);
+void bankshot2_destroy_job_queue(struct bankshot2_device *);
