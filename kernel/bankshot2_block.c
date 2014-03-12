@@ -127,6 +127,8 @@ alloc_disk_fail:
 
 void bankshot2_block_destroy(struct bankshot2_device* bs2_dev)
 {
+	del_gendisk(bs2_dev->gd);
+	put_disk(bs2_dev->gd);
 	blk_cleanup_queue(bs2_dev->queue);
 	bs2_dev->queue = NULL;
 	unregister_blkdev(bs2_dev->major, "bankshot2");
