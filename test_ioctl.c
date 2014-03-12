@@ -9,7 +9,7 @@
 
 int main(void)
 {
-	int fd, fd1;
+	int fd, fd1, fd2;
 //	int a = 3, b = 4;
 	struct bankshot2_cache_data data;
 	int rnw = 1;
@@ -25,8 +25,13 @@ int main(void)
 	printf("fds: %d %d\n", fd1, fd);
 	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
 
+	fd2 = open("/dev/bankshot2Block0", O_RDWR);
+	printf("fds: %d %d %d\n", fd1, fd, fd2);
+	ioctl(fd2, BANKSHOT2_IOCTL_CACHE_DATA, &data);
+
 	close(fd);
 	close(fd1);
+	close(fd2);
 
 	return 0;
 }

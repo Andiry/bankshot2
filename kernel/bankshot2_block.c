@@ -39,7 +39,7 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 	struct bankshot2_device *bs2_dev;
 
 	bs2_dev = (struct bankshot2_device *)q->queuedata;
-	bs2_info("request sends to block device\n");
+//	bs2_info("request sends to block device\n");
 	bio_endio(bio, 0);
 	return;
 }
