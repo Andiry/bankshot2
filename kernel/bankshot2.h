@@ -25,6 +25,9 @@
 #define BANKSHOT2_RESERVE_SPACE	(4 << 20)
 #define BANKSHOT2_NUM_MINORS	1
 
+#define DISK 0
+#define cache 1
+
 #if 0
 /* cache.c */
 struct brd_cache_info {
@@ -162,6 +165,10 @@ int bankshot2_init_cache(struct bankshot2_device *, char *);
 /* bankshot2_io.c */
 int bankshot2_init_job_queue(struct bankshot2_device *);
 void bankshot2_destroy_job_queue(struct bankshot2_device *);
+void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
+				size_t sector, size_t size,
+				struct bio *bio, struct block_device *bdev,
+				int where, JOB_TYPE type);
 
 /* bankshot2_block.c */
 int bankshot2_block_setup(struct bankshot2_device *);

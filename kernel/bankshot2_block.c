@@ -37,10 +37,20 @@ const struct block_device_operations bankshot2_block_fops = {
 void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 {
 	struct bankshot2_device *bs2_dev;
+	size_t size;
+	unsigned int sectors;
+	int idx;
 
 	bs2_dev = (struct bankshot2_device *)q->queuedata;
 //	bs2_info("request sends to block device\n");
-	bio_endio(bio, 0);
+	bio_get(bio);
+	size = bio->bi_size;
+	sectors = bio->bi_sector;
+	idx = bio->bi_idx;
+
+	bankshot2_reroute_bio(bs2_dev, idx, sectors, size, bio,
+				bs2_dev->bs_bdev, DISK, SYS_BIO_LAST);
+
 	return;
 }
 

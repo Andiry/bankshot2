@@ -331,6 +331,48 @@ static void free_jobs_in_list(struct bankshot2_device *bs2_dev,
 		spin_unlock(lock);	
 }
 
+void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
+				size_t sector, size_t size,
+				struct bio *bio, struct block_device *bdev,
+				int where, JOB_TYPE type)
+{
+	struct job_descriptor *jd, jd_head;
+
+	INIT_LIST_HEAD(&(jd_head.jobs));
+	jd = bankshot2_alloc_job_descriptor(bs2_dev,
+				bio->bi_max_vecs, &jd_head);
+
+	BUG_ON(!jd);
+
+	jd->disk_cmd = bio_data_dir(bio) ? WRITE : READ;
+	init_job_descriptor(jd, type, bio->bi_size, 0, 0);
+	__bio_clone(jd->bio, bio);
+
+#if 0
+	if (bio_integrity(bio)) {
+		ret = bio_integrity_clone(jd->bio, bio, GFP_KERNEL,
+						bs2_dev->bio_set);
+		if (ret < 0) {
+			bs2_info("Bio Integrity test failed\n");
+		}
+	}
+#endif
+
+	jd->bio->bi_sector = sector;
+	jd->bio->bi_size = size; 
+	jd->bio->bi_idx = idx;
+	jd->bio->bi_bdev = bdev;
+	jd->bio->bi_next = NULL;
+	jd->sys_bio = bio;
+
+	if (where == DISK)
+		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
+//	else
+//		bbd_add_to_cache_list(cache_info, jd, &cache_info->cache_queue);
+
+	return;
+}
+
 /*To keep up with the iops capabilities of moneta, we have the io kernel
   issuing multiple request simultaneously */
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
