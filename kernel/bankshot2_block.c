@@ -107,7 +107,7 @@ int bankshot2_block_setup(struct bankshot2_device *bs2_dev)
 	bs2_dev->gd->queue = bs2_dev->queue;
 	bs2_dev->gd->private_data = bs2_dev;
 
-	snprintf(bs2_dev->gd->disk_name, 32, "bankshot2a");
+	snprintf(bs2_dev->gd->disk_name, 32, "bankshot2Block%d", 0);
 
 	nr_sects = get_capacity(bs2_dev->bs_bdev->bd_disk);
 	set_capacity(bs2_dev->gd, nr_sects);
