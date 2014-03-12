@@ -44,7 +44,7 @@ static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
 	release_mem_region(bs2_dev->phys_addr, bs2_dev->size);
 }
 
-static void bankshot2_init_blocks(struct bankshot2_device *bs2_dev)
+static void bankshot2_init_memblocks(struct bankshot2_device *bs2_dev)
 {
 	bs2_dev->block_start = (BANKSHOT2_RESERVE_SPACE >> PAGE_SHIFT);
 	bs2_dev->block_end = (bs2_dev->size >> PAGE_SHIFT);
@@ -88,14 +88,6 @@ static int __init bankshot2_init(void)
 		goto job_fail;
 	}
 
-	bankshot2_init_blocks(bs2_dev);
-	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
-			"remap @%p, block start %ld, block end %ld, "
-			"free blocks %ld\n",
-			phys_addr, cache_size, bs2_dev->virt_addr,
-			bs2_dev->block_start, bs2_dev->block_end,
-			bs2_dev->num_free_blocks);
-
 	ret = bankshot2_init_cache(bs2_dev, backing_dev_name);
 	if (ret) {
 		bs2_info("Bankshot2 cache init failed.\n");
@@ -103,7 +95,24 @@ static int __init bankshot2_init(void)
 		goto cache_fail;
 	}
 
+	ret = bankshot2_block_setup(bs2_dev);
+	if (ret) {
+		bs2_info("Bankshot2 block setup failed.\n");
+		goto block_fail;
+	}
+
+	bankshot2_init_memblocks(bs2_dev);
+	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
+			"remap @%p, block start %ld, block end %ld, "
+			"free blocks %ld\n",
+			phys_addr, cache_size, bs2_dev->virt_addr,
+			bs2_dev->block_start, bs2_dev->block_end,
+			bs2_dev->num_free_blocks);
+
 	return 0;
+
+block_fail:
+	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 
 cache_fail:
 	bankshot2_destroy_job_queue(bs2_dev);
@@ -113,9 +122,11 @@ job_fail:
 
 ioremap_fail:
 	bankshot2_char_destroy(bs2_dev);
+
 char_fail:
 	bankshot2_char_exit();
 	kfree(bs2_dev);
+
 check_fail:
 	return ret;
 
@@ -125,6 +136,7 @@ static void __exit bankshot2_exit(void)
 {
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+	bankshot2_block_destroy(bs2_dev);
 	bankshot2_iounmap(bs2_dev);
 	bankshot2_char_destroy(bs2_dev);
 	bankshot2_char_exit();

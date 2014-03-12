@@ -23,6 +23,7 @@
 #define bs2_info(s, args ...)	pr_info(s, ## args)
 
 #define BANKSHOT2_RESERVE_SPACE	(4 << 20)
+#define BANKSHOT2_NUM_MINORS	1
 
 #if 0
 /* cache.c */
@@ -122,6 +123,13 @@ struct bankshot2_device {
 
 	atomic_t io_limit;
 	spinlock_t io_queue_lock;
+
+	int major;
+	struct request_queue *queue;
+	struct gendisk *gd;
+	struct block_device *self_bdev;
+	uint64_t bs_sects;
+
 	/*
 	 * Backing store of pages and lock to protect it. This is the contents
 	 * of the block device.
@@ -154,3 +162,7 @@ int bankshot2_init_cache(struct bankshot2_device *, char *);
 /* bankshot2_io.c */
 int bankshot2_init_job_queue(struct bankshot2_device *);
 void bankshot2_destroy_job_queue(struct bankshot2_device *);
+
+/* bankshot2_block.c */
+int bankshot2_block_setup(struct bankshot2_device *);
+void bankshot2_block_destroy(struct bankshot2_device *);

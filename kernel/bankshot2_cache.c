@@ -182,6 +182,7 @@ int bankshot2_init_cache(struct bankshot2_device *bs2_dev, char *bsdev_name)
 				bdev->bd_dev);
 
 			bs2_dev->bs_bdev = bdev;
+//			bs2_dev->backingdevnum = bdev->bd_dev;
 
 			return 0;
 
