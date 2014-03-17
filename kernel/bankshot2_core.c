@@ -44,14 +44,6 @@ static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
 	release_mem_region(bs2_dev->phys_addr, bs2_dev->size);
 }
 
-static void bankshot2_init_memblocks(struct bankshot2_device *bs2_dev)
-{
-	bs2_dev->block_start = (BANKSHOT2_RESERVE_SPACE >> PAGE_SHIFT);
-	bs2_dev->block_end = (bs2_dev->size >> PAGE_SHIFT);
-	bs2_dev->num_free_blocks = bs2_dev->block_end - bs2_dev->block_start;
-
-}
-
 static int __init bankshot2_init(void)
 {
 	int ret;
