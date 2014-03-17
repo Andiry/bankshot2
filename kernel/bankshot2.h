@@ -227,3 +227,8 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 /* bankshot2_block.c */
 int bankshot2_block_setup(struct bankshot2_device *);
 void bankshot2_block_destroy(struct bankshot2_device *);
+
+/* bankshot2_super.c */
+int bankshot2_init_super(struct bankshot2_device *,
+				unsigned long, unsigned long);
+void bankshot2_destroy_super(struct bankshot2_device *);

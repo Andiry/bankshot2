@@ -23,31 +23,6 @@ MODULE_PARM_DESC(backing_dev_name, "Backing store");
 
 struct bankshot2_device *bs2_dev;
 
-static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
-				unsigned long phys_addr, unsigned long size)
-{
-	void *ret;
-
-	ret = request_mem_region_exclusive(phys_addr, size, "bankshot2");
-	if (!ret)
-		return -EINVAL;
-
-	ret = ioremap_cache(phys_addr, size);
-	if (!ret)
-		return -EINVAL;
-
-	bs2_dev->virt_addr = ret;
-	bs2_dev->phys_addr = phys_addr;
-	bs2_dev->size = size;
-	return 0;
-}
-
-static void bankshot2_iounmap(struct bankshot2_device *bs2_dev)
-{
-	iounmap(bs2_dev->virt_addr);
-	release_mem_region(bs2_dev->phys_addr, bs2_dev->size);
-}
-
 static int __init bankshot2_init(void)
 {
 	int ret;
@@ -70,11 +45,11 @@ static int __init bankshot2_init(void)
 		goto char_fail;
 	}
 
-	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
+	ret = bankshot2_init_super(bs2_dev, phys_addr, cache_size);
 	if (ret) {
-		bs2_info("Bankshot2 ioremap failed.\n");
+		bs2_info("Bankshot2 super setup failed.\n");
 		ret = -EINVAL;
-		goto ioremap_fail;
+		goto super_fail;
 	}
 
 	ret = bankshot2_init_job_queue(bs2_dev);
@@ -97,14 +72,6 @@ static int __init bankshot2_init(void)
 		goto block_fail;
 	}
 
-	bankshot2_init_memblocks(bs2_dev);
-	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
-			"remap @%p, block start %ld, block end %ld, "
-			"free blocks %ld\n",
-			phys_addr, cache_size, bs2_dev->virt_addr,
-			bs2_dev->block_start, bs2_dev->block_end,
-			bs2_dev->num_free_blocks);
-
 	return 0;
 
 block_fail:
@@ -114,9 +81,9 @@ cache_fail:
 	bankshot2_destroy_job_queue(bs2_dev);
 
 job_fail:
-	bankshot2_iounmap(bs2_dev);
+	bankshot2_destroy_super(bs2_dev);
 
-ioremap_fail:
+super_fail:
 	bankshot2_char_destroy(bs2_dev);
 
 char_fail:
@@ -133,7 +100,7 @@ static void __exit bankshot2_exit(void)
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	bankshot2_block_destroy(bs2_dev);
-	bankshot2_iounmap(bs2_dev);
+	bankshot2_destroy_super(bs2_dev);
 	bankshot2_char_destroy(bs2_dev);
 	bankshot2_char_exit();
 	kfree(bs2_dev);
