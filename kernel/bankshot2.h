@@ -36,8 +36,59 @@ struct brd_cache_info {
 };
 #endif
 
+/* From PMFS */
+
 unsigned int blk_type_to_shift[3] = {12, 21, 30};
 uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
+
+/*
+ * Structure of the super block in PMFS
+ * The fields are partitioned into static and dynamic fields. The static fields
+ * never change after file system creation. This was primarily done because
+ * pmfs_get_block() returns NULL if the block offset is 0 (helps in catching
+ * bugs). So if we modify any field using journaling (for consistency), we 
+ * will have to modify s_sum which is at offset 0. So journaling code fails.
+ * This (static+dynamic fields) is a temporary solution and can be avoided
+ * once the file system becomes stable and pmfs_get_block() returns correct
+ * pointers even for offset 0.
+ */
+struct bankshot2_super_block {
+	/* static fields. they never change after file system creation.
+	 * checksum only validates up to s_start_dynamic field below */
+	__le16		s_sum;              /* checksum of this sb */
+	__le16		s_magic;            /* magic signature */
+	__le32		s_blocksize;        /* blocksize in bytes */
+	__le64		s_size;             /* total size of fs in bytes */
+	char		s_volume_name[16];  /* volume name */
+	/* points to the location of pmfs_journal_t */
+	__le64          s_journal_offset;
+	/* points to the location of struct pmfs_inode for the inode table */
+	__le64          s_inode_table_offset;
+
+	__le64  	s_start_dynamic; 
+
+	/* all the dynamic fields should go here */
+	/* s_mtime and s_wtime should be together and their order should not be
+	 * changed. we use an 8 byte write to update both of them atomically */
+	__le32		s_mtime;            /* mount time */
+	__le32		s_wtime;            /* write time */
+	/* fields for fast mount support. Always keep them together */
+	__le64		s_num_blocknode_allocated;
+	__le64		s_num_free_blocks;
+	__le32		s_inodes_count;
+	__le32		s_free_inodes_count;
+	__le32		s_inodes_used_count;
+	__le32		s_free_inode_hint;
+};
+
+
+static inline struct bankshot2_super_block *
+bankshot2_get_super(struct bankshot2_device *bs2_dev)
+{
+	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
+}
+
+/* job part */
 
 #define STATUS(flag)	((uint8_t)(1 << flag))
 
