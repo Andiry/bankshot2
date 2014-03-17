@@ -1,6 +1,6 @@
 /*
  * inode code.
- * Copied from pmfs inode code.
+ * Copied from bankshot2 inode code.
  */
 
 #include "bankshot2.h"
@@ -17,6 +17,15 @@ bankshot2_inode_blk_shift (struct bankshot2_inode *pi)
 static inline uint32_t bankshot2_inode_blk_size (struct bankshot2_inode *pi)
 {
 	return blk_type_to_size[pi->i_blk_type];
+}
+
+static inline struct bankshot2_inode *
+bankshot2_get_inode_table(struct super_block *sb)
+{
+	struct bankshot2_super_block *ps = bankshot2_get_super(sb);
+
+	return (struct bankshot2_inode *)((char *)ps +
+			le64_to_cpu(ps->s_inode_table_offset));
 }
 
 /* If this is part of a read-modify-write of the inode metadata,

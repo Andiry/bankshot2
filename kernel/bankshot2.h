@@ -25,16 +25,73 @@
 #define BANKSHOT2_RESERVE_SPACE	(4 << 20)
 #define BANKSHOT2_NUM_MINORS	1
 
-#define DISK 0
-#define cache 1
+/* Pmfs.h */
+#define	CACHELINE_SIZE	64
+#define	BANKSHOT2_SB_SIZE	512
+#define	BANKSHOT2_SUPER_MAGIC	0xDEAD
+#define	BANKSHOT2_BLOCK_TYPE_4K	0
+#define	BANKSHOT2_ROOT_INO	0
+#define	BANKSHOT2_INODE_SIZE	128
+#define	BANKSHOT2_DEFAULT_JOURNAL_SIZE	(4 << 20)
 
-#if 0
-/* cache.c */
-struct brd_cache_info {
-	struct block_device *bs_bdev;
-	struct request_queue *backing_store_rqueue;
+/* Bankshot */
+#define DISK 0
+#define CACHE 1
+
+
+/* ========================= Data structures =============================== */
+
+
+/*
+ * Structure of an inode in PMFS. Things to keep in mind when modifying it.
+ * 1) Keep the inode size to within 96 bytes if possible. This is because
+ *    a 64 byte log-entry can store 48 bytes of data and we would like
+ *    to log an inode using only 2 log-entries
+ * 2) root must be immediately after the qw containing height because we update
+ *    root and height atomically using cmpxchg16b in pmfs_decrease_btree_height 
+ * 3) i_size, i_ctime, and i_mtime must be in that order and i_size must be at
+ *    16 byte aligned offset from the start of the inode. We use cmpxchg16b to
+ *    update these three fields atomically.
+ */
+struct bankshot2_inode {
+	/* first 48 bytes */
+	__le16	i_rsvd;         /* reserved. used to be checksum */
+	u8	    height;         /* height of data b-tree; max 3 for now */
+	u8	    i_blk_type;     /* data block size this inode uses */
+	__le32	i_flags;            /* Inode flags */
+	__le64	root;               /* btree root. must be below qw w/ height */
+	__le64	i_size;             /* Size of data in bytes */
+	__le32	i_ctime;            /* Inode modification time */
+	__le32	i_mtime;            /* Inode b-tree Modification time */
+	__le32	i_dtime;            /* Deletion Time */
+	__le16	i_mode;             /* File mode */
+	__le16	i_links_count;      /* Links count */
+	__le64	i_blocks;           /* Blocks count */
+
+	/* second 48 bytes */
+	__le64	i_xattr;            /* Extended attribute block */
+	__le32	i_uid;              /* Owner Uid */
+	__le32	i_gid;              /* Group Id */
+	__le32	i_generation;       /* File version (for NFS) */
+	__le32	i_atime;            /* Access time */
+
+	struct {
+		__le32 rdev;    /* major/minor # */
+	} dev;              /* device inode */
+	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
 };
-#endif
+
+typedef struct bankshot2_journal {
+	__le64     base;
+	__le32     size;
+	__le32     head;
+	/* the next three fields must be in the same order and together.
+	 * tail and gen_id must fall in the same 8-byte quadword */
+	__le32     tail;
+	__le16     gen_id;   /* generation id of the log */
+	__le16     pad;
+	__le16     redo_logging;
+} bankshot2_journal_t;
 
 /*
  * Structure of the super block in PMFS
@@ -148,11 +205,19 @@ struct bankshot2_device {
 //	struct list_head	brd_list;
 
 	void *virt_addr;
+	uint32_t jsize;
+	unsigned long blocksize;
 	unsigned long phys_addr;
 	unsigned long size;
 	unsigned long block_start;
 	unsigned long block_end;
 	unsigned long num_free_blocks;
+	kuid_t	uid;
+	kgid_t	gid;
+	umode_t	mode;
+	struct list_head block_inuse_head;
+	struct mutex s_lock;
+	struct mutex inode_table_mutex;
 
 	struct cdev chardev;
 	dev_t chardevnum;
@@ -184,10 +249,49 @@ struct bankshot2_device {
 //	struct brd_cache_info *cache_info;
 };
 
+/* ========================= Methods =================================== */
+
 static inline struct bankshot2_super_block *
 bankshot2_get_super(struct bankshot2_device *bs2_dev)
 {
 	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
+}
+
+/* assumes the length to be 4-byte aligned */
+static inline void memset_nt(void *dest, uint32_t dword, size_t length)
+{
+	uint64_t dummy1, dummy2;
+	uint64_t qword = ((uint64_t)dword << 32) | dword;
+
+	asm volatile ("movl %%edx,%%ecx\n"
+		"andl $63,%%edx\n"
+		"shrl $6,%%ecx\n"
+		"jz 9f\n"
+		"1:      movnti %%rax,(%%rdi)\n"
+		"2:      movnti %%rax,1*8(%%rdi)\n"
+		"3:      movnti %%rax,2*8(%%rdi)\n"
+		"4:      movnti %%rax,3*8(%%rdi)\n"
+		"5:      movnti %%rax,4*8(%%rdi)\n"
+		"8:      movnti %%rax,5*8(%%rdi)\n"
+		"7:      movnti %%rax,6*8(%%rdi)\n"
+		"8:      movnti %%rax,7*8(%%rdi)\n"
+		"leaq 64(%%rdi),%%rdi\n"
+		"decl %%ecx\n"
+		"jnz 1b\n"
+		"9:     movl %%edx,%%ecx\n"
+		"andl $7,%%edx\n"
+		"shrl $3,%%ecx\n"
+		"jz 11f\n"
+		"10:     movnti %%rax,(%%rdi)\n"
+		"leaq 8(%%rdi),%%rdi\n"
+		"decl %%ecx\n"
+		"jnz 10b\n"
+		"11:     movl %%edx,%%ecx\n"
+		"shrl $2,%%ecx\n"
+		"jz 12f\n"
+		"movnti %%eax,(%%rdi)\n"
+		"12:\n"
+		: "=D"(dummy1), "=d" (dummy2) : "D" (dest), "a" (qword), "d" (length) : "memory", "rcx");
 }
 
 
@@ -199,6 +303,8 @@ int brd_cache_open_backing_dev(struct block_device **bdev,
 int brd_cache_init(struct brd_device *brd, struct block_device* bdev);
 void brd_cache_exit(struct brd_device *brd);
 #endif
+
+/* ========================= Interfaces =================================== */
 
 /* bankshot2_char.c */
 int bankshot2_init_char(struct bankshot2_device *);

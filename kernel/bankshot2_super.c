@@ -57,13 +57,14 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	bs2_dev->jsize = BANKSHOT2_DEFAULT_JOURNAL_SIZE;
 	bs2_dev->phys_addr = phys_addr;
 
-/*
 	INIT_LIST_HEAD(&bs2_dev->block_inuse_head);
-	INIT_LIST_HEAD(&bs2_dev->s_truncate);
-	mutex_init(&bs2_dev->s_truncate_lock);
+	bs2_dev->mode = (S_IRUGO | S_IXUGO | S_IWUSR);
+	bs2_dev->uid = current_fsuid();
+	bs2_dev->gid = current_fsgid();
+//	INIT_LIST_HEAD(&bs2_dev->s_truncate);
+//	mutex_init(&bs2_dev->s_truncate_lock);
 	mutex_init(&bs2_dev->inode_table_mutex);
 	mutex_init(&bs2_dev->s_lock);
-*/
 
 	bankshot2_init_memblocks(bs2_dev, phys_addr);
 	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
@@ -99,46 +100,46 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 
 	bs2_info("journal meta start %llx data start 0x%llx, "
 		"journal size 0x%x, inode_table 0x%llx\n", journal_meta_start,
-		journal_data_start, sbi->jsize, inode_table_start);
+		journal_data_start, bs2_dev->jsize, inode_table_start);
 
 	/* Clear out super-block and inode table */
-	super = bankshot2_get_super(sb);
+	super = bankshot2_get_super(bs2_dev);
 	memset_nt(super, 0, journal_data_start);
-	super->s_size = cpu_to_le64(size);
+	super->s_size = cpu_to_le64(cache_size);
 	super->s_blocksize = cpu_to_le32(blocksize);
 	super->s_magic = cpu_to_le16(BANKSHOT2_SUPER_MAGIC);
 	super->s_journal_offset = cpu_to_le64(journal_meta_start);
 	super->s_inode_table_offset = cpu_to_le64(inode_table_start);
 
-	bankshot2_init_blockmap(bs2_dev, journal_data_start + sbi->jsize);
+	bankshot2_init_blockmap(bs2_dev, journal_data_start + bs2_dev->jsize);
 
 	if (bankshot2_journal_hard_init(bs2_dev, journal_data_start,
-			sbi->jsize) < 0) {
+			bs2_dev->jsize) < 0) {
 		bs2_info("Journal hard initialization failed\n");
 		return -EINVAL;
 	}
 
-	if (bankshot2_init_inode_table(sb) < 0)
+	if (bankshot2_init_inode_table(bs2_dev) < 0)
 		return -EINVAL;
 
 	bankshot2_flush_buffer(super, BANKSHOT2_SB_SIZE, false);
 	bankshot2_flush_buffer((char *)super + BANKSHOT2_SB_SIZE, sizeof(*super), false);
 
-	bankshot2_new_block(sb, &blocknr, BANKSHOT2_BLOCK_TYPE_4K, 1);
+	bankshot2_new_block(bs2_dev, &blocknr, BANKSHOT2_BLOCK_TYPE_4K, 1);
 
-	root_i = bankshot2_get_inode(sb, BANKSHOT2_ROOT_INO);
+	root_i = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
 
-	root_i->i_mode = cpu_to_le16(sbi->mode | S_IFDIR);
-	root_i->i_uid = cpu_to_le32(from_kuid(&init_user_ns, sbi->uid));
-	root_i->i_gid = cpu_to_le32(from_kgid(&init_user_ns, sbi->gid));
+	root_i->i_mode = cpu_to_le16(bs2_dev->mode | S_IFDIR);
+	root_i->i_uid = cpu_to_le32(from_kuid(&init_user_ns, bs2_dev->uid));
+	root_i->i_gid = cpu_to_le32(from_kgid(&init_user_ns, bs2_dev->gid));
 	root_i->i_links_count = cpu_to_le16(2);
 	root_i->i_blk_type = BANKSHOT2_BLOCK_TYPE_4K;
 	root_i->i_flags = 0;
 	root_i->i_blocks = cpu_to_le64(1);
-	root_i->i_size = cpu_to_le64(sb->s_blocksize);
+	root_i->i_size = cpu_to_le64(super->s_blocksize);
 	root_i->i_atime = root_i->i_mtime = root_i->i_ctime =
 		cpu_to_le32(get_seconds());
-	root_i->root = cpu_to_le64(bankshot2_get_block_off(sb, blocknr,
+	root_i->root = cpu_to_le64(bankshot2_get_block_off(bs2_dev, blocknr,
 					BANKSHOT2_BLOCK_TYPE_4K));
 	root_i->height = 0;
 	/* bankshot2_sync_inode(root_i); */
