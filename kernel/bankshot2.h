@@ -36,6 +36,9 @@ struct brd_cache_info {
 };
 #endif
 
+unsigned int blk_type_to_shift[3] = {12, 21, 30};
+uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
+
 #define STATUS(flag)	((uint8_t)(1 << flag))
 
 struct cache_stats{
