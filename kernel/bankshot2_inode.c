@@ -5,6 +5,9 @@
 
 #include "bankshot2.h"
 
+unsigned int blk_type_to_shift[3] = {12, 21, 30};
+uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
+
 static inline unsigned int
 bankshot2_inode_blk_shift (struct bankshot2_inode *pi)
 {

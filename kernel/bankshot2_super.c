@@ -38,7 +38,7 @@ static void bankshot2_init_memblocks(struct bankshot2_device *bs2_dev)
 	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
 			"remap @%p, block start %ld, block end %ld, "
 			"free blocks %ld\n",
-			phys_addr, cache_size, bs2_dev->virt_addr,
+			bs2_dev->phys_addr, bs2_dev->size, bs2_dev->virt_addr,
 			bs2_dev->block_start, bs2_dev->block_end,
 			bs2_dev->num_free_blocks);
 
@@ -49,14 +49,15 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 {
 	int ret;
 
-	ret = bankshot2_ioremap(bs2_dev, phys_addr, size);
+	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
 	if (!ret)
 		return ret;
 
 	bankshot2_init_memblocks(bs2_dev);
+	return ret;
 }
 	
-void bankshot2_destroy_super(struct bankshot2_device *)
+void bankshot2_destroy_super(struct bankshot2_device *bs2_dev)
 {
 	bankshot2_iounmap(bs2_dev);
 }
