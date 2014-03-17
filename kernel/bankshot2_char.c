@@ -48,21 +48,11 @@ const struct file_operations bankshot2_char_fops = {
 	.unlocked_ioctl = bankshot2_char_ioctl,
 };
 
-int bankshot2_char_init(void)
+int bankshot2_init_char(struct bankshot2_device *bs2_dev)
 {
 	bankshot2_chardev_class = class_create(THIS_MODULE, "bankshot2Ctrl");
 	bs2_info("create char class\n");
-	return 0;
-}	
 
-void bankshot2_char_exit(void)
-{
-	class_destroy(bankshot2_chardev_class);
-	bs2_info("destroy char class\n");
-}	
-
-int bankshot2_init_char(struct bankshot2_device *bs2_dev)
-{
 	if (alloc_chrdev_region(&bs2_dev->chardevnum, 0, 1, "bankshot2Ctrl"))
 		goto err_alloc_chrdev;
 
@@ -90,5 +80,6 @@ void bankshot2_destroy_char(struct bankshot2_device* bs2_dev)
 	device_destroy(bankshot2_chardev_class, bs2_dev->chardevnum);
 	unregister_chrdev_region(bs2_dev->chardevnum, 1);
 	cdev_del(&bs2_dev->chardev);
+	class_destroy(bankshot2_chardev_class);
 }
 

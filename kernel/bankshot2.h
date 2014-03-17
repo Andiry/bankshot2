@@ -81,13 +81,6 @@ struct bankshot2_super_block {
 	__le32		s_free_inode_hint;
 };
 
-
-static inline struct bankshot2_super_block *
-bankshot2_get_super(struct bankshot2_device *bs2_dev)
-{
-	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
-}
-
 /* job part */
 
 #define STATUS(flag)	((uint8_t)(1 << flag))
@@ -196,6 +189,12 @@ struct bankshot2_device {
 //	struct brd_cache_info *cache_info;
 };
 
+static inline struct bankshot2_super_block *
+bankshot2_get_super(struct bankshot2_device *bs2_dev)
+{
+	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
+}
+
 
 #if 0
 int submit_bio_to_cache(struct brd_device *brd, struct bio *bio);
@@ -207,8 +206,6 @@ void brd_cache_exit(struct brd_device *brd);
 #endif
 
 /* bankshot2_char.c */
-int bankshot2_char_init(void);
-void bankshot2_char_exit(void);
 int bankshot2_init_char(struct bankshot2_device *);
 void bankshot2_destroy_char(struct bankshot2_device *);
 

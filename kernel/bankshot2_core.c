@@ -37,8 +37,6 @@ static int __init bankshot2_init(void)
 	if (!bs2_dev)
 		return -ENOMEM;
 
-	bankshot2_char_init();
-
 	ret = bankshot2_init_char(bs2_dev);
 	if (ret) {
 		bs2_info("Bankshot2 char setup failed.\n");
@@ -87,7 +85,6 @@ super_fail:
 	bankshot2_destroy_char(bs2_dev);
 
 char_fail:
-	bankshot2_char_exit();
 	kfree(bs2_dev);
 
 check_fail:
@@ -102,7 +99,6 @@ static void __exit bankshot2_exit(void)
 	bankshot2_destroy_block(bs2_dev);
 	bankshot2_destroy_super(bs2_dev);
 	bankshot2_destroy_char(bs2_dev);
-	bankshot2_char_exit();
 	kfree(bs2_dev);
 }
 
