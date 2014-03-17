@@ -1,3 +1,8 @@
+/*
+ * Handle IO requests.
+ * Copied from bee3cache_io2.c.
+ */
+
 #include "bankshot2.h"
 
 inline void set_job_status(struct job_descriptor *job, uint8_t flag) 

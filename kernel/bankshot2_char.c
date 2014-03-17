@@ -1,3 +1,8 @@
+/*
+ * Char device code.
+ * Embed a char device in bankshot2. Handle ioctl requests from user sapce.
+ */
+
 #include "bankshot2.h"
 #include "bankshot2_cache.h"
 
@@ -5,8 +10,8 @@ static struct class *bankshot2_chardev_class;
 
 int bankshot2_char_open(struct inode *inode, struct file *filp)
 {
-	struct bankshot2_device *bs2_dev = container_of(inode->i_cdev, struct bankshot2_device,
-						chardev);
+	struct bankshot2_device *bs2_dev = container_of(inode->i_cdev,
+			struct bankshot2_device, chardev);
 
 	filp->private_data = bs2_dev;
 
@@ -19,13 +24,15 @@ int bankshot2_char_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-long bankshot2_char_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
+				unsigned long arg)
 {
 	struct bankshot2_device *bs2_dev = filp->private_data;
 
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
-		bs2_info("ioctl sends to device, cmd 0x%x, arg %d\n", cmd, *(int *)arg);
+		bs2_info("ioctl sends to device, cmd 0x%x, arg %d\n",
+				cmd, *(int *)arg);
 		bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
 		break;
 	default:

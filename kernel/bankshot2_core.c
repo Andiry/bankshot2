@@ -5,6 +5,10 @@
  *
  */
 
+/*
+ * Bankshot2 core code. Init entrance.
+ */
+
 #include "bankshot2.h"
 
 static unsigned long phys_addr;

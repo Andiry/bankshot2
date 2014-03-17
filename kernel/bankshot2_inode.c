@@ -1,3 +1,8 @@
+/*
+ * inode code.
+ * Copied from pmfs inode code.
+ */
+
 #include "bankshot2.h"
 
 static inline unsigned int

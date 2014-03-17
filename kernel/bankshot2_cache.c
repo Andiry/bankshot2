@@ -1,3 +1,8 @@
+/*
+ * Cache code.
+ * Copied from bee3_cache.c
+ */
+
 #include "bankshot2.h"
 #include "bankshot2_cache.h"
 

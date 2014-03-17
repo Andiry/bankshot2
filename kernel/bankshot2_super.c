@@ -1,3 +1,8 @@
+/*
+ * Handle memory allocation.
+ * Copied from PMFS super.c.
+ */
+
 #include "bankshot2.h"
 
 

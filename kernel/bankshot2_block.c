@@ -1,3 +1,9 @@
+
+/*
+ * Block device part.
+ * Represent bankshot2 as a block device.
+ */
+
 #include "bankshot2.h"
 #include "bankshot2_cache.h"
 
