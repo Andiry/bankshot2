@@ -209,8 +209,8 @@ void brd_cache_exit(struct brd_device *brd);
 /* bankshot2_char.c */
 int bankshot2_char_init(void);
 void bankshot2_char_exit(void);
-int bankshot2_char_setup(struct bankshot2_device *);
-void bankshot2_char_destroy(struct bankshot2_device *);
+int bankshot2_init_char(struct bankshot2_device *);
+void bankshot2_destroy_char(struct bankshot2_device *);
 
 /* bankshot2_cache.c */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
@@ -225,8 +225,8 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				int where, JOB_TYPE type);
 
 /* bankshot2_block.c */
-int bankshot2_block_setup(struct bankshot2_device *);
-void bankshot2_block_destroy(struct bankshot2_device *);
+int bankshot2_init_block(struct bankshot2_device *);
+void bankshot2_destroy_block(struct bankshot2_device *);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,

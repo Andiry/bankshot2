@@ -39,7 +39,7 @@ static int __init bankshot2_init(void)
 
 	bankshot2_char_init();
 
-	ret = bankshot2_char_setup(bs2_dev);
+	ret = bankshot2_init_char(bs2_dev);
 	if (ret) {
 		bs2_info("Bankshot2 char setup failed.\n");
 		goto char_fail;
@@ -66,7 +66,7 @@ static int __init bankshot2_init(void)
 		goto cache_fail;
 	}
 
-	ret = bankshot2_block_setup(bs2_dev);
+	ret = bankshot2_init_block(bs2_dev);
 	if (ret) {
 		bs2_info("Bankshot2 block setup failed.\n");
 		goto block_fail;
@@ -84,7 +84,7 @@ job_fail:
 	bankshot2_destroy_super(bs2_dev);
 
 super_fail:
-	bankshot2_char_destroy(bs2_dev);
+	bankshot2_destroy_char(bs2_dev);
 
 char_fail:
 	bankshot2_char_exit();
@@ -99,9 +99,9 @@ static void __exit bankshot2_exit(void)
 {
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-	bankshot2_block_destroy(bs2_dev);
+	bankshot2_destroy_block(bs2_dev);
 	bankshot2_destroy_super(bs2_dev);
-	bankshot2_char_destroy(bs2_dev);
+	bankshot2_destroy_char(bs2_dev);
 	bankshot2_char_exit();
 	kfree(bs2_dev);
 }

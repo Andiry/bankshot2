@@ -61,7 +61,7 @@ void bankshot2_char_exit(void)
 	bs2_info("destroy char class\n");
 }	
 
-int bankshot2_char_setup(struct bankshot2_device *bs2_dev)
+int bankshot2_init_char(struct bankshot2_device *bs2_dev)
 {
 	if (alloc_chrdev_region(&bs2_dev->chardevnum, 0, 1, "bankshot2Ctrl"))
 		goto err_alloc_chrdev;
@@ -85,7 +85,7 @@ err_alloc_chrdev:
 	return -EINVAL;
 }
 
-void bankshot2_char_destroy(struct bankshot2_device* bs2_dev)
+void bankshot2_destroy_char(struct bankshot2_device* bs2_dev)
 {
 	device_destroy(bankshot2_chardev_class, bs2_dev->chardevnum);
 	unregister_chrdev_region(bs2_dev->chardevnum, 1);

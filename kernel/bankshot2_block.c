@@ -86,7 +86,7 @@ static void bankshot2_setup_queue(struct bankshot2_device *bs2_dev)
 		queue_dma_alignment(bs2_dev->backing_store_rqueue));
 }
 
-int bankshot2_block_setup(struct bankshot2_device *bs2_dev)
+int bankshot2_init_block(struct bankshot2_device *bs2_dev)
 {
 	int bankshot2_major = 0;
 	sector_t nr_sects;
@@ -135,13 +135,13 @@ int bankshot2_block_setup(struct bankshot2_device *bs2_dev)
 	return 0;
 
 alloc_disk_fail:
-	bankshot2_block_destroy(bs2_dev);
+	bankshot2_destroy_block(bs2_dev);
 
 	return -EINVAL;
 }
 
 
-void bankshot2_block_destroy(struct bankshot2_device* bs2_dev)
+void bankshot2_destroy_block(struct bankshot2_device* bs2_dev)
 {
 	del_gendisk(bs2_dev->gd);
 	put_disk(bs2_dev->gd);
