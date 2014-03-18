@@ -114,11 +114,13 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 
 	bankshot2_init_blockmap(bs2_dev, journal_data_start + bs2_dev->jsize);
 
+/* FIXME: ignore journal part
 	if (bankshot2_journal_hard_init(bs2_dev, journal_data_start,
 			bs2_dev->jsize) < 0) {
 		bs2_info("Journal hard initialization failed\n");
 		return -EINVAL;
 	}
+*/
 
 	if (bankshot2_init_inode_table(bs2_dev) < 0)
 		return -EINVAL;

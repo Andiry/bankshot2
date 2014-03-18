@@ -27,12 +27,17 @@
 
 /* Pmfs.h */
 #define	CACHELINE_SIZE	64
+#define	BANKSHOT2_BLOCK_TYPE_4K	0
 #define	BANKSHOT2_SB_SIZE	512
 #define	BANKSHOT2_SUPER_MAGIC	0xDEAD
 #define	BANKSHOT2_BLOCK_TYPE_4K	0
 #define	BANKSHOT2_ROOT_INO	0
 #define	BANKSHOT2_INODE_SIZE	128
+#define	BANKSHOT2_INODE_BITS	7
 #define	BANKSHOT2_DEFAULT_JOURNAL_SIZE	(4 << 20)
+
+/* INODE HINT Start at 3 */
+#define	BANKSHOT2_FREE_INODE_HINT_START	3
 
 /* Bankshot */
 #define DISK 0
@@ -212,6 +217,7 @@ struct bankshot2_device {
 
 	void *virt_addr;
 	uint32_t jsize;
+	unsigned long num_inodes;
 	unsigned long blocksize;
 	unsigned long s_blocksize_bits;
 	unsigned long phys_addr;
@@ -226,6 +232,11 @@ struct bankshot2_device {
 	struct list_head block_inuse_head;
 	struct mutex s_lock;
 	struct mutex inode_table_mutex;
+	unsigned int	s_inodes_count;  /* total inodes count (used or free) */
+	unsigned int	s_free_inodes_count;    /* free inodes count */
+	unsigned int	s_inodes_used_count;
+	unsigned int	s_free_inode_hint;
+
 	struct kmem_cache *bs2_blocknode_cachep;
 
 	struct cdev chardev;
@@ -335,13 +346,16 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 int bankshot2_init_block(struct bankshot2_device *);
 void bankshot2_destroy_block(struct bankshot2_device *);
 
-/* bankshot2_super.c */
-int bankshot2_init_super(struct bankshot2_device *,
-				unsigned long, unsigned long);
-void bankshot2_destroy_super(struct bankshot2_device *);
-
 /* bankshot2_mem.c */
 int bankshot2_init_kmem(struct bankshot2_device *);
 void bankshot2_destroy_kmem(struct bankshot2_device *);
 void bankshot2_init_blockmap(struct bankshot2_device *, unsigned long);
+
+/* bankshot2_inode.c */
+int bankshot2_init_inode_table(struct bankshot2_device *);
+
+/* bankshot2_super.c */
+int bankshot2_init_super(struct bankshot2_device *,
+				unsigned long, unsigned long);
+void bankshot2_destroy_super(struct bankshot2_device *);
 
