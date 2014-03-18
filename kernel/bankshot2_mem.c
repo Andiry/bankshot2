@@ -155,6 +155,39 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 	return errval;
 }
 
+static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u32 new_height)
+{
+	u32 height = pi->height;
+	__le64 *root, prev_root = pi->root;
+	unsigned long blocknr;
+	int errval = 0;
+
+	bs2_dbg("increasing tree height %x:%x\n", height, new_height);
+	while (height < new_height) {
+		/* allocate the meta block */
+		errval = bankshot2_new_block(bs2_dev, &blocknr,
+						BANKSHOT2_BLOCK_TYPE_4K, 1);
+		if (errval) {
+			bs2_info("failed to increase btree height\n");
+			break;
+		}
+		blocknr = bankshot2_get_block_off(bs2_dev, blocknr,
+						BANKSHOT2_BLOCK_TYPE_4K);
+		root = bankshot2_get_block(bs2_dev, blocknr);
+//		bankshot2_memunlock_block(sb, root);
+		root[0] = prev_root;
+//		bankshot2_memlock_block(sb, root);
+		bankshot2_flush_buffer(root, sizeof(*root), false);
+		prev_root = cpu_to_le64(blocknr);
+		height++;
+	}
+//	bankshot2_memunlock_inode(sb, pi);
+	pi->root = prev_root;
+	pi->height = height;
+//	bankshot2_memlock_inode(sb, pi);
+	return errval;
+}
 
 /*
  * allocate a data block for inode and return it's absolute blocknr.

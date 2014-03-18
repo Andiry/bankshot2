@@ -344,6 +344,20 @@ bankshot2_get_numblocks(unsigned short btype)
 	return 1;
 }
 
+static inline void bankshot2_flush_buffer(void *buf, uint32_t len, bool fence)
+{
+	uint32_t i;
+	len = len + ((unsigned long)(buf) & (CACHELINE_SIZE - 1));
+	for (i = 0; i < len; i += CACHELINE_SIZE)
+		asm volatile ("clflush %0\n" : "+m" (*(char *)(buf+i)));
+	/* Do a fence only if asked. We often don't need to do a fence
+	 * immediately after clflush because even if we get context switched
+	 * between clflush and subsequent fence, the context switch operation
+	 * provides implicit fence. */
+	if (fence)
+		asm volatile ("sfence\n" : : );
+}
+
 /* assumes the length to be 4-byte aligned */
 static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 {
