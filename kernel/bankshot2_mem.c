@@ -5,6 +5,151 @@
 
 #include "bankshot2.h"
 
+static struct bankshot2_blocknode *
+bankshot2_alloc_blocknode(struct bankshot2_device *bs2_dev)
+{
+	struct bankshot2_blocknode *p;
+
+	p = (struct bankshot2_blocknode *)
+		kmem_cache_alloc(bs2_dev->bs2_blocknode_cachep, GFP_NOFS);
+	if (p) {
+		bs2_dev->num_blocknode_allocated++;
+	}
+	return p;
+}
+
+int bankshot2_new_block(struct bankshot2_device *bs2_dev,
+		unsigned long *blocknr, unsigned short btype, int zero)
+{
+	struct list_head *head = &(bs2_dev->block_inuse_head);
+	struct bankshot2_blocknode *i, *next_i;
+	struct bankshot2_blocknode *free_blocknode = NULL;
+	void *bp;
+	unsigned long num_blocks = 0;
+	struct bankshot2_blocknode *curr_node;
+	int errval = 0;
+	bool found = 0;
+	unsigned long next_block_low;
+	unsigned long new_block_low;
+	unsigned long new_block_high;
+
+	num_blocks = bankshot2_get_numblocks(btype);
+
+	mutex_lock(&bs2_dev->s_lock);
+
+	list_for_each_entry(i, head, link) {
+		if (i->link.next == head) {
+			next_i = NULL;
+			next_block_low = bs2_dev->block_end;
+		} else {
+			next_i = list_entry(i->link.next, typeof(*i), link);
+			next_block_low = next_i->block_low;
+		}
+
+		new_block_low = (i->block_high + num_blocks) & ~(num_blocks - 1);
+		new_block_high = new_block_low + num_blocks - 1;
+
+		if (new_block_high >= next_block_low) {
+			/* Does not fit - skip to next blocknode */
+			continue;
+		}
+
+		if ((new_block_low == (i->block_high + 1)) &&
+			(new_block_high == (next_block_low - 1)))
+		{
+			/* Fill the gap completely */
+			if (next_i) {
+				i->block_high = next_i->block_high;
+				list_del(&next_i->link);
+				free_blocknode = next_i;
+				bs2_dev->num_blocknode_allocated--;
+			} else {
+				i->block_high = new_block_high;
+			}
+			found = 1;
+			break;
+		}
+
+		if ((new_block_low == (i->block_high + 1)) &&
+			(new_block_high < (next_block_low - 1))) {
+			/* Aligns to left */
+			i->block_high = new_block_high;
+			found = 1;
+			break;
+		}
+
+		if ((new_block_low > (i->block_high + 1)) &&
+			(new_block_high == (next_block_low - 1))) {
+			/* Aligns to right */
+			if (next_i) {
+				/* right node exist */
+				next_i->block_low = new_block_low;
+			} else {
+				/* right node does NOT exist */
+				curr_node = bankshot2_alloc_blocknode(bs2_dev);
+				BUG_ON(!curr_node);
+				if (curr_node == NULL) {
+					errval = -ENOSPC;
+					break;
+				}
+				curr_node->block_low = new_block_low;
+				curr_node->block_high = new_block_high;
+				list_add(&curr_node->link, &i->link);
+			}
+			found = 1;
+			break;
+		}
+
+		if ((new_block_low > (i->block_high + 1)) &&
+			(new_block_high < (next_block_low - 1))) {
+			/* Aligns somewhere in the middle */
+			curr_node = bankshot2_alloc_blocknode(bs2_dev);
+			BUG_ON(!curr_node);
+			if (curr_node == NULL) {
+				errval = -ENOSPC;
+				break;
+			}
+			curr_node->block_low = new_block_low;
+			curr_node->block_high = new_block_high;
+			list_add(&curr_node->link, &i->link);
+			found = 1;
+			break;
+		}
+	}
+	
+	if (found == 1) {
+		bs2_dev->num_free_blocks -= num_blocks;
+	}	
+
+	mutex_unlock(&bs2_dev->s_lock);
+
+	if (free_blocknode)
+		__bankshot2_free_blocknode(free_blocknode);
+
+	if (found == 0) {
+		return -ENOSPC;
+	}
+
+	if (zero) {
+		size_t size;
+		bp = bankshot2_get_block(bs2_dev,
+			bankshot2_get_block_off(bs2_dev, new_block_low, btype));
+//		bankshot2_memunlock_block(sb, bp); //TBDTBD: Need to fix this
+		if (btype == BANKSHOT2_BLOCK_TYPE_4K)
+			size = 0x1 << 12;
+		else if (btype == BANKSHOT2_BLOCK_TYPE_2M)
+			size = 0x1 << 21;
+		else
+			size = 0x1 << 30;
+		memset_nt(bp, 0, size);
+//		bankshot2_memlock_block(sb, bp);
+	}
+	*blocknr = new_block_low;
+
+	return errval;
+}
+
+
 /*
  * allocate a data block for inode and return it's absolute blocknr.
  * Zeroes out the block if zero set. Increments inode->i_blocks.
@@ -17,10 +162,10 @@ static int bankshot2_new_data_block(struct bankshot2_device *bs2_dev,
 	int errval = bankshot2_new_block(bs2_dev, blocknr, pi->i_blk_type, zero);
 
 	if (!errval) {
-//		pmfs_memunlock_inode(sb, pi);
+//		bankshot2_memunlock_inode(sb, pi);
 		le64_add_cpu(&pi->i_blocks,
 			(1 << (data_bits - bs2_dev->s_blocksize_bits)));
-//		pmfs_memlock_inode(sb, pi);
+//		bankshot2_memlock_inode(sb, pi);
 	}
 
 	return errval;
@@ -136,19 +281,6 @@ inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans, struct inode *
 	return errval;
 }
 */
-
-static struct bankshot2_blocknode *
-bankshot2_alloc_blocknode(struct bankshot2_device *bs2_dev)
-{
-	struct bankshot2_blocknode *p;
-
-	p = (struct bankshot2_blocknode *)
-		kmem_cache_alloc(bs2_dev->bs2_blocknode_cachep, GFP_NOFS);
-	if (p) {
-		bs2_dev->num_blocknode_allocated++;
-	}
-	return p;
-}
 
 void bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
 				unsigned long init_used_size)

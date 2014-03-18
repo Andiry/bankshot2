@@ -36,6 +36,12 @@
 #define	BANKSHOT2_INODE_BITS	7
 #define	BANKSHOT2_DEFAULT_JOURNAL_SIZE	(4 << 20)
 
+/* PMFS supported data blocks */
+/* Currently only support 4K block */
+#define BANKSHOT2_BLOCK_TYPE_4K     0
+#define BANKSHOT2_BLOCK_TYPE_2M     1
+#define BANKSHOT2_BLOCK_TYPE_1G     2
+#define BANKSHOT2_BLOCK_TYPE_MAX    3
 #define	META_BLK_SHIFT	9
 
 /* INODE HINT Start at 3 */
@@ -300,6 +306,25 @@ static inline struct bankshot2_super_block *
 bankshot2_get_super(struct bankshot2_device *bs2_dev)
 {
 	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
+}
+
+static inline unsigned long
+bankshot2_get_numblocks(unsigned short btype)
+{
+//	unsigned long num_blocks;
+
+/*
+	if (btype == PMFS_BLOCK_TYPE_4K) {
+		num_blocks = 1;
+	} else if (btype == PMFS_BLOCK_TYPE_2M) {
+		num_blocks = 512;
+	} else {
+		//btype == PMFS_BLOCK_TYPE_1G 
+		num_blocks = 0x40000;
+	}
+	return num_blocks;
+*/
+	return 1;
 }
 
 /* assumes the length to be 4-byte aligned */
