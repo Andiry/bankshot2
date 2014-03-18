@@ -36,6 +36,8 @@
 #define	BANKSHOT2_INODE_BITS	7
 #define	BANKSHOT2_DEFAULT_JOURNAL_SIZE	(4 << 20)
 
+#define	META_BLK_SHIFT	9
+
 /* INODE HINT Start at 3 */
 #define	BANKSHOT2_FREE_INODE_HINT_START	3
 
@@ -97,6 +99,29 @@ typedef struct bankshot2_journal {
 	__le16     pad;
 	__le16     redo_logging;
 } bankshot2_journal_t;
+
+/* persistent data structure to describe a single log-entry */
+/* every log entry is max CACHELINE_SIZE bytes in size */
+typedef struct {
+	__le64   addr_offset;
+	__le32   transaction_id;
+	__le16   gen_id;
+	u8       type;  /* normal, commit, or abort */
+	u8       size;
+	char     data[48];
+} bankshot2_logentry_t;
+
+/* volatile data structure to describe a transaction */
+typedef struct bankshot2_transaction {
+	u32              transaction_id;
+	u16              num_entries;
+	u16              num_used;
+	u16              gen_id;
+	u16              status;
+	bankshot2_journal_t  *t_journal;
+	bankshot2_logentry_t *start_addr;
+	struct bankshot2_transaction *parent;
+} bankshot2_transaction_t;
 
 /*
  * Structure of the super block in PMFS
