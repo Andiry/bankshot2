@@ -133,6 +133,12 @@ struct bankshot2_super_block {
 	__le32		s_free_inode_hint;
 };
 
+struct bankshot2_blocknode {
+	struct list_head link;
+	unsigned long block_low;
+	unsigned long block_high;
+};
+
 /* job part */
 
 #define STATUS(flag)	((uint8_t)(1 << flag))
@@ -207,17 +213,20 @@ struct bankshot2_device {
 	void *virt_addr;
 	uint32_t jsize;
 	unsigned long blocksize;
+	unsigned long s_blocksize_bits;
 	unsigned long phys_addr;
 	unsigned long size;
 	unsigned long block_start;
 	unsigned long block_end;
 	unsigned long num_free_blocks;
+	unsigned long num_blocknode_allocated;
 	kuid_t	uid;
 	kgid_t	gid;
 	umode_t	mode;
 	struct list_head block_inuse_head;
 	struct mutex s_lock;
 	struct mutex inode_table_mutex;
+	struct kmem_cache *bs2_blocknode_cachep;
 
 	struct cdev chardev;
 	dev_t chardevnum;
@@ -330,3 +339,9 @@ void bankshot2_destroy_block(struct bankshot2_device *);
 int bankshot2_init_super(struct bankshot2_device *,
 				unsigned long, unsigned long);
 void bankshot2_destroy_super(struct bankshot2_device *);
+
+/* bankshot2_mem.c */
+int bankshot2_init_kmem(struct bankshot2_device *);
+void bankshot2_destroy_kmem(struct bankshot2_device *);
+void bankshot2_init_blockmap(struct bankshot2_device *, unsigned long);
+

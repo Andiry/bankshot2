@@ -1,5 +1,5 @@
 /*
- * Handle memory allocation.
+ * Handle Pmem with super block and inode.
  * Copied from PMFS super.c.
  */
 
@@ -72,6 +72,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 		return ret;
 
 	blocksize = bs2_dev->blocksize = PAGE_SIZE;
+	bs2_dev->s_blocksize_bits = PAGE_SHIFT;
 	/* Make sure enough room for sb, root, inode table and journal */
 	if (cache_size < PAGE_SIZE * 3 + bs2_dev->jsize) {
 		bs2_info("Not enough space for init\n");
