@@ -140,7 +140,7 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		size_t size;
 		bp = bankshot2_get_block(bs2_dev,
 			bankshot2_get_block_off(bs2_dev, new_block_low, btype));
-//		bankshot2_memunlock_block(sb, bp); //TBDTBD: Need to fix this
+//		bankshot2_memunlock_block(bs2_dev, bp); //TBDTBD: Need to fix this
 		if (btype == BANKSHOT2_BLOCK_TYPE_4K)
 			size = 0x1 << 12;
 		else if (btype == BANKSHOT2_BLOCK_TYPE_2M)
@@ -148,7 +148,7 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		else
 			size = 0x1 << 30;
 		memset_nt(bp, 0, size);
-//		bankshot2_memlock_block(sb, bp);
+//		bankshot2_memlock_block(bs2_dev, bp);
 	}
 	*blocknr = new_block_low;
 
@@ -175,17 +175,17 @@ static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
 		blocknr = bankshot2_get_block_off(bs2_dev, blocknr,
 						BANKSHOT2_BLOCK_TYPE_4K);
 		root = bankshot2_get_block(bs2_dev, blocknr);
-//		bankshot2_memunlock_block(sb, root);
+//		bankshot2_memunlock_block(bs2_dev, root);
 		root[0] = prev_root;
-//		bankshot2_memlock_block(sb, root);
+//		bankshot2_memlock_block(bs2_dev, root);
 		bankshot2_flush_buffer(root, sizeof(*root), false);
 		prev_root = cpu_to_le64(blocknr);
 		height++;
 	}
-//	bankshot2_memunlock_inode(sb, pi);
+//	bankshot2_memunlock_inode(bs2_dev, pi);
 	pi->root = prev_root;
 	pi->height = height;
-//	bankshot2_memlock_inode(sb, pi);
+//	bankshot2_memlock_inode(bs2_dev, pi);
 	return errval;
 }
 
@@ -201,12 +201,115 @@ static int bankshot2_new_data_block(struct bankshot2_device *bs2_dev,
 	int errval = bankshot2_new_block(bs2_dev, blocknr, pi->i_blk_type, zero);
 
 	if (!errval) {
-//		bankshot2_memunlock_inode(sb, pi);
+//		bankshot2_memunlock_inode(bs2_dev, pi);
 		le64_add_cpu(&pi->i_blocks,
 			(1 << (data_bits - bs2_dev->s_blocksize_bits)));
-//		bankshot2_memlock_inode(sb, pi);
+//		bankshot2_memlock_inode(bs2_dev, pi);
 	}
 
+	return errval;
+}
+
+/* recursive_alloc_blocks: recursively allocate a range of blocks from
+ * first_blocknr to last_blocknr in the inode's btree.
+ * Input:
+ * block: points to the root of the b-tree where the blocks need to be allocated
+ * height: height of the btree
+ * first_blocknr: first block in the specified range
+ * last_blocknr: last_blocknr in the specified range
+ * zero: whether to zero-out the allocated block(s)
+ */
+static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
+	struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
+	__le64 block, u32 height, unsigned long first_blocknr,
+	unsigned long last_blocknr, bool new_node, bool zero)
+{
+	int i, errval;
+	unsigned int meta_bits = META_BLK_SHIFT, node_bits;
+	__le64 *node;
+	bool journal_saved = 0;
+	unsigned long blocknr, first_blk, last_blk;
+	unsigned int first_index, last_index;
+	unsigned int flush_bytes;
+
+	node = bankshot2_get_block(bs2_dev, le64_to_cpu(block));
+
+	node_bits = (height - 1) * meta_bits;
+
+	first_index = first_blocknr >> node_bits;
+	last_index = last_blocknr >> node_bits;
+
+	for (i = first_index; i <= last_index; i++) {
+		if (height == 1) {
+			if (node[i] == 0) {
+				errval = bankshot2_new_data_block(bs2_dev, pi, &blocknr,
+							zero);
+				if (errval) {
+					bs2_dbg("alloc data blk failed %d\n", errval);
+					/* For later recovery in truncate... */
+//					bankshot2_memunlock_inode(bs2_dev, pi);
+//					pi->i_flags |= cpu_to_le32(
+//							PMFS_EOFBLOCKS_FL);
+//					bankshot2_memlock_inode(bs2_dev, pi);
+					return errval;
+				}
+				/* save the meta-data into the journal before
+				 * modifying */
+				if (new_node == 0 && journal_saved == 0) {
+//					int le_size = (last_index - i + 1) << 3;
+//					bankshot2_add_logentry(bs2_dev, trans, &node[i],
+//						le_size, LE_DATA);
+					journal_saved = 1;
+				}
+//				bankshot2_memunlock_block(bs2_dev, node);
+				node[i] = cpu_to_le64(bankshot2_get_block_off(bs2_dev,
+						blocknr, pi->i_blk_type));
+//				bankshot2_memlock_block(bs2_dev, node);
+			}
+		} else {
+			if (node[i] == 0) {
+				/* allocate the meta block */
+				errval = bankshot2_new_block(bs2_dev, &blocknr,
+						BANKSHOT2_BLOCK_TYPE_4K, 1);
+				if (errval) {
+					bs2_dbg("alloc meta blk failed\n");
+					goto fail;
+				}
+				/* save the meta-data into the journal before
+				 * modifying */
+				if (new_node == 0 && journal_saved == 0) {
+//					int le_size = (last_index - i + 1) << 3;
+//					bankshot2_add_logentry(bs2_dev, trans, &node[i],
+//						le_size, LE_DATA);
+					journal_saved = 1;
+				}
+//				bankshot2_memunlock_block(bs2_dev, node);
+				node[i] = cpu_to_le64(bankshot2_get_block_off(bs2_dev,
+					    blocknr, BANKSHOT2_BLOCK_TYPE_4K));
+//				bankshot2_memlock_block(bs2_dev, node);
+				new_node = 1;
+			}
+
+			first_blk = (i == first_index) ? (first_blocknr &
+				((1 << node_bits) - 1)) : 0;
+
+			last_blk = (i == last_index) ? (last_blocknr &
+				((1 << node_bits) - 1)) : (1 << node_bits) - 1;
+
+			errval = recursive_alloc_blocks(trans, bs2_dev, pi, node[i],
+			height - 1, first_blk, last_blk, new_node, zero);
+			if (errval < 0)
+				goto fail;
+		}
+	}
+	if (new_node || trans == NULL) {
+		/* if the changes were not logged, flush the cachelines we may
+	 	* have modified */
+		flush_bytes = (last_index - first_index + 1) * sizeof(node[0]);
+		bankshot2_flush_buffer(&node[first_index], flush_bytes, false);
+	}
+	errval = 0;
+fail:
 	return errval;
 }
 
@@ -263,10 +366,10 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 			}
 			root = cpu_to_le64(bankshot2_get_block_off(bs2_dev, blocknr,
 					   pi->i_blk_type));
-//			bankshot2_memunlock_inode(sb, pi);
+//			bankshot2_memunlock_inode(bs2_dev, pi);
 			pi->root = root;
 			pi->height = height;
-//			bankshot2_memlock_inode(sb, pi);
+//			bankshot2_memlock_inode(bs2_dev, pi);
 		} else {
 			errval = bankshot2_increase_btree_height(bs2_dev, pi, height);
 			if (errval) {
@@ -310,11 +413,11 @@ fail:
 inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans, struct inode *inode,
 		unsigned long file_blocknr, unsigned int num, bool zero)
 {
-	struct super_block *sb = inode->i_sb;
-	struct bankshot2_inode *pi = bankshot2_get_inode(sb, inode->i_ino);
+	struct super_block *bs2_dev = inode->i_bs2_dev;
+	struct bankshot2_inode *pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
 	int errval;
 
-	errval = __bankshot2_alloc_blocks(trans, sb, pi, file_blocknr, num, zero);
+	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi, file_blocknr, num, zero);
 	inode->i_blocks = le64_to_cpu(pi->i_blocks);
 
 	return errval;
