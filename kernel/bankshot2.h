@@ -308,6 +308,23 @@ bankshot2_get_super(struct bankshot2_device *bs2_dev)
 	return (struct bankshot2_super_block *)bs2_dev->virt_addr;
 }
 
+/* If this is part of a read-modify-write of the block,
+ * pmfs_memunlock_block() before calling! */
+static inline void *bankshot2_get_block(struct bankshot2_device *bs2_dev,
+					u64 block)
+{
+	struct bankshot2_super_block *ps = bankshot2_get_super(bs2_dev);
+
+	return block ? ((void *)ps + block) : NULL;
+}
+
+static inline u64
+bankshot2_get_block_off(struct bankshot2_device *bs2_dev,
+			unsigned long blocknr, unsigned short btype)
+{
+	return (u64)blocknr << PAGE_SHIFT;
+}
+
 static inline unsigned long
 bankshot2_get_numblocks(unsigned short btype)
 {

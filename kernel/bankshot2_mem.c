@@ -18,6 +18,12 @@ bankshot2_alloc_blocknode(struct bankshot2_device *bs2_dev)
 	return p;
 }
 
+static void __bankshot2_free_blocknode(struct bankshot2_device *bs2_dev,
+					struct bankshot2_blocknode *bnode)
+{
+	kmem_cache_free(bs2_dev->bs2_blocknode_cachep, bnode);
+}
+
 int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero)
 {
@@ -124,7 +130,7 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 	mutex_unlock(&bs2_dev->s_lock);
 
 	if (free_blocknode)
-		__bankshot2_free_blocknode(free_blocknode);
+		__bankshot2_free_blocknode(bs2_dev, free_blocknode);
 
 	if (found == 0) {
 		return -ENOSPC;
