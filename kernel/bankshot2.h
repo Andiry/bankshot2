@@ -431,6 +431,10 @@ void bankshot2_destroy_block(struct bankshot2_device *);
 int bankshot2_init_kmem(struct bankshot2_device *);
 void bankshot2_destroy_kmem(struct bankshot2_device *);
 void bankshot2_init_blockmap(struct bankshot2_device *, unsigned long);
+int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
+	struct bankshot2_device *bs2_dev,
+	struct bankshot2_inode *pi, unsigned long file_blocknr, unsigned int num,
+	bool zero);
 
 /* bankshot2_inode.c */
 int bankshot2_init_inode_table(struct bankshot2_device *);
