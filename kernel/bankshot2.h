@@ -358,6 +358,30 @@ static inline void bankshot2_flush_buffer(void *buf, uint32_t len, bool fence)
 		asm volatile ("sfence\n" : : );
 }
 
+static inline u64 __bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long blocknr)
+{
+	__le64 *level_ptr;
+	u64 bp = 0;
+	u32 height, bit_shift;
+	unsigned int idx;
+
+	height = pi->height;
+	bp = le64_to_cpu(pi->root);
+
+	while (height > 0) {
+		level_ptr = bankshot2_get_block(bs2_dev, bp);
+		bit_shift = (height - 1) * META_BLK_SHIFT;
+		idx = blocknr >> bit_shift;
+		bp = le64_to_cpu(level_ptr[idx]);
+		if (bp == 0)
+			return 0;
+		blocknr = blocknr & ((1 << bit_shift) - 1);
+		height--;
+	}
+	return bp;
+}
+
 /* assumes the length to be 4-byte aligned */
 static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 {
