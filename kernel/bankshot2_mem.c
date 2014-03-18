@@ -5,6 +5,27 @@
 
 #include "bankshot2.h"
 
+/*
+ * allocate a data block for inode and return it's absolute blocknr.
+ * Zeroes out the block if zero set. Increments inode->i_blocks.
+ */
+static int bankshot2_new_data_block(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long *blocknr, int zero)
+{
+	unsigned int data_bits = PAGE_SHIFT;
+
+	int errval = bankshot2_new_block(bs2_dev, blocknr, pi->i_blk_type, zero);
+
+	if (!errval) {
+//		pmfs_memunlock_inode(sb, pi);
+		le64_add_cpu(&pi->i_blocks,
+			(1 << (data_bits - bs2_dev->s_blocksize_bits)));
+//		pmfs_memlock_inode(sb, pi);
+	}
+
+	return errval;
+}
+
 int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 	struct bankshot2_device *bs2_dev,
 	struct bankshot2_inode *pi, unsigned long file_blocknr, unsigned int num,
