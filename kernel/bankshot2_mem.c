@@ -424,7 +424,7 @@ inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans, struct inode *
 }
 */
 
-void bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
+int bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
 				unsigned long init_used_size)
 {
 	unsigned long num_used_block;
@@ -435,13 +435,17 @@ void bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
 
 	bs2_info("blockmap init: used %lu blocks\n", num_used_block);
 	blknode = bankshot2_alloc_blocknode(bs2_dev);
-	if (blknode == NULL)
+	if (blknode == NULL) {
 		bs2_info("WARNING: blocknode allocation failed\n");
+		return -ENOMEM;
+	}
 
 	blknode->block_low = bs2_dev->block_start;
 	blknode->block_high = bs2_dev->block_start + num_used_block - 1;
 	bs2_dev->num_free_blocks -= num_used_block;
 	list_add(&blknode->link, &bs2_dev->block_inuse_head);
+
+	return 0;
 }
 
 int bankshot2_init_kmem(struct bankshot2_device *bs2_dev)

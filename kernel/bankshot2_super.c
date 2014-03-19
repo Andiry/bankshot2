@@ -76,6 +76,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	/* Make sure enough room for sb, root, inode table and journal */
 	if (cache_size < PAGE_SIZE * 3 + bs2_dev->jsize) {
 		bs2_info("Not enough space for init\n");
+		bankshot2_iounmap(bs2_dev);
 		return -EINVAL;
 	}
 
@@ -92,6 +93,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 				"defined 0x%x, "
 				"required 0x%llx\n", BANKSHOT2_SB_SIZE,
 			inode_table_start + sizeof(struct bankshot2_inode));
+		bankshot2_iounmap(bs2_dev);
 		return -EINVAL;
 	}
 
@@ -112,7 +114,14 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	super->s_journal_offset = cpu_to_le64(journal_meta_start);
 	super->s_inode_table_offset = cpu_to_le64(inode_table_start);
 
-	bankshot2_init_blockmap(bs2_dev, journal_data_start + bs2_dev->jsize);
+	ret = bankshot2_init_blockmap(bs2_dev,
+					journal_data_start + bs2_dev->jsize);
+
+	if (ret) {
+		bs2_info("blockmap init failed\n");
+		bankshot2_iounmap(bs2_dev);
+		return ret;
+	}
 
 /* FIXME: ignore journal part
 	if (bankshot2_journal_hard_init(bs2_dev, journal_data_start,
@@ -131,6 +140,11 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	bankshot2_new_block(bs2_dev, &blocknr, BANKSHOT2_BLOCK_TYPE_4K, 1);
 
 	root_i = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
+	if (!root_i) {
+		bs2_info("Get root_i failed\n");
+		bankshot2_iounmap(bs2_dev);
+		return -EINVAL;
+	}
 
 	root_i->i_mode = cpu_to_le16(bs2_dev->mode | S_IFDIR);
 	root_i->i_uid = cpu_to_le32(from_kuid(&init_user_ns, bs2_dev->uid));
