@@ -126,8 +126,11 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	}
 */
 
-	if (bankshot2_init_inode_table(bs2_dev) < 0)
+	if (bankshot2_init_inode_table(bs2_dev) < 0) {
+		bs2_info("Inode table init failed\n");
+		bankshot2_iounmap(bs2_dev);
 		return -EINVAL;
+	}
 
 	bankshot2_flush_buffer(super, BANKSHOT2_SB_SIZE, false);
 	bankshot2_flush_buffer((char *)super + BANKSHOT2_SB_SIZE, sizeof(*super), false);
