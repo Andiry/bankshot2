@@ -76,6 +76,7 @@ static int __init bankshot2_init(void)
 		goto block_fail;
 	}
 
+	bs2_info("Bankshot2 initialization succeed.\n");
 	return 0;
 
 block_fail:
@@ -103,6 +104,7 @@ check_fail:
 
 static void __exit bankshot2_exit(void)
 {
+	bs2_info("Exit Bankshot2.\n");
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	bankshot2_destroy_block(bs2_dev);
