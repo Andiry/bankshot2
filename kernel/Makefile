@@ -1,6 +1,6 @@
 obj-m += bankshot2.o
 
-bankshot2-y :=bankshot2_core.o bankshot2_char.o bankshot2_cache.o \
+bankshot2-y :=bankshot2_init.o bankshot2_char.o bankshot2_cache.o \
 		bankshot2_io.o bankshot2_block.o bankshot2_mem.o \
 		bankshot2_inode.o bankshot2_super.o
 

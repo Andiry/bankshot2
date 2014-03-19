@@ -6,7 +6,7 @@
  */
 
 /*
- * Bankshot2 core code. Init entrance.
+ * Bankshot2 Init entrance.
  */
 
 #include "bankshot2.h"
