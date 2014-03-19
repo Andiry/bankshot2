@@ -59,13 +59,13 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	mutex_init(&bs2_dev->inode_table_mutex);
 	mutex_init(&bs2_dev->s_lock);
 
-	bankshot2_init_memblocks(bs2_dev, phys_addr);
 	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
 	if (ret) {
 		bs2_info("Bankshot2 ioremap failed\n");
 		return ret;
 	}
 
+	bankshot2_init_memblocks(bs2_dev, phys_addr);
 	blocksize = bs2_dev->blocksize = PAGE_SIZE;
 	bs2_dev->s_blocksize_bits = PAGE_SHIFT;
 	/* Make sure enough room for sb, root, inode table and journal */
@@ -133,7 +133,8 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	}
 
 	bankshot2_flush_buffer(super, BANKSHOT2_SB_SIZE, false);
-	bankshot2_flush_buffer((char *)super + BANKSHOT2_SB_SIZE, sizeof(*super), false);
+	bankshot2_flush_buffer((char *)super + BANKSHOT2_SB_SIZE,
+				sizeof(*super), false);
 
 	bankshot2_new_block(bs2_dev, &blocknr, BANKSHOT2_BLOCK_TYPE_4K, 1);
 
@@ -160,9 +161,9 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	/* bankshot2_sync_inode(root_i); */
 	bankshot2_flush_buffer(root_i, sizeof(*root_i), false);
 
-	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
-			"remap @%p, block start %ld, block end %ld, "
-			"free blocks %ld\n",
+	bs2_info("Bankshot2 super block initialized, cache start at %ld, "
+			"size %ld, remap @%p, block start %ld, "
+			"block end %ld, free blocks %ld\n",
 			bs2_dev->phys_addr, bs2_dev->size, bs2_dev->virt_addr,
 			bs2_dev->block_start, bs2_dev->block_end,
 			bs2_dev->num_free_blocks);
