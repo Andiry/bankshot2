@@ -35,13 +35,6 @@ static void bankshot2_init_memblocks(struct bankshot2_device *bs2_dev,
 	bs2_dev->block_start = 0;
 	bs2_dev->block_end = (bs2_dev->size >> PAGE_SHIFT);
 	bs2_dev->num_free_blocks = bs2_dev->block_end;
-	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
-			"remap @%p, block start %ld, block end %ld, "
-			"free blocks %ld\n",
-			bs2_dev->phys_addr, bs2_dev->size, bs2_dev->virt_addr,
-			bs2_dev->block_start, bs2_dev->block_end,
-			bs2_dev->num_free_blocks);
-
 }
 
 int bankshot2_init_super(struct bankshot2_device *bs2_dev,
@@ -68,8 +61,10 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 
 	bankshot2_init_memblocks(bs2_dev, phys_addr);
 	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
-	if (!ret)
+	if (ret) {
+		bs2_info("Bankshot2 ioremap failed\n");
 		return ret;
+	}
 
 	blocksize = bs2_dev->blocksize = PAGE_SIZE;
 	bs2_dev->s_blocksize_bits = PAGE_SHIFT;
@@ -161,6 +156,13 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	root_i->height = 0;
 	/* bankshot2_sync_inode(root_i); */
 	bankshot2_flush_buffer(root_i, sizeof(*root_i), false);
+
+	bs2_info("Bankshot2 initialized, cache start at %ld, size %ld, "
+			"remap @%p, block start %ld, block end %ld, "
+			"free blocks %ld\n",
+			bs2_dev->phys_addr, bs2_dev->size, bs2_dev->virt_addr,
+			bs2_dev->block_start, bs2_dev->block_end,
+			bs2_dev->num_free_blocks);
 
 	return ret;
 }
