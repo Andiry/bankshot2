@@ -344,6 +344,12 @@ bankshot2_get_numblocks(unsigned short btype)
 	return 1;
 }
 
+static inline unsigned long bankshot2_get_pfn(struct bankshot2_device *bs2_dev,
+						u64 block)
+{
+	return (bs2_dev->phys_addr + block) >> PAGE_SHIFT;
+}
+
 static inline void bankshot2_flush_buffer(void *buf, uint32_t len, bool fence)
 {
 	uint32_t i;

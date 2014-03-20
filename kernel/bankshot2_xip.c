@@ -10,7 +10,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 {
 	int err = -EIO;
 	u64 block;
-	bankshot2_transaction_t *trans;
+//	bankshot2_transaction_t *trans;
 
 	block = bankshot2_find_data_block(bs2_dev, pi, iblock);
 
@@ -20,7 +20,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 			goto err;
 		}
 
-		err = bankshot2_alloc_blocks(trans, bs2_dev, pi, iblock,
+		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, iblock,
 						1, true);
 		if (err) {
 			bs2_dbg("[%s:%d] Alloc failed!\n", __func__, __LINE__);
