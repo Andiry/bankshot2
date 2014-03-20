@@ -96,12 +96,14 @@ struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 	if (ino == 0)
 		return NULL;
 
-	block = ino >> bankshot2_inode_blk_shift(inode_table);
+	block = ino >> (bankshot2_inode_blk_shift(inode_table)
+			- BANKSHOT2_INODE_BITS);
 	bp = __bankshot2_find_data_block(bs2_dev, inode_table, block);
 
 	if (bp == 0)
 		return NULL;
-	ino_offset = (ino & (bankshot2_inode_blk_size(inode_table) - 1));
+	ino_offset = ((ino << BANKSHOT2_INODE_BITS)
+			& (bankshot2_inode_blk_size(inode_table) - 1));
 	bs2_info("%s: internal block %llu, actual block %llu, ino_offset %llu\n",
 			__func__, block, bp / PAGE_SIZE, ino_offset);
 	return (struct bankshot2_inode *)((void *)ps + bp + ino_offset);
