@@ -409,20 +409,18 @@ fail:
  * Allocate num data blocks for inode, starting at given file-relative
  * block number.
  */
-/*
-inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans, struct inode *inode,
+inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
+		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
 		unsigned long file_blocknr, unsigned int num, bool zero)
 {
-	struct super_block *bs2_dev = inode->i_bs2_dev;
-	struct bankshot2_inode *pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
 	int errval;
 
-	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi, file_blocknr, num, zero);
-	inode->i_blocks = le64_to_cpu(pi->i_blocks);
+	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi, file_blocknr,
+						num, zero);
+//	inode->i_blocks = le64_to_cpu(pi->i_blocks);
 
 	return errval;
 }
-*/
 
 int bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
 				unsigned long init_used_size)

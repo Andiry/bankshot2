@@ -456,9 +456,11 @@ int bankshot2_init_kmem(struct bankshot2_device *);
 void bankshot2_destroy_kmem(struct bankshot2_device *);
 int bankshot2_init_blockmap(struct bankshot2_device *, unsigned long);
 int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
-	struct bankshot2_device *bs2_dev,
-	struct bankshot2_inode *pi, unsigned long file_blocknr, unsigned int num,
-	bool zero);
+	struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
+	unsigned long file_blocknr, unsigned int num, bool zero);
+inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
+		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
+		unsigned long file_blocknr, unsigned int num, bool zero);
 int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero);
 
@@ -472,3 +474,7 @@ int bankshot2_init_super(struct bankshot2_device *,
 				unsigned long, unsigned long);
 void bankshot2_destroy_super(struct bankshot2_device *);
 
+/* bankshot2_xip.c */
+int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, pgoff_t pgoff, int create,
+			void **kmem, unsigned long *pfn);

@@ -2,7 +2,7 @@ obj-m += bankshot2.o
 
 bankshot2-y :=bankshot2_init.o bankshot2_char.o bankshot2_cache.o \
 		bankshot2_io.o bankshot2_block.o bankshot2_mem.o \
-		bankshot2_inode.o bankshot2_super.o
+		bankshot2_inode.o bankshot2_xip.o bankshot2_super.o
 
 all:
 	make -C /media/root/e755aa6d-e75c-46b1-a871-d4c7a5587972/usr/src/linux M=`pwd`
