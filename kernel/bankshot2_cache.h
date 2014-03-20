@@ -6,6 +6,7 @@
 struct bankshot2_cache_data{
 	int file;
 	uint64_t offset; //file offset in bytes
+	size_t size; //request size in bytes
 	uint8_t rnw;
 	char *buf;
 	//return values

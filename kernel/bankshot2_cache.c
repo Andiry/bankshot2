@@ -7,7 +7,7 @@
 #include "bankshot2_cache.h"
 
 static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
-					unsigned long *st_ino)
+					u64 *st_ino)
 {
 	struct file *fileinfo;
 	struct inode *inode;
@@ -83,12 +83,12 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 	filemap_write_and_wait(&inode->i_data);
 	if (unlikely(inode->i_mapping->nrpages || inode->i_data.nrpages))
 		bs2_info("Still has dirty pages %lu %lu\n",
-				inode->i_mapping->nrpages, inode->i_data.nrpages);
+			inode->i_mapping->nrpages, inode->i_data.nrpages);
 
 	fput(fileinfo);
 	*st_ino = inode->i_ino;
-	bs2_dbg("Inode %lu permissions: Read %d Write %d\n", *st_ino, data->read,
-								data->write);
+	bs2_dbg("Inode %llu permissions: Read %d Write %d\n", *st_ino,
+			data->read, data->write);
 
 	if (data->rnw == READ_EXTENT && !data->read) {
 		bs2_info("Request want to read but no read permission!\n");
@@ -107,11 +107,59 @@ static int bankshot2_lookup_key(void)
 	return 0;
 }
 
+/* Copied from do_xip_mapping_read(), filemap_xip.c */
+static int bankshot2_check_extents(struct bankshot2_device *bs2_dev,
+		u64 st_ino, struct bankshot2_cache_data *data)
+{
+	struct bankshot2_inode *pi;
+	pgoff_t index;
+	u64 offset;
+	size_t size;
+	int ret;
+
+	pi = bankshot2_get_inode(bs2_dev, st_ino);
+
+	if (!pi || !pi->root || pi->i_size == 0) {
+		bs2_info("pi %llu invalid!\n", st_ino);
+		return -EINVAL;
+	}
+
+	index = data->offset >> PAGE_SHIFT;
+	offset = data->offset & (PAGE_SIZE - 1);
+
+	size = data->size + offset;
+
+	while (size) {
+		void *xip_mem;
+		unsigned long xip_pfn;
+		unsigned long nr;
+
+		nr = PAGE_SIZE;
+		if (nr > size)
+			nr = size;
+
+		ret = bankshot2_get_xip_mem(bs2_dev, pi, index, 0,
+						&xip_mem, &xip_pfn);
+		if (ret)
+			break;
+		bs2_info("%s: inode %llu, offset %llu, size %lu, "
+				"mem %p, pfn %lu\n",
+				__func__, st_ino, offset, nr, xip_mem, xip_pfn);
+
+		offset += nr;
+		size -= nr;
+		index += offset >> PAGE_SHIFT;
+		offset &= (PAGE_SIZE - 1);
+	}
+
+	return 0;
+}
+
 int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	int ret;
-	unsigned long st_ino;
+	u64 st_ino;
 
 	data = &_data;
 
@@ -126,6 +174,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	//FIXME: need a lock here
 
 	ret = bankshot2_lookup_key();
+	bankshot2_check_extents(bs2_dev, st_ino, data);
 
 	return ret;
 
