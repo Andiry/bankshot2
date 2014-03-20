@@ -25,4 +25,5 @@ struct bankshot2_cache_data{
 
 /* ioctls */
 #define BANKSHOT2_IOCTL_CACHE_DATA	0xBCD00000
+#define BANKSHOT2_IOCTL_SHOW_INODE_INFO	0xBCD00001
 

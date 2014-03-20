@@ -20,6 +20,7 @@ static int bankshot2_ioremap(struct bankshot2_device *bs2_dev,
 
 	bs2_dev->virt_addr = ret;
 	bs2_dev->size = size;
+	memset_nt(bs2_dev->virt_addr, 0, size);
 	return 0;
 }
 

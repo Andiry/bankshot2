@@ -10,7 +10,7 @@
 int main(void)
 {
 	int fd, fd1, fd2;
-//	int a = 3, b = 4;
+	unsigned long a = 1, b = 4;
 	struct bankshot2_cache_data data;
 	int rnw = 1;
 
@@ -28,6 +28,9 @@ int main(void)
 	fd2 = open("/dev/bankshot2Block0", O_RDWR);
 	printf("fds: %d %d %d\n", fd1, fd, fd2);
 	ioctl(fd2, BANKSHOT2_IOCTL_CACHE_DATA, &data);
+
+	ioctl(fd, BANKSHOT2_IOCTL_SHOW_INODE_INFO, &a);
+	ioctl(fd, BANKSHOT2_IOCTL_SHOW_INODE_INFO, &b);
 
 	close(fd);
 	close(fd1);

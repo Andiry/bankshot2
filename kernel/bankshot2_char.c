@@ -24,16 +24,37 @@ int bankshot2_char_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static void bankshot2_ioctl_show_inode_info(struct bankshot2_device *bs2_dev,
+						u64 ino)
+{
+	struct bankshot2_inode *pi;
+
+	bs2_info("Ioctl show inode info: inode %llu\n", ino);
+
+	pi = bankshot2_get_inode(bs2_dev, ino);
+	if (!pi) {
+		bs2_info("inode %llu does not exist\n", ino);
+		return;
+	}
+
+	bs2_info("Inode %llu: root @ %llu, size %llu, blocks %llu\n",
+			ino, pi->root, pi->i_size, pi->i_blocks);
+
+	return;
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	struct bankshot2_device *bs2_dev = filp->private_data;
 
+	bs2_info("ioctl sends to device, cmd 0x%x\n", cmd);
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
-		bs2_info("ioctl sends to device, cmd 0x%x, arg %d\n",
-				cmd, *(int *)arg);
 		bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_SHOW_INODE_INFO:
+		bankshot2_ioctl_show_inode_info(bs2_dev, *(u64 *)arg);
 		break;
 	default:
 		break;
