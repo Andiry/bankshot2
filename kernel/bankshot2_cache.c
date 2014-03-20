@@ -140,11 +140,17 @@ static int bankshot2_check_extents(struct bankshot2_device *bs2_dev,
 
 		ret = bankshot2_get_xip_mem(bs2_dev, pi, index, 0,
 						&xip_mem, &xip_pfn);
-		if (ret)
+		if (ret) {
+			bs2_info("bankshot2_get_xip_mem returns %d, "
+				"inode %llu, index %lu, offset %llu, "
+				"size %lu\n",
+				ret, st_ino, index, offset, nr);
 			break;
-		bs2_info("%s: inode %llu, offset %llu, size %lu, "
+		}
+		bs2_info("%s: inode %llu, index %lu, offset %llu, size %lu, "
 				"mem %p, pfn %lu\n",
-				__func__, st_ino, offset, nr, xip_mem, xip_pfn);
+				__func__, st_ino, index, 
+				offset, nr, xip_mem, xip_pfn);
 
 		offset += nr;
 		size -= nr;
@@ -174,6 +180,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	//FIXME: need a lock here
 
 	ret = bankshot2_lookup_key();
+	st_ino = 1;
 	bankshot2_check_extents(bs2_dev, st_ino, data);
 
 	return ret;
