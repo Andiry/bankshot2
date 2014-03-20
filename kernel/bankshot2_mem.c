@@ -409,7 +409,7 @@ fail:
  * Allocate num data blocks for inode, starting at given file-relative
  * block number.
  */
-inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
+int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
 		unsigned long file_blocknr, unsigned int num, bool zero)
 {

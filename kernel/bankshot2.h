@@ -458,7 +458,7 @@ int bankshot2_init_blockmap(struct bankshot2_device *, unsigned long);
 int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 	struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
 	unsigned long file_blocknr, unsigned int num, bool zero);
-inline int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
+int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi,
 		unsigned long file_blocknr, unsigned int num, bool zero);
 int bankshot2_new_block(struct bankshot2_device *bs2_dev,
@@ -468,6 +468,8 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 int bankshot2_init_inode_table(struct bankshot2_device *);
 struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 						u64 ino);
+u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, unsigned long file_blocknr);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,

@@ -28,6 +28,37 @@ bankshot2_get_inode_table(struct bankshot2_device *bs2_dev)
 			le64_to_cpu(ps->s_inode_table_offset));
 }
 
+/*
+ * find the offset to the block represented by the given inode's file
+ * relative block number.
+ */
+u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, unsigned long file_blocknr)
+{
+	u32 blk_shift;
+	unsigned long blk_offset, blocknr = file_blocknr;
+	unsigned int data_bits = blk_type_to_shift[pi->i_blk_type];
+	unsigned int meta_bits = META_BLK_SHIFT;
+	u64 bp;
+
+	/* convert the 4K blocks into the actual blocks the inode is using */
+	blk_shift = data_bits - bs2_dev->s_blocksize_bits;
+	blk_offset = file_blocknr & ((1 << blk_shift) - 1);
+	blocknr = file_blocknr >> blk_shift;
+
+	if (blocknr >= (1UL << (pi->height * meta_bits)))
+		return 0;
+
+	bp = __bankshot2_find_data_block(bs2_dev, pi, blocknr);
+	bs2_dbg("find_data_block %lx, %x %llx blk_p %p blk_shift %x"
+		" blk_offset %lx\n", file_blocknr, pi->height, bp,
+		bankshot2_get_block(bs2_dev, bp), blk_shift, blk_offset);
+
+	if (bp == 0)
+		return 0;
+	return bp + (blk_offset << bs2_dev->s_blocksize_bits);
+}
+
 /* Initialize the inode table. The bankshot2_inode struct corresponding to the
  * inode table has already been zero'd out */
 int bankshot2_init_inode_table(struct bankshot2_device *bs2_dev)
