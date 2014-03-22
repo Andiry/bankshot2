@@ -119,8 +119,13 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 
-	if (!pi || !pi->root || pi->i_size == 0) {
+	if (!pi) {
 		bs2_info("pi %llu invalid!\n", st_ino);
+		return -EINVAL;
+	}
+
+	if (!create && (!pi->root || pi->i_size == 0)) {
+		bs2_info("pi %llu is empty\n", st_ino);
 		return -EINVAL;
 	}
 
@@ -157,6 +162,9 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 		index += offset >> PAGE_SHIFT;
 		offset &= (PAGE_SIZE - 1);
 	}
+
+	if (create && PAGE_SIZE * index > pi->i_size)
+		bankshot2_update_isize(pi, PAGE_SIZE * index);
 
 	return 0;
 }

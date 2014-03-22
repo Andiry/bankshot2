@@ -388,6 +388,14 @@ static inline u64 __bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 	return bp;
 }
 
+static inline void bankshot2_update_isize(struct bankshot2_inode *pi,
+						u64 new_size)
+{
+//	pmfs_memunlock_inode(inode->i_sb, pi);
+	pi->i_size = cpu_to_le64(new_size);
+//	pmfs_memlock_inode(inode->i_sb, pi);
+}
+
 /* assumes the length to be 4-byte aligned */
 static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 {
