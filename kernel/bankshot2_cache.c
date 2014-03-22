@@ -108,8 +108,8 @@ static int bankshot2_lookup_key(void)
 }
 
 /* Copied from do_xip_mapping_read(), filemap_xip.c */
-static int bankshot2_check_extents(struct bankshot2_device *bs2_dev,
-		u64 st_ino, struct bankshot2_cache_data *data)
+static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
+		u64 st_ino, struct bankshot2_cache_data *data, int create)
 {
 	struct bankshot2_inode *pi;
 	pgoff_t index;
@@ -138,7 +138,7 @@ static int bankshot2_check_extents(struct bankshot2_device *bs2_dev,
 		if (nr > size)
 			nr = size;
 
-		ret = bankshot2_get_xip_mem(bs2_dev, pi, index, 0,
+		ret = bankshot2_get_xip_mem(bs2_dev, pi, index, create,
 						&xip_mem, &xip_pfn);
 		if (ret) {
 			bs2_info("bankshot2_get_xip_mem returns %d, "
@@ -181,7 +181,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	ret = bankshot2_lookup_key();
 	st_ino = 1;
-	bankshot2_check_extents(bs2_dev, st_ino, data);
+	bankshot2_find_or_alloc_extents(bs2_dev, st_ino, data, 1);
 
 	return ret;
 
