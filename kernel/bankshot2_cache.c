@@ -150,7 +150,7 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 				"inode %llu, index %lu, offset %llu, "
 				"size %lu\n",
 				ret, st_ino, index, offset, nr);
-			break;
+			return ret;
 		}
 		bs2_info("%s: inode %llu, index %lu, offset %llu, size %lu, "
 				"mem %p, pfn %lu\n",
@@ -163,8 +163,8 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 		offset &= (PAGE_SIZE - 1);
 	}
 
-	if (create && PAGE_SIZE * index > pi->i_size)
-		bankshot2_update_isize(pi, PAGE_SIZE * index);
+	if (create && (data->offset + data->size > pi->i_size))
+		bankshot2_update_isize(pi, data->offset + data->size);
 
 	return 0;
 }

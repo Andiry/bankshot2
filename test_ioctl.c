@@ -16,7 +16,7 @@ int main(void)
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	data.file = fd1;
-	data.offset = 102400;
+	data.offset = 1024000000;
 	data.size = 8192;
 	data.rnw = READ_EXTENT;
 	data.read = (rnw == READ_EXTENT);
