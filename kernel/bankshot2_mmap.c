@@ -110,6 +110,33 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 	return ret;	/* 0 or negative error code */
 }
 
+/* Find out how many pages overlap with existing vmas */
+static unsigned long count_vma_pages_range(struct mm_struct *mm,
+		unsigned long addr, unsigned long end)
+{
+	unsigned long nr_pages = 0;
+	struct vm_area_struct *vma;
+
+	vma = find_vma_intersection(mm, addr, end);
+	if (!vma)
+		return 0;
+
+	nr_pages = (min(end, vma->vm_end) -
+		max(addr, vma->vm_start)) >> PAGE_SHIFT;
+
+	for (vma = vma->vm_next; vma; vma = vma->vm_next) {
+		unsigned long overlap_len;
+
+		if (vma->vm_start > end)
+			break;
+
+		overlap_len = min(end, vma->vm_end) - vma->vm_start;
+		nr_pages += overlap_len >> PAGE_SHIFT;
+	}
+
+	return nr_pages;
+}
+
 /*
  * Return true if the calling process may expand its vm space by the passed
  * number of pages
@@ -125,6 +152,51 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
 		return 0;
 
 	return 1;
+}
+
+static int find_vma_links(struct mm_struct *mm, unsigned long addr,
+		unsigned long end, struct vm_area_struct **pprev,
+		struct rb_node ***rb_link, struct rb_node **rb_parent)
+{
+	struct rb_node **__rb_link, *__rb_parent, *rb_prev;
+
+	__rb_link = &mm->mm_rb.rb_node;
+	rb_prev = __rb_parent = NULL;
+
+	while (*__rb_link) {
+		struct vm_area_struct *vma_tmp;
+
+		__rb_parent = *__rb_link;
+		vma_tmp = rb_entry(__rb_parent, struct vm_area_struct, vm_rb);
+
+		if (vma_tmp->vm_end > addr) {
+			if (vma_tmp->vm_start < end)
+				return -ENOMEM;
+			__rb_link = &__rb_parent->rb_left;
+		} else {
+			rb_prev = __rb_parent;
+			__rb_link = &__rb_parent->rb_right;
+		}
+	}
+
+	*pprev = NULL;
+	if (rb_prev)
+		*pprev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
+	*rb_link = __rb_link;
+	*rb_parent = __rb_parent;
+	return 0;
+}
+
+static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
+{
+	/*
+	 * hugetlb has its own accounting separate from the core VM
+	 * VM_HUGETLB may not be set yet so we cannot check for that flag.
+	 */
+//	if (file && is_file_hugepages(file))
+//		return 0;
+
+	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
 }
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
@@ -148,6 +220,21 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 
 		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
 			return -ENOMEM;
+	}
+
+	error = -ENOMEM;
+munmap_back:
+	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+		if (do_munmap(mm, addr, len))
+			return -ENOMEM;
+		goto munmap_back;
+	}
+
+	if (accountable_mapping(file, vm_flags)) {
+		charged = len >> PAGE_SHIFT;
+//		if (security_vm_enough_memory_mm(mm, charged))
+//			return -ENOMEM;
+		vm_flags |= VM_ACCOUNT;
 	}
 }
 
