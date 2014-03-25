@@ -1,8 +1,16 @@
+/*
+ * Bankshot2 Mmap manager.
+ * Basically copied from mm/mmap.c and other mm source files.
+ */
+
 #include <linux/mman.h>
+#include <linux/mount.h>
 #include <linux/audit.h>
 #include <linux/security.h>
 #include <linux/hugetlb.h>
 #include "bankshot2.h"
+
+#define mmap_min_addr	0UL
 
 long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, int *nonblocking)
@@ -102,6 +110,53 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 	return ret;	/* 0 or negative error code */
 }
 
+static inline unsigned long round_hint_to_min(unsigned long hint)
+{
+	hint &= PAGE_MASK;
+	if (((void *)hint != NULL) && (hint < mmap_min_addr))
+		return PAGE_ALIGN(mmap_min_addr);
+	return hint;
+}
+
+unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long prot,
+		unsigned long flags, unsigned long pgoff,
+		unsigned long *populate)
+{
+	struct mm_struct *mm = current->mm;
+	struct inode *inode;
+	vm_flags_t vm_flags;
+
+	*populate = 0;
+	/*
+	 * Does the application expect PROT_READ to imply PROT_EXEC?
+	 *
+	 * (the exception is when the underlying filesystem is noexec
+	 *  mounted, in which case we dont add PROT_EXEC.)
+	 */
+	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
+		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
+			prot |= PROT_EXEC;
+
+	if (!len)
+		return -EINVAL;
+
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
+
+	/* Careful about overflows.. */
+	len = PAGE_ALIGN(len);
+	if (!len)
+		return -ENOMEM;
+
+	/* offset overflow? */
+	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+               return -EOVERFLOW;
+
+	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+	if (addr & ~PAGE_MASK)
+		return addr;
+}
 
 unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long prot,
