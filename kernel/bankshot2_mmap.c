@@ -118,6 +118,27 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
 	return hint;
 }
 
+#define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
+
+int locks_mandatory_locked(struct inode *inode)
+{
+	fl_owner_t owner = current->files;
+	struct file_lock *fl;
+
+	/*
+	 * Search the lock list for this inode for any POSIX locks.
+	 */
+	spin_lock(&inode->i_lock);
+	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
+		if (!IS_POSIX(fl))
+			continue;
+		if (fl->fl_owner != owner)
+			break;
+	}
+	spin_unlock(&inode->i_lock);
+	return fl ? -EAGAIN : 0;
+}
+
 unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long prot,
 		unsigned long flags, unsigned long pgoff,
@@ -156,6 +177,83 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
 	if (addr & ~PAGE_MASK)
 		return addr;
+
+	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+		mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+
+	if (flags & MAP_LOCKED)
+		if (!can_do_mlock())
+			return -EPERM;
+
+	inode = file ? file_inode(file) : NULL;
+
+	if (file) {
+		switch (flags & MAP_TYPE) {
+		case MAP_SHARED:
+			if ((prot&PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
+				return -EACCES;
+
+			/*
+			 * Make sure we don't allow writing to an append-only
+			 * file..
+			 */
+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+				return -EACCES;
+
+			/*
+			 * Make sure there are no mandatory locks on the file.
+			 */
+			if (locks_verify_locked(inode))
+				return -EAGAIN;
+
+			vm_flags |= VM_SHARED | VM_MAYSHARE;
+			if (!(file->f_mode & FMODE_WRITE))
+				vm_flags &= ~(VM_MAYWRITE | VM_SHARED);
+
+			/* fall through */
+		case MAP_PRIVATE:
+			if (!(file->f_mode & FMODE_READ))
+				return -EACCES;
+			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
+				if (vm_flags & VM_EXEC)
+					return -EPERM;
+				vm_flags &= ~VM_MAYEXEC;
+			}
+
+			if (!file->f_op || !file->f_op->mmap)
+				return -ENODEV;
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (flags & MAP_TYPE) {
+		case MAP_SHARED:
+			/*
+			 * Ignore pgoff.
+			 */
+			pgoff = 0;
+			vm_flags |= VM_SHARED | VM_MAYSHARE;
+			break;
+		case MAP_PRIVATE:
+			/*
+			 * Set pgoff according to addr for anon_vma.
+			 */
+			pgoff = addr >> PAGE_SHIFT;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	addr = mmap_region(file, addr, len, vm_flags, pgoff);
+	if (!IS_ERR_VALUE(addr) &&
+	    ((vm_flags & VM_LOCKED) ||
+	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
+		*populate = len;
+
+	return addr;
 }
 
 unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
