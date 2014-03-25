@@ -110,6 +110,47 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 	return ret;	/* 0 or negative error code */
 }
 
+/*
+ * Return true if the calling process may expand its vm space by the passed
+ * number of pages
+ */
+int may_expand_vm(struct mm_struct *mm, unsigned long npages)
+{
+	unsigned long cur = mm->total_vm; /* pages */
+	unsigned long lim;
+
+	lim = rlimit(RLIMIT_AS) >> PAGE_SHIFT;
+
+	if (cur + npages > lim)
+		return 0;
+
+	return 1;
+}
+
+unsigned long mmap_region(struct file *file, unsigned long addr,
+		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma, *prev;
+	int correct_wcount = 0;
+	int error;
+	struct rb_node **rb_link, *rb_parent;
+	unsigned long charged = 0;
+	struct inode *inode = file ? file_inode(file) : NULL;
+
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
+		unsigned long nr_pages;
+
+		if (!(vm_flags & MAP_FIXED))
+			return -ENOMEM;
+
+		nr_pages = count_vma_pages_range(mm, addr, addr + len);
+
+		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
+			return -ENOMEM;
+	}
+}
+
 static inline unsigned long round_hint_to_min(unsigned long hint)
 {
 	hint &= PAGE_MASK;
