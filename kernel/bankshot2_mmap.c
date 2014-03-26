@@ -3,6 +3,7 @@
  * Basically copied from mm/mmap.c and other mm source files.
  */
 
+#include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
@@ -198,6 +199,179 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
 
 	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
 }
+
+static inline struct anon_vma_chain *anon_vma_chain_alloc(gfp_t gfp)
+{
+	return kmem_cache_alloc(anon_vma_chain_cachep, gfp);
+}
+
+int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+{
+	struct anon_vma_chain *avc, *pavc;
+	struct anon_vma *root = NULL;
+
+	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+		struct anon_vma *anon_vma;
+
+		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+		if (unlikely(!avc)) {
+			unlock_anon_vma_root(root);
+			root = NULL;
+			avc = anon_vma_chain_alloc(GFP_KERNEL);
+			if (!avc)
+				goto enomem_failure;
+		}
+		anon_vma = pavc->anon_vma;
+		root = lock_anon_vma_root(root, anon_vma);
+		anon_vma_chain_link(dst, avc, anon_vma);
+	}
+	unlock_anon_vma_root(root);
+	return 0;
+
+ enomem_failure:
+	unlink_anon_vmas(dst);
+	return -ENOMEM;
+}
+
+
+static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
+	      unsigned long addr, int new_below)
+{
+	struct mempolicy *pol;
+	struct vm_area_struct *new;
+	int err = -ENOMEM;
+
+	if (is_xip_hugetlb_mapping(vma))
+		return -EINVAL;
+
+	if (is_vm_hugetlb_page(vma) && (addr &
+					~(huge_page_mask(hstate_vma(vma)))))
+		return -EINVAL;
+
+	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	if (!new)
+		goto out_err;
+
+	/* most fields are the same, copy all, and then fixup */
+	*new = *vma;
+
+	INIT_LIST_HEAD(&new->anon_vma_chain);
+
+	if (new_below)
+		new->vm_end = addr;
+	else {
+		new->vm_start = addr;
+		new->vm_pgoff += ((addr - vma->vm_start) >> PAGE_SHIFT);
+	}
+
+	pol = mpol_dup(vma_policy(vma));
+	if (IS_ERR(pol)) {
+		err = PTR_ERR(pol);
+		goto out_free_vma;
+	}
+	vma_set_policy(new, pol);
+
+	if (anon_vma_clone(new, vma))
+		goto out_free_mpol;
+
+	if (new->vm_file)
+		get_file(new->vm_file);
+
+	if (new->vm_ops && new->vm_ops->open)
+		new->vm_ops->open(new);
+
+	if (new_below)
+		err = vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
+			((addr - new->vm_start) >> PAGE_SHIFT), new);
+	else
+		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
+
+	/* Success. */
+	if (!err)
+		return 0;
+
+	/* Clean everything up if vma_adjust failed. */
+	if (new->vm_ops && new->vm_ops->close)
+		new->vm_ops->close(new);
+	if (new->vm_file)
+		fput(new->vm_file);
+	unlink_anon_vmas(new);
+ out_free_mpol:
+	mpol_put(pol);
+ out_free_vma:
+	kmem_cache_free(vm_area_cachep, new);
+ out_err:
+	return err;
+}
+
+
+int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+{
+	unsigned long end;
+	struct vm_area_struct *vma, *prev, *last;
+
+	if ((start & ~PAGE_MASK) || start > TASK_SIZE || len > TASK_SIZE-start)
+		return -EINVAL;
+
+	if ((len = PAGE_ALIGN(len)) == 0)
+		return -EINVAL;
+
+	/* Find the first overlapping VMA */
+	vma = find_vma(mm, start);
+	if (!vma)
+		return 0;
+	prev = vma->vm_prev;
+	/* we have  start < vma->vm_end  */
+
+	/* if it doesn't overlap, we have nothing.. */
+	end = start + len;
+	if (vma->vm_start >= end)
+		return 0;
+
+	if (start > vma->vm_start) {
+		int error;
+
+		error = __split_vma(mm, vma, start, 0);
+		if (error)
+			return error;
+
+		prev = vma;
+	}
+
+	last = find_vma(mm, end);
+	if (last && end > last->vm_start) {
+		int error = __split_vma(mm, last, end, 1);
+		if (error)
+			return error;
+	}
+	vma = prev ? prev->vm_next : mm->mmap;
+
+	/*
+	 * unlock any mlock()ed ranges before detaching vmas
+	 */
+	if (mm->locked_vm) {
+		struct vm_area_struct *tmp = vma;
+		while (tmp && tmp->vm_start < end) {
+			if (tmp->vm_flags & VM_LOCKED) {
+				mm->locked_vm -= vma_pages(tmp);
+				munlock_vma_pages_all(tmp);
+			}
+			tmp = tmp->vm_next;
+		}
+	}
+
+	/*
+	 * Remove the vma's, and unmap the actual pages
+	 */
+	detach_vmas_to_be_unmapped(mm, vma, prev, end);
+	unmap_region(mm, vma, prev, start, end);
+
+	/* Fix up all other VM information */
+	remove_vma_list(mm, vma);
+
+	return 0;
+}
+
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
