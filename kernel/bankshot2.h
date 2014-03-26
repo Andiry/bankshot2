@@ -236,6 +236,7 @@ struct job_descriptor{
 };
 
 struct bankshot2_device {
+	int (*mmap)(struct file *file, struct vm_area_struct *vma);
 //	int		brd_number;
 //	int		brd_refcnt;
 //	loff_t		brd_offset;
