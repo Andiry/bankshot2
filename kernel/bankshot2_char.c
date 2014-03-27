@@ -50,7 +50,8 @@ static void bankshot2_ioctl_mmap_request(struct bankshot2_device *bs2_dev,
 
 	mmap_request = (struct bankshot2_mmap_request *)arg;
 
-	bankshot2_mmap(bs2_dev, mmap_request->addr, mmap_request->length,
+	mmap_request->mmap_addr = bankshot2_mmap(bs2_dev,
+		 (unsigned long)mmap_request->addr, mmap_request->length,
 				mmap_request->prot, mmap_request->flags,
 				mmap_request->fd,   mmap_request->offset);
 }

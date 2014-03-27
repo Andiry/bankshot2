@@ -45,9 +45,12 @@ int main(void)
 	ioctl(fd, BANKSHOT2_IOCTL_SHOW_INODE_INFO, &b);
 
 	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
-	printf("mmap addr: %p\n", addr);
+	printf("mmap addr: \t%p\n", addr);
 	munmap(addr, 4096);
 	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap1);
+	addr = (void *)mmap1.mmap_addr;
+	printf("mmap1 addr: \t%p\n", addr);
+	munmap(addr, 4096);
 	close(fd);
 	close(fd1);
 	close(fd2);

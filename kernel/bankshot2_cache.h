@@ -31,6 +31,7 @@ struct bankshot2_mmap_request {
 	int	flags;
 	int	fd;
 	off_t	offset;
+	unsigned long mmap_addr; // returned mmap address
 };
 
 /* ioctls */
