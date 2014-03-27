@@ -108,9 +108,61 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
+					struct vm_fault *vmf)
+{
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct inode *inode = mapping->host;
+	struct bankshot2_inode *pi;
+	pgoff_t size;
+	void *xip_mem;
+	unsigned long xip_pfn;
+	int ret = 0;
+
+//	pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
+	pi = bankshot2_get_inode(bs2_dev, 1);
+
+	rcu_read_lock();
+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (vmf->pgoff >= size) {
+		bs2_info("pgoff >= size(SIGBUS).\n");
+		ret = VM_FAULT_SIGBUS;
+		goto out;
+	}
+
+	ret = bankshot2_get_xip_mem(bs2_dev, pi, vmf->pgoff, 1,
+				&xip_mem, &xip_pfn);
+	if (unlikely(ret)) {
+		bs2_info("get_xip_mem failed\n");
+		ret = VM_FAULT_SIGBUS;
+		goto out;
+	}
+
+	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+				xip_pfn);
+	if (ret == -ENOMEM) {
+		ret = VM_FAULT_SIGBUS;
+		goto out;
+	}
+
+	ret = VM_FAULT_NOPAGE;
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
+static const struct vm_operations_struct bankshot2_xip_vm_ops = {
+	.fault	= bankshot2_xip_file_fault,
+};
+
 int bankshot2_xip_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	bs2_info("%s: 0x%lx\n", __func__, vma->vm_start);
+//	unsigned long block_sz;
+	file_accessed(file);
+
+	vma->vm_flags |= VM_MIXEDMAP;
+	//FIXME: HUGE MMAP does not support yet
+	vma->vm_ops = &bankshot2_xip_vm_ops;
 	return 0;
 }
 

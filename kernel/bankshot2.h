@@ -301,6 +301,8 @@ struct bankshot2_device {
 //	struct brd_cache_info *cache_info;
 };
 
+extern struct bankshot2_device *bs2_dev;
+
 /* ========================= Methods =================================== */
 
 static inline struct bankshot2_super_block *
