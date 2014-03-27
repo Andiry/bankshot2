@@ -110,7 +110,7 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 
 int bankshot2_xip_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	bs2_info("%s\n", __func__);
+	bs2_info("%s: 0x%lx\n", __func__, vma->vm_start);
 	return 0;
 }
 
