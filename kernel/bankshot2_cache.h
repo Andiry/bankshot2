@@ -24,7 +24,17 @@ struct bankshot2_cache_data{
 	/* -=-=-= End Match Requirement -=-=-= */
 };
 
+struct bankshot2_mmap_request {
+	void*	addr;
+	size_t	length;
+	int	prot;
+	int	flags;
+	int	fd;
+	off_t	offset;
+};
+
 /* ioctls */
 #define BANKSHOT2_IOCTL_CACHE_DATA	0xBCD00000
 #define BANKSHOT2_IOCTL_SHOW_INODE_INFO	0xBCD00001
+#define BANKSHOT2_IOCTL_MMAP_REQUEST	0xBCD00002
 

@@ -107,3 +107,14 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 
 	return 0;
 }
+
+int bankshot2_xip_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	bs2_info("%s\n", __func__);
+	return 0;
+}
+
+void bankshot2_init_mmap(struct bankshot2_device *bs2_dev)
+{
+	bs2_dev->mmap = bankshot2_xip_file_mmap;
+}

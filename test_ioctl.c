@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <malloc.h>
 
 #include "kernel/bankshot2_cache.h"
 
@@ -12,6 +14,7 @@ int main(void)
 	int fd, fd1, fd2;
 	unsigned long a = 1, b = 4;
 	struct bankshot2_cache_data data;
+	struct bankshot2_mmap_request mmap;
 	int rnw = 1;
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
@@ -21,6 +24,13 @@ int main(void)
 	data.rnw = READ_EXTENT;
 	data.read = (rnw == READ_EXTENT);
 	data.write = (rnw == WRITE_EXTENT);
+
+	mmap.fd = fd1;
+	mmap.addr = NULL;
+	mmap.length = 4096;
+	mmap.prot = PROT_WRITE;
+	mmap.flags = MAP_SHARED;
+	mmap.offset = 0;
 
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	printf("fds: %d %d\n", fd1, fd);
@@ -33,6 +43,7 @@ int main(void)
 	ioctl(fd, BANKSHOT2_IOCTL_SHOW_INODE_INFO, &a);
 	ioctl(fd, BANKSHOT2_IOCTL_SHOW_INODE_INFO, &b);
 
+	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap);
 	close(fd);
 	close(fd1);
 	close(fd2);

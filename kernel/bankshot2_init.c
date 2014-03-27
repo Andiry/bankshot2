@@ -76,6 +76,7 @@ static int __init bankshot2_init(void)
 		goto block_fail;
 	}
 
+	bankshot2_init_mmap(bs2_dev);
 	bs2_info("Bankshot2 initialization succeed.\n");
 	return 0;
 

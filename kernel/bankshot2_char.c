@@ -43,6 +43,18 @@ static void bankshot2_ioctl_show_inode_info(struct bankshot2_device *bs2_dev,
 	return;
 }
 
+static void bankshot2_ioctl_mmap_request(struct bankshot2_device *bs2_dev,
+						void *arg)
+{
+	struct bankshot2_mmap_request *mmap_request;
+
+	mmap_request = (struct bankshot2_mmap_request *)arg;
+
+	bankshot2_mmap(bs2_dev, mmap_request->addr, mmap_request->length,
+				mmap_request->prot, mmap_request->flags,
+				mmap_request->fd,   mmap_request->offset);
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -55,6 +67,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_SHOW_INODE_INFO:
 		bankshot2_ioctl_show_inode_info(bs2_dev, *(u64 *)arg);
+		break;
+	case BANKSHOT2_IOCTL_MMAP_REQUEST:
+		bankshot2_ioctl_mmap_request(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;
