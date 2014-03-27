@@ -1,0 +1,39 @@
+From 1ff7da6d15ca8546f8a97fea734f450ed30797e1 Mon Sep 17 00:00:00 2001
+From: Andiry Xu <jix024@cs.ucsd.edu>
+Date: Tue, 25 Mar 2014 22:11:06 -0700
+Subject: [PATCH 4/4] Rename the hook simply to mmap.
+
+
+Signed-off-by: Andiry Xu <jix024@cs.ucsd.edu>
+---
+ include/linux/bankshot2.h | 3 +--
+ mm/mmap.c                 | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/bankshot2.h b/include/linux/bankshot2.h
+index e09a7fa..505ee44 100644
+--- a/include/linux/bankshot2.h
++++ b/include/linux/bankshot2.h
+@@ -1,5 +1,4 @@
+ /* Incomplete type of struct bankshot2_device */
+ struct bankshot2_device_partial {
+-	int (*bankshot2_xip_file_mmap)(struct file *file,
+-					struct vm_area_struct *vma);
++	int (*mmap)(struct file *file, struct vm_area_struct *vma);
+ };
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f163d1c..e99c87f 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1930,7 +1930,7 @@ munmap_back:
+ 		}
+ 		vma->vm_file = get_file(file);
+ //		error = file->f_op->mmap(file, vma);
+-		error = bs2_devp->bankshot2_xip_file_mmap(file, vma);
++		error = bs2_devp->mmap(file, vma);
+ 		if (error)
+ 			goto unmap_and_free_vma;
+ 
+-- 
+1.8.1.2
+
