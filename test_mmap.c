@@ -43,15 +43,24 @@ int main(void)
 
 	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
 	printf("mmap addr: \t%p\n", addr);
-	memset(buf, 'd', 4096);
+	memset(buf, 'c', 4096);
 	memcpy(addr, buf, 4096);
 	munmap(addr, 4096);
+
 	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap1);
 	addr = (void *)mmap1.mmap_addr;
 	printf("mmap1 addr: \t%p\n", addr);
 
-	memset(buf, 'c', 4096);
+	memset(buf, 'd', 4096);
 	memcpy(addr, buf, 4096);
+
+	munmap(addr, 4096);
+
+	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap1);
+	addr = (void *)mmap1.mmap_addr;
+	printf("mmap1 addr: \t%p\n", addr);
+
+	write(fd1, addr, 4096);
 
 	munmap(addr, 4096);
 	close(fd);
