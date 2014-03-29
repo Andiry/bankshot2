@@ -1,6 +1,6 @@
 /*
  * inode code.
- * Copied from bankshot2 inode code.
+ * Copied from pmfs inode code.
  */
 
 #include "bankshot2.h"
@@ -113,6 +113,98 @@ int bankshot2_init_inode_table(struct bankshot2_device *bs2_dev)
 	bs2_dev->s_free_inode_hint = (BANKSHOT2_FREE_INODE_HINT_START);
 
 	return 0;
+}
+
+int bankshot2_new_inode(struct bankshot2_device *bs2_dev,
+		bankshot2_transaction_t *trans,	umode_t mode, ino_t *new_ino)
+{
+	struct bankshot2_inode *pi = NULL, *inode_table;
+	int i, errval;
+	u32 num_inodes, inodes_per_block;
+	ino_t ino = 0;
+
+#if 0
+	inode_init_owner(inode, dir, mode);
+	inode->i_blocks = inode->i_size = 0;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+
+	inode->i_generation = atomic_add_return(1, &sbi->next_generation);
+#endif
+
+	inode_table = bankshot2_get_inode_table(bs2_dev);
+
+	bs2_dbg("free_inodes %x total_inodes %x hint %x\n",
+		bs2_dev->s_free_inodes_count, bs2_dev->s_inodes_count,
+		bs2_dev->s_free_inode_hint);
+
+	mutex_lock(&bs2_dev->inode_table_mutex);
+
+	/* find the oldest unused bankshot2 inode */
+	i = (bs2_dev->s_free_inode_hint);
+	inodes_per_block = INODES_PER_BLOCK(inode_table->i_blk_type);
+retry:
+	num_inodes = (bs2_dev->s_inodes_count);
+	while (i < num_inodes) {
+		u32 end_ino;
+		end_ino = i + (inodes_per_block - (i & (inodes_per_block - 1)));
+//		ino = i << PMFS_INODE_BITS;
+		pi = bankshot2_get_inode(bs2_dev, i);
+		for (; i < end_ino; i++) {
+			/* check if the inode is active. */
+			if (le16_to_cpu(pi->i_links_count) == 0 &&
+			(le16_to_cpu(pi->i_mode) == 0 ||
+			 le32_to_cpu(pi->i_dtime)))
+				/* this inode is free */
+				break;
+			pi = (struct bankshot2_inode *)((void *)pi +
+							BANKSHOT2_INODE_SIZE);
+		}
+		/* found a free inode */
+		if (i < end_ino)
+			break;
+	}
+	if (unlikely(i >= num_inodes)) {
+		errval = bankshot2_increase_inode_table_size(bs2_dev);
+		if (errval == 0)
+			goto retry;
+		mutex_unlock(&bs2_dev->inode_table_mutex);
+		bs2_dbg("Bankshot2: could not find a free inode\n");
+		goto fail1;
+	}
+
+//	ino = i << PMFS_INODE_BITS;
+	ino = i;
+	bs2_dbg("allocating inode %lx\n", ino);
+
+	/* chosen inode is in ino */
+//	inode->i_ino = ino;
+//	bankshot2_add_logentry(sb, trans, pi, sizeof(*pi), LE_DATA);
+
+//	bankshot2_memunlock_inode(sb, pi);
+	pi->i_blk_type = BANKSHOT2_DEFAULT_BLOCK_TYPE;
+//	pi->i_flags = bankshot2_mask_flags(mode, diri->i_flags);
+	pi->height = 0;
+	pi->i_dtime = 0;
+//	bankshot2_memlock_inode(sb, pi);
+
+	bs2_dev->s_free_inodes_count -= 1;
+
+	if (i < (bs2_dev->s_inodes_count) - 1)
+		bs2_dev->s_free_inode_hint = (i + 1);
+	else
+		bs2_dev->s_free_inode_hint = (BANKSHOT2_FREE_INODE_HINT_START);
+
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+
+//	bankshot2_update_inode(inode, pi);
+
+//	bankshot2_set_inode_flags(inode, pi);
+
+	*new_ino = ino;
+
+	return 0;
+fail1:
+	return errval;
 }
 
 /* If this is part of a read-modify-write of the inode metadata,

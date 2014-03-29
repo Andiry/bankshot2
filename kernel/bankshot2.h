@@ -44,8 +44,15 @@
 #define BANKSHOT2_BLOCK_TYPE_MAX    3
 #define	META_BLK_SHIFT	9
 
+#define	BANKSHOT2_DEFAULT_BLOCK_TYPE BANKSHOT2_BLOCK_TYPE_4K
+
+extern unsigned int blk_type_to_shift[BANKSHOT2_BLOCK_TYPE_MAX];
+extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
+
 /* INODE HINT Start at 3 */
 #define	BANKSHOT2_FREE_INODE_HINT_START	3
+#define INODES_PER_BLOCK(bt)	(1 << (blk_type_to_shift[bt] \
+					- BANKSHOT2_INODE_BITS))
 
 /* Bankshot */
 #define DISK 0
