@@ -152,7 +152,50 @@ static int bankshot2_increase_inode_table_size(struct bankshot2_device *bs2_dev)
 	return errval;
 }
 
-int bankshot2_new_inode(struct bankshot2_device *bs2_dev,
+void bankshot2_get_inode_flags(struct inode *inode, struct bankshot2_inode *pi)
+{
+	unsigned int flags = inode->i_flags;
+	unsigned int bankshot2_flags = le32_to_cpu(pi->i_flags);
+
+	bankshot2_flags &= ~(FS_SYNC_FL | FS_APPEND_FL | FS_IMMUTABLE_FL |
+				FS_NOATIME_FL | FS_DIRSYNC_FL);
+	if (flags & S_SYNC)
+		bankshot2_flags |= FS_SYNC_FL;
+	if (flags & S_APPEND)
+		bankshot2_flags |= FS_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		bankshot2_flags |= FS_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		bankshot2_flags |= FS_NOATIME_FL;
+	if (flags & S_DIRSYNC)
+		bankshot2_flags |= FS_DIRSYNC_FL;
+
+	pi->i_flags = cpu_to_le32(bankshot2_flags);
+}
+
+static void bankshot2_update_inode(struct inode *inode,
+					struct bankshot2_inode *pi)
+{
+//	pmfs_memunlock_inode(inode->i_sb, pi);
+	pi->i_mode = cpu_to_le16(inode->i_mode);
+	pi->i_uid = cpu_to_le32(i_uid_read(inode));
+	pi->i_gid = cpu_to_le32(i_gid_read(inode));
+	pi->i_links_count = cpu_to_le16(inode->i_nlink);
+	pi->i_size = cpu_to_le64(inode->i_size);
+	pi->i_blocks = cpu_to_le64(inode->i_blocks);
+	pi->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
+	pi->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
+	pi->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
+	pi->i_generation = cpu_to_le32(inode->i_generation);
+	bankshot2_get_inode_flags(inode, pi);
+
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+		pi->dev.rdev = cpu_to_le32(inode->i_rdev);
+
+//	pmfs_memlock_inode(inode->i_sb, pi);
+}
+
+int bankshot2_new_inode(struct bankshot2_device *bs2_dev, struct inode *inode,
 		bankshot2_transaction_t *trans,	umode_t mode, ino_t *new_ino)
 {
 	struct bankshot2_inode *pi = NULL, *inode_table;
@@ -233,7 +276,7 @@ retry:
 
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 
-//	bankshot2_update_inode(inode, pi);
+	bankshot2_update_inode(inode, pi);
 
 //	bankshot2_set_inode_flags(inode, pi);
 
