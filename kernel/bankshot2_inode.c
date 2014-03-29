@@ -115,6 +115,43 @@ int bankshot2_init_inode_table(struct bankshot2_device *bs2_dev)
 	return 0;
 }
 
+static int bankshot2_increase_inode_table_size(struct bankshot2_device *bs2_dev)
+{
+	struct bankshot2_inode *pi = bankshot2_get_inode_table(bs2_dev);
+	bankshot2_transaction_t *trans = NULL;
+	int errval;
+
+	/* 1 log entry for inode-table inode, 1 lentry for inode-table b-tree */
+//	trans = bankshot2_new_transaction(sb, MAX_INODE_LENTRIES);
+//	if (IS_ERR(trans))
+//		return PTR_ERR(trans);
+
+//	bankshot2_add_logentry(sb, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
+
+	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi,
+			le64_to_cpup(&pi->i_size) >> bs2_dev->s_blocksize_bits,
+			1, true);
+
+	if (errval == 0) {
+		u64 i_size = le64_to_cpu(pi->i_size);
+
+		bs2_dev->s_free_inode_hint = i_size >> BANKSHOT2_INODE_BITS;
+		i_size += bankshot2_inode_blk_size(pi);
+
+//		bankshot2_memunlock_inode(sb, pi);
+		pi->i_size = cpu_to_le64(i_size);
+//		bankshot2_memlock_inode(sb, pi);
+
+		bs2_dev->s_free_inodes_count +=
+			INODES_PER_BLOCK(pi->i_blk_type);
+		bs2_dev->s_inodes_count = i_size >> BANKSHOT2_INODE_BITS;
+	} else
+		bs2_dbg("no space left to inc inode table!\n");
+	/* commit the transaction */
+//	bankshot2_commit_transaction(sb, trans);
+	return errval;
+}
+
 int bankshot2_new_inode(struct bankshot2_device *bs2_dev,
 		bankshot2_transaction_t *trans,	umode_t mode, ino_t *new_ino)
 {
