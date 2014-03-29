@@ -255,7 +255,7 @@ retry:
 
 //	ino = i << PMFS_INODE_BITS;
 	ino = i;
-	bs2_dbg("allocating inode %llx\n", ino);
+	bs2_dbg("allocating inode %llu\n", ino);
 
 	/* chosen inode is in ino */
 //	inode->i_ino = ino;
@@ -283,6 +283,7 @@ retry:
 //	bankshot2_set_inode_flags(inode, pi);
 
 	*new_ino = ino;
+	pi->backup_ino = cpu_to_le64(inode->i_ino);
 
 	return 0;
 fail1:

@@ -198,6 +198,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	st_ino = 1;
 	bankshot2_find_or_alloc_extents(bs2_dev, st_ino, data, 1);
 
+	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
+
 	return ret;
 
 }

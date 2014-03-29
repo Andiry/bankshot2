@@ -26,6 +26,7 @@ int main(void)
 	data.file = fd1;
 	data.offset = 0;
 	data.size = 4096;
+	data.cache_ino = 0;
 	data.rnw = READ_EXTENT;
 	data.read = (rnw == READ_EXTENT);
 	data.write = (rnw == WRITE_EXTENT);
@@ -40,7 +41,10 @@ int main(void)
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	printf("fds: %d %d\n", fd1, fd);
 	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
+	printf("cache inode: %llu\n", data.cache_ino);
+	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
 
+	return 0;
 	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
 	printf("mmap addr: \t%p\n", addr);
 	memset(buf, 'c', 4096);
