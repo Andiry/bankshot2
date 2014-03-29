@@ -7,7 +7,7 @@
 #include "bankshot2_cache.h"
 
 static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
-					u64 *st_ino)
+					struct inode **st_inode)
 {
 	struct file *fileinfo;
 	struct inode *inode;
@@ -86,8 +86,8 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 			inode->i_mapping->nrpages, inode->i_data.nrpages);
 
 	fput(fileinfo);
-	*st_ino = inode->i_ino;
-	bs2_dbg("Inode %llu permissions: Read %d Write %d\n", *st_ino,
+	*st_inode = inode;
+	bs2_dbg("Inode %p permissions: Read %d Write %d\n", *st_inode,
 			data->read, data->write);
 
 	if (data->rnw == READ_EXTENT && !data->read) {
@@ -174,10 +174,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	struct bankshot2_cache_data _data, *data;
 	int ret;
 	u64 st_ino;
+	struct inode *inode;
 
 	data = &_data;
 
-	ret = bankshot2_get_extent(bs2_dev, arg, &st_ino);
+	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret) {
 		bs2_info("Get extent returned %d\n", ret);
 		return ret;
@@ -188,6 +189,12 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	//FIXME: need a lock here
 
 	ret = bankshot2_lookup_key();
+	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
+	if (ret) {
+		bs2_info("No cache inode found, returned %d\n", ret);
+		return ret;
+	}
+
 	st_ino = 1;
 	bankshot2_find_or_alloc_extents(bs2_dev, st_ino, data, 1);
 

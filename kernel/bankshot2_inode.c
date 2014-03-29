@@ -4,6 +4,7 @@
  */
 
 #include "bankshot2.h"
+#include "bankshot2_cache.h"
 
 unsigned int blk_type_to_shift[3] = {12, 21, 30};
 uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
@@ -196,12 +197,12 @@ static void bankshot2_update_inode(struct inode *inode,
 }
 
 int bankshot2_new_inode(struct bankshot2_device *bs2_dev, struct inode *inode,
-		bankshot2_transaction_t *trans,	umode_t mode, ino_t *new_ino)
+		bankshot2_transaction_t *trans,	u64 *new_ino)
 {
 	struct bankshot2_inode *pi = NULL, *inode_table;
 	int i, errval;
 	u32 num_inodes, inodes_per_block;
-	ino_t ino = 0;
+	u64 ino = 0;
 
 #if 0
 	inode_init_owner(inode, dir, mode);
@@ -254,7 +255,7 @@ retry:
 
 //	ino = i << PMFS_INODE_BITS;
 	ino = i;
-	bs2_dbg("allocating inode %lx\n", ino);
+	bs2_dbg("allocating inode %llx\n", ino);
 
 	/* chosen inode is in ino */
 //	inode->i_ino = ino;
@@ -264,6 +265,7 @@ retry:
 	pi->i_blk_type = BANKSHOT2_DEFAULT_BLOCK_TYPE;
 //	pi->i_flags = bankshot2_mask_flags(mode, diri->i_flags);
 	pi->height = 0;
+	pi->root = 0;
 	pi->i_dtime = 0;
 //	bankshot2_memlock_inode(sb, pi);
 
@@ -310,4 +312,47 @@ struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 	bs2_info("%s: internal block %llu, actual block %llu, ino_offset %llu\n",
 			__func__, block, bp / PAGE_SIZE, ino_offset);
 	return (struct bankshot2_inode *)((void *)ps + bp + ino_offset);
+}
+
+int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
+		void *data1, struct inode *inode, u64 *st_ino)
+{
+	struct bankshot2_cache_data *data;
+	struct bankshot2_inode *pi;
+	u64 ino;
+	int ret;
+
+	data = (struct bankshot2_cache_data *)data1;
+
+	if (data->cache_ino) {
+		ino = data->cache_ino;
+		pi = bankshot2_get_inode(bs2_dev, ino);
+		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
+			bs2_dbg("Found cache inode %llu\n", ino);
+			*st_ino = ino;
+			return 0;
+		} else if (!pi) {
+			bs2_info("Try to get ino %llu but cache inode not found"
+					", Allocate new inode\n", ino);
+		} else {
+			bs2_info("Data cache_ino and cache inode doesn't match,"
+					" data cache ino %llu,"
+					" pi->backup ino %llu,"
+					" inode->i_ino %lu\n",
+					ino, le64_to_cpu(pi->backup_ino),
+					inode->i_ino);
+		}
+	}
+
+	ret = bankshot2_new_inode(bs2_dev, inode, NULL, &ino);
+	if (ret) {
+		bs2_info("Allocate new inode failed %d\n", ret);
+		return ret;
+	}
+
+	bs2_info("Allocated new inode %llu\n", ino);
+	*st_ino = ino;
+	data->cache_ino = ino;
+
+	return 0;
 }

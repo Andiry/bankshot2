@@ -94,6 +94,7 @@ struct bankshot2_inode {
 	__le32	i_gid;              /* Group Id */
 	__le32	i_generation;       /* File version (for NFS) */
 	__le32	i_atime;            /* Access time */
+	__le64	backup_ino;	    /* Inode number in backing store */
 
 	struct {
 		__le32 rdev;    /* major/minor # */
@@ -494,6 +495,8 @@ struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 						u64 ino);
 u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
+int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
+		void *data, struct inode *inode, u64 *st_ino);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,
