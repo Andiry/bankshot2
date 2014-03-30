@@ -3,6 +3,7 @@
  */
 
 #include "bankshot2.h"
+#include "bankshot2_cache.h"
 
 static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, sector_t iblock,
@@ -149,6 +150,79 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 out:
 	rcu_read_unlock();
 	return ret;
+}
+
+static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
+	void *start_addr)
+{
+	if (unlikely(pos & 0x7))
+		bankshot2_flush_buffer(start_addr, 1, false);
+	if (unlikely(((pos + len) & 0x7) && ((pos & (CACHELINE_SIZE - 1)) !=
+			((pos + len) & (CACHELINE_SIZE - 1)))))
+		bankshot2_flush_buffer(start_addr + len, 1, false);
+}
+
+ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
+		void *data1, u64 st_ino)
+{
+	struct bankshot2_inode *pi;
+	struct bankshot2_cache_data *data =
+		(struct bankshot2_cache_data *)data1;
+	long status = 0;
+	size_t bytes;
+	ssize_t written = 0;
+	u64 pos = data->offset;
+	size_t count = data->size;
+	char *buf = data->buf;
+	unsigned long index;
+	unsigned long offset;
+	size_t copied;
+	void *xmem;
+	unsigned long xpfn;
+
+	pi = bankshot2_get_inode(bs2_dev, st_ino);
+	if (!pi)
+		return 0;
+
+	do {
+		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
+		index = pos >> bs2_dev->s_blocksize_bits;
+		bytes = bs2_dev->blocksize - offset;
+		if (bytes > count)
+			bytes = count;
+
+		status = bankshot2_get_xip_mem(bs2_dev, pi,
+				index, 1, &xmem, &xpfn);
+		if (status)
+			break;
+
+		copied = bytes -
+		__copy_from_user_inatomic_nocache(xmem + offset, buf, bytes);
+
+		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
+
+		if (likely(copied > 0)) {
+			status = copied;
+
+			if (status >= 0) {
+				written += status;
+				count -= status;
+				pos += status;
+				buf += status;
+			}
+		}
+		if (unlikely(copied != bytes))
+			if (status >= 0)
+				status = -EFAULT;
+		if (status < 0)
+			break;
+	} while (count);
+
+	if (pos > pi->i_size) {
+		bankshot2_update_isize(pi, pos);
+	}	
+
+	return written ? written : status;
 }
 
 static const struct vm_operations_struct bankshot2_xip_vm_ops = {

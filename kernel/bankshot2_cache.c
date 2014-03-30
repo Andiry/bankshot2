@@ -92,10 +92,10 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 
 	if (data->rnw == READ_EXTENT && !data->read) {
 		bs2_info("Request want to read but no read permission!\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	} else if (data->rnw == WRITE_EXTENT && !data->write) {
 		bs2_info("Request want to write but no write permission!\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -195,8 +195,10 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		return ret;
 	}
 
-	st_ino = 1;
-	bankshot2_find_or_alloc_extents(bs2_dev, st_ino, data, 1);
+	if (data->rnw == WRITE_EXTENT)
+		bankshot2_xip_file_write(bs2_dev, data, st_ino);
+	else
+		bankshot2_find_or_alloc_extents(bs2_dev, st_ino, data, 1);
 
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 

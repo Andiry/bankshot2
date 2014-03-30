@@ -508,3 +508,5 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, pgoff_t pgoff, int create,
 			void **kmem, unsigned long *pfn);
 void bankshot2_init_mmap(struct bankshot2_device *bs2_dev);
+ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
+			void *data, u64 st_ino);
