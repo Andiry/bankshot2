@@ -162,6 +162,69 @@ static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
 		bankshot2_flush_buffer(start_addr + len, 1, false);
 }
 
+ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
+		void *data1, u64 st_ino)
+{
+	struct bankshot2_inode *pi;
+	struct bankshot2_cache_data *data =
+		(struct bankshot2_cache_data *)data1;
+	long status = 0;
+	size_t bytes;
+	ssize_t read = 0;
+	u64 pos = data->offset;
+	size_t count = data->size;
+	u64 addr = data->extent_start;
+	unsigned long index;
+	unsigned long offset;
+	size_t copied;
+	void *xmem;
+	unsigned long xpfn;
+	int ret;
+
+	pi = bankshot2_get_inode(bs2_dev, st_ino);
+	if (!pi)
+		return 0;
+
+	do {
+		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
+		index = pos >> bs2_dev->s_blocksize_bits;
+		bytes = bs2_dev->blocksize - offset;
+		if (bytes > count)
+			bytes = count;
+
+		status = bankshot2_get_xip_mem(bs2_dev, pi,
+				index, 1, &xmem, &xpfn);
+		if (status)
+			break;
+
+		ret = bankshot2_copy_to_cache(bs2_dev, addr, bytes, xmem + offset);
+		if (ret)
+			break;
+		copied = bytes;
+
+		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
+
+		if (likely(copied > 0)) {
+			status = copied;
+
+			if (status >= 0) {
+				read += status;
+				count -= status;
+				pos += status;
+				addr += status;
+			}
+		}
+		if (status < 0)
+			break;
+	} while (count);
+
+	if (pos > pi->i_size) {
+		bankshot2_update_isize(pi, pos);
+	}	
+
+	return read ? read : status;
+}
+
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		void *data1, u64 st_ino)
 {
