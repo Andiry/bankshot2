@@ -472,7 +472,7 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				struct bio *bio, struct block_device *bdev,
 				int where, JOB_TYPE type);
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, uint64_t c_offset); 
+			size_t b_len, unsigned long xpfn); 
 
 /* bankshot2_block.c */
 int bankshot2_init_block(struct bankshot2_device *);
@@ -511,4 +511,6 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 			void **kmem, unsigned long *pfn);
 void bankshot2_init_mmap(struct bankshot2_device *bs2_dev);
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
+			void *data, u64 st_ino);
+ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			void *data, u64 st_ino);

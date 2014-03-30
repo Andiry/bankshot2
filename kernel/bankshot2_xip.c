@@ -197,7 +197,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		if (status)
 			break;
 
-		ret = bankshot2_copy_to_cache(bs2_dev, addr, bytes, xmem + offset);
+		ret = bankshot2_copy_to_cache(bs2_dev, addr, bytes, xpfn);
 		if (ret)
 			break;
 		copied = bytes;
