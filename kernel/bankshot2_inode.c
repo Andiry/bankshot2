@@ -315,6 +315,23 @@ struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 	return (struct bankshot2_inode *)((void *)ps + bp + ino_offset);
 }
 
+int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
+		struct inode *inode, u64 *st_ino)
+{
+	int i;
+	struct bankshot2_inode *pi;
+
+	for (i = 1; i <= 1024; i++) {
+		pi = bankshot2_get_inode(bs2_dev, i);
+		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
+			*st_ino = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		void *data1, struct inode *inode, u64 *st_ino)
 {
@@ -345,6 +362,12 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		}
 	}
 
+	ret = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
+	if (!ret) {
+		bs2_info("Found existing match inode %llu\n", ino);
+		goto found;
+	}
+
 	ret = bankshot2_new_inode(bs2_dev, inode, NULL, &ino);
 	if (ret) {
 		bs2_info("Allocate new inode failed %d\n", ret);
@@ -352,6 +375,7 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 	}
 
 	bs2_info("Allocated new inode %llu\n", ino);
+found:
 	*st_ino = ino;
 	data->cache_ino = ino;
 
