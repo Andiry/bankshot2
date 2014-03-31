@@ -105,6 +105,7 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 
 	*kmem = bankshot2_get_block(bs2_dev, block);
 	*pfn = bankshot2_get_pfn(bs2_dev, block);
+	bs2_dbg("xip_mem: mem %p, pfn %lu\n", *kmem, *pfn);
 
 	return 0;
 }
@@ -174,6 +175,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	u64 pos = data->offset;
 	size_t count = data->size;
 	u64 addr = data->extent_start;
+	char *buf = data->buf;
 	unsigned long index;
 	unsigned long offset;
 	size_t copied;
@@ -201,6 +203,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		if (ret)
 			break;
 		copied = bytes;
+		__copy_to_user(buf, xmem + offset, bytes);
 
 		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
 
@@ -212,6 +215,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				count -= status;
 				pos += status;
 				addr += status;
+				buf += status;
 			}
 		}
 		if (status < 0)

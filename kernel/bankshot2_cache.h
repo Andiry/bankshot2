@@ -1,6 +1,6 @@
 /* Shared by kernel and user space */
 
-#define READ_EXTENT	1
+#define READ_EXTENT	0
 #define WRITE_EXTENT	1
 
 struct bankshot2_cache_data{
