@@ -120,9 +120,15 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	void *xip_mem;
 	unsigned long xip_pfn;
 	int ret = 0;
+	u64 ino;
 
 //	pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
-	pi = bankshot2_get_inode(bs2_dev, 1);
+	ret = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
+	if (ret) {
+		bs2_info("Not found existing match inode\n");
+		return ret;
+	}
+	pi = bankshot2_get_inode(bs2_dev, ino);
 
 	rcu_read_lock();
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -248,6 +254,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	size_t copied;
 	void *xmem;
 	unsigned long xpfn;
+//	char *buf1;
 
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi)
@@ -265,8 +272,12 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		if (status)
 			break;
 
+//		buf1 = (char *)xmem;
+//		bs2_dbg("Before write: %c %c \n", buf1[0], buf1[4095]);
+
 		copied = bytes -
 		__copy_from_user_inatomic_nocache(xmem + offset, buf, bytes);
+//		bs2_dbg("After write: %c %c \n", buf1[0], buf1[4095]);
 
 		bankshot2_copy_from_cache(bs2_dev, addr, bytes, xmem);
 		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);

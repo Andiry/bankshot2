@@ -502,6 +502,8 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		void *data, struct inode *inode, u64 *st_ino);
+int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
+		struct inode *inode, u64 *st_ino);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,

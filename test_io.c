@@ -15,14 +15,14 @@ int main(void)
 	int fd, fd1;
 	struct bankshot2_cache_data data;
 	struct bankshot2_mmap_request mmap1;
-	void *addr;
+	char *addr;
 	int rnw = 1;
 	char *buf, *buf1;;
 
 	buf = malloc(4096);
 	memset(buf, 'c', 4096);
 	buf1 = malloc(4096);
-	memset(buf1, 'd', 4096);
+//	memset(buf1, 'd', 4096);
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	data.file = fd1;
@@ -49,6 +49,12 @@ int main(void)
 	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
 	printf("Read from cache: %c %c\n", data.buf[0], data.buf[4095]);
 
+	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap1);
+	addr = (char *)mmap1.mmap_addr;
+	printf("mmap addr: %p\n", addr);
+	memset(addr, 'd', 4096);
+	munmap(addr, 4096);
+
 	memset(buf1, 'e', 4096);
 	data.rnw = WRITE_EXTENT;
 	data.read = (rnw == READ_EXTENT);
@@ -67,6 +73,7 @@ int main(void)
 	close(fd1);
 	free(buf);
 	free(buf1);
+//	munmap(addr, 4096);
 	return 0;
 #if 0
 	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);

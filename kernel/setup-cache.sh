@@ -1,6 +1,7 @@
 #!/bin/sh
 
 umount /mnt/ramdisk
+sleep 1
 rmmod bankshot2
 
 sleep 1
