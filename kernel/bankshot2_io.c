@@ -35,7 +35,7 @@ void free_job(struct bankshot2_device *bs2_dev,
 	bio_for_each_segment(bv, jd->bio, j){
 		if(!bv->bv_page)
 			break;
-//		__free_page(bv->bv_page);
+		__free_page(bv->bv_page);
 	}
 	if(idx)
 		list_del(idx);
@@ -77,6 +77,7 @@ static void bankshot2_cache_io_callback(struct bio *bio, int error)
 	switch(jd->type){
 		case WAKEUP_ON_COMPLETION:
 			/* Data transfer completed. Pure read/write from disk or cache */
+			clear_job_status(jd);
 			set_job_status(jd, STATUS(JOB_DONE));
 			if(jd->job_parent)
 				wake_up_process(jd->job_parent);
@@ -229,22 +230,22 @@ static inline size_t align_offset_and_len(uint64_t *b_offset, size_t *b_len)
 
 /* Currently only supper 1 page */
 size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
-			struct bio *bio, size_t nr_pages, unsigned long xpfn)
+			struct bio *bio, size_t nr_pages)
 {
 	struct page *page;
 	size_t done = 0;
 
 	while (done < nr_pages){
 //		BBD_START_TIMING(BBD, memory_alloc, timing); 	
-//		page = alloc_page(GFP_KERNEL);
-		page = pfn_to_page(xpfn);
+		page = alloc_page(GFP_KERNEL);
+//		page = pfn_to_page(xpfn);
 //		BBD_END_TIMING(BBD, memory_alloc, timing); 	
 		if(!page)
 			break;
 
 		if(bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE)
 		{
-//			__free_page(page);
+			__free_page(page);
 			break;
 		}
 		done++;
@@ -276,6 +277,37 @@ void bankshot2_add_to_disk_list(struct bankshot2_device *bs2_dev,
 		//atomic64_set(&bs2_dev->last_offset, jd->bio->bi_sector * 512);
 		//BEE3_INFO("Bio to disk %lu %u %x %x", jd->bio->bi_sector, jd->bio->bi_size, jd->disk_cmd, jd->type);
 	submit_bio(jd->disk_cmd, jd->bio);	
+}
+
+int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct bio *bio,
+				bool end, void *xmem)
+{
+	struct bio_vec *bvec;
+	unsigned int i;
+	char *buf;
+
+	bio_for_each_segment(bvec, bio, i) {
+		buf = kmap_atomic(bvec->bv_page);
+		memcpy(xmem, buf + bvec->bv_offset, bvec->bv_len);
+		kunmap_atomic(buf);
+	}
+
+	if (end)
+		bio_endio(bio, 0);
+
+	return 0;
+}
+
+static void bankshot2_add_to_cache_list(struct bankshot2_device *bs2_dev,
+			struct job_descriptor *jd)
+{
+//	set_job_status(jd, STATUS(JOB_QUEUED_TO_CACHE));
+	/* Moneta IO Is always blocking and not possible to have event driven operation */
+	set_job_status(jd, STATUS(JOB_ISSUED_TO_CACHE));
+//	if(jd->bio->bi_sector > jd->bs2_dev->sector_count)
+//		BEE3_INFO("Bio too big for cache %lu %u %x", jd->bio->bi_sector, jd->bio->bi_size, jd->moneta_cmd);
+	bankshot2_submit_to_cache(jd->bs2_dev, jd->bio, 1,
+				jd->xmem); 
 }
 
 uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
@@ -316,8 +348,9 @@ uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
 			__set_current_state(TASK_RUNNING);
 		}
 //		reset_job_bio(jd, jd->c_offset >> 9, bs2_dev->self_bdev, WRITE);
+		clear_job_status(jd);
 		jd->type = DO_COMPLETION;			
-//		bankshot2_add_to_cache_list(bs2_dev, jd, &bs2_dev->cache_queue);
+		bankshot2_add_to_cache_list(bs2_dev, jd);
 	}
 	return result;
 }
@@ -384,7 +417,7 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 /*To keep up with the iops capabilities of moneta, we have the io kernel
   issuing multiple request simultaneously */
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, unsigned long xpfn) 
+			size_t b_len, void *xmem) 
 {
 	/*
 	create bios and submit job_descritpors (we have to split and submit
@@ -424,7 +457,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 		bio->bi_bdev = bs2_dev->bs_bdev;
 		bio->bi_rw = READ;
 
-		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages, xpfn);
+		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages);
 		if(!done) 
 			break;
 		/* Setup the bio fields before submit */
@@ -437,12 +470,13 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 		nr_pages -= done;
 		b_offset += (done << PAGE_SHIFT);
 //		c_offset += (done << PAGE_SHIFT);
+		jd->xmem = xmem;
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 	result = do_cache_fill(bs2_dev, &jd_head, NULL);	
 	free_jobs_in_list(bs2_dev, &jd_head, NULL);
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
-
+	bs2_dbg("%s result: %d\n", __func__, result);
 	return (result & ~(1 << JOB_DONE))?-1:0;
 }
 

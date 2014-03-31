@@ -241,6 +241,7 @@ struct job_descriptor{
 	JOB_TYPE type; 
 	struct bio *bio;	
 	struct bio *sys_bio;
+	void *xmem;
 };
 
 struct bankshot2_device {
@@ -472,7 +473,7 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				struct bio *bio, struct block_device *bdev,
 				int where, JOB_TYPE type);
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, unsigned long xpfn); 
+			size_t b_len, void *xmem); 
 
 /* bankshot2_block.c */
 int bankshot2_init_block(struct bankshot2_device *);
