@@ -399,6 +399,7 @@ uint8_t do_disk_fill(struct bankshot2_device *bs2_dev,
 		clear_job_status(jd);
 		jd->type = FREE_ON_COMPLETION;
 		list_del(i);
+		atomic_inc(&bs2_dev->cache_stats.sync_queued_count);
 		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
 	}
 	return result;
