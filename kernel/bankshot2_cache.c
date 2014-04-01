@@ -102,6 +102,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 
 }
 
+# if 0
 static int bankshot2_lookup_key(void)
 {
 	return 0;
@@ -168,6 +169,7 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 
 	return 0;
 }
+# endif
 
 int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
@@ -188,7 +190,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	//FIXME: need a lock here
 
-	ret = bankshot2_lookup_key();
+//	ret = bankshot2_lookup_key();
 	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
 	if (ret) {
 		bs2_info("No cache inode found, returned %d\n", ret);
