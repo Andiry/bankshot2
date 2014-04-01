@@ -208,6 +208,36 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 }
 
+int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
+{
+	struct bankshot2_cache_data _data, *data;
+	int ret;
+	u64 st_ino;
+	struct inode *inode;
+
+	data = &_data;
+
+	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
+	if (ret) {
+		bs2_info("Get extent returned %d\n", ret);
+		return ret;
+	}
+
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	//FIXME: need a lock here
+
+	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
+	if (ret) {
+		bs2_info("No cache inode found, returned %d\n", ret);
+		return ret;
+	}
+
+	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
+
+	return ret;
+}
+
 int bankshot2_init_cache(struct bankshot2_device *bs2_dev, char *bsdev_name)
 {
 	struct block_device *bdev;

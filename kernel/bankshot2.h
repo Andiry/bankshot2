@@ -463,6 +463,8 @@ void bankshot2_destroy_char(struct bankshot2_device *);
 
 /* bankshot2_cache.c */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
+int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev,
+				void *arg);
 int bankshot2_init_cache(struct bankshot2_device *, char *);
 
 /* bankshot2_io.c */

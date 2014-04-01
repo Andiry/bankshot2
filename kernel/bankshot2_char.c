@@ -72,6 +72,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 	case BANKSHOT2_IOCTL_MMAP_REQUEST:
 		bankshot2_ioctl_mmap_request(bs2_dev, (void *)arg);
 		break;
+	case BANKSHOT2_IOCTL_GET_INODE:
+		bankshot2_ioctl_get_cache_inode(bs2_dev, (void *)arg);
+		break;
 	default:
 		break;
 	}
