@@ -46,6 +46,8 @@ int main(void)
 
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	printf("fds: %d %d\n", fd1, fd);
+	ioctl(fd, BANKSHOT2_IOCTL_GET_INODE, &data);
+	printf("cache ino: %lu\n", data.cache_ino);
 	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
 	printf("Read from cache: %c %c\n", data.buf[0], data.buf[4095]);
 
