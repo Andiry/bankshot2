@@ -3,6 +3,16 @@
 #define READ_EXTENT	0
 #define WRITE_EXTENT	1
 
+struct bankshot2_mmap_request {
+	void*	addr;
+	size_t	length;
+	int	prot;
+	int	flags;
+	int	fd;
+	off_t	offset;
+	unsigned long mmap_addr; // returned mmap address
+};
+
 struct bankshot2_cache_data{
 	int file;
 	uint64_t cache_ino; //Inode number in cache
@@ -16,6 +26,7 @@ struct bankshot2_cache_data{
 	uint64_t file_length; //total file length in bytes
 	int read;
 	int write;
+	unsigned long mmap_addr; // returned mmap address
 	/* -=-=-= These Entries Must Match struct fiemap_extent -=-=-=- */
 	uint64_t extent_start_file_offset; //file offset at which this extent starts (in bytes)
 	uint64_t extent_start; //starting byte address of this extent
@@ -24,16 +35,6 @@ struct bankshot2_cache_data{
 	uint32_t fe_flags;
 	uint32_t reserved32[3];
 	/* -=-=-= End Match Requirement -=-=-= */
-};
-
-struct bankshot2_mmap_request {
-	void*	addr;
-	size_t	length;
-	int	prot;
-	int	flags;
-	int	fd;
-	off_t	offset;
-	unsigned long mmap_addr; // returned mmap address
 };
 
 /* ioctls */

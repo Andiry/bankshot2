@@ -239,6 +239,10 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	else
 		bankshot2_xip_file_read(bs2_dev, data, st_ino);
 
+	data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
+			data->write ? PROT_WRITE : PROT_READ,
+			MAP_SHARED, data->file, data->offset);
+
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	return ret;

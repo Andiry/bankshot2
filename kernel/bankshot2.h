@@ -16,6 +16,7 @@
 //#include <linux/proc_fs.h>
 #include <linux/delay.h>
 #include <linux/file.h>
+#include <linux/mman.h>
 
 #include <asm/uaccess.h>
 
