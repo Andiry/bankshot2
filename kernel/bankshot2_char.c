@@ -60,11 +60,12 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	struct bankshot2_device *bs2_dev = filp->private_data;
+	int ret = 0;
 
 	bs2_info("ioctl sends to device, cmd 0x%x\n", cmd);
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
-		bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
+		ret = bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
 		break;
 	case BANKSHOT2_IOCTL_SHOW_INODE_INFO:
 		bankshot2_ioctl_show_inode_info(bs2_dev, *(u64 *)arg);
@@ -73,13 +74,13 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		bankshot2_ioctl_mmap_request(bs2_dev, (void *)arg);
 		break;
 	case BANKSHOT2_IOCTL_GET_INODE:
-		bankshot2_ioctl_get_cache_inode(bs2_dev, (void *)arg);
+		ret = bankshot2_ioctl_get_cache_inode(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 const struct file_operations bankshot2_char_fops = {

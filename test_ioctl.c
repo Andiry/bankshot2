@@ -17,11 +17,13 @@ int main(void)
 	struct bankshot2_mmap_request mmap1;
 	void *addr;
 	int rnw = 1;
+	int ret = 0;
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	data.file = fd1;
-	data.offset = 1024000000;
-	data.size = 8192;
+//	data.offset = 1024000000;
+//	data.size = 8192;
+	data.cache_ino = 0;
 	data.rnw = READ_EXTENT;
 	data.read = (rnw == READ_EXTENT);
 	data.write = (rnw == WRITE_EXTENT);
@@ -35,7 +37,14 @@ int main(void)
 
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	printf("fds: %d %d\n", fd1, fd);
-	ioctl(fd, BANKSHOT2_IOCTL_CACHE_DATA, &data);
+	ret = ioctl(fd, BANKSHOT2_IOCTL_GET_INODE, &data);
+
+	if (ret < 0)
+		printf("IOCTL_GET_INODE failed\n");
+
+	printf("Cache inode number: %lu\n", data.cache_ino);
+	return 0;
+
 
 	fd2 = open("/dev/bankshot2Block0", O_RDWR);
 	printf("fds: %d %d %d\n", fd1, fd, fd2);
