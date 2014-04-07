@@ -276,6 +276,7 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
+	bs2_dbg("Cache ino %llu, ret %d\n", data->cache_ino, ret);
 	return ret;
 }
 

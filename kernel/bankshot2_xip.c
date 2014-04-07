@@ -256,6 +256,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	unsigned long xpfn;
 //	char *buf1;
 
+	bs2_dbg("%s\n", __func__);
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi)
 		return 0;
@@ -273,13 +274,13 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 			break;
 
 //		buf1 = (char *)xmem;
-//		bs2_dbg("Before write: %c %c \n", buf1[0], buf1[4095]);
+//		bs2_dbg("Before copy from user\n");
 
 		copied = bytes -
 		__copy_from_user_inatomic_nocache(xmem + offset, buf, bytes);
-//		bs2_dbg("After write: %c %c \n", buf1[0], buf1[4095]);
+//		bs2_dbg("After copy from user\n");
 
-		bankshot2_copy_from_cache(bs2_dev, addr, bytes, xmem);
+//		bankshot2_copy_from_cache(bs2_dev, addr, bytes, xmem);
 		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
 
 		if (likely(copied > 0)) {
