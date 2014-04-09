@@ -502,6 +502,11 @@ int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 		unsigned long file_blocknr, unsigned int num, bool zero);
 int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero);
+void bankshot2_free_block(struct bankshot2_device *bs2_dev,
+		unsigned long blocknr, unsigned short btype);
+int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
+		u32 height, u32 btype, unsigned long first_blocknr,
+		unsigned long last_blocknr, bool *meta_empty);
 
 /* bankshot2_inode.c */
 int bankshot2_init_inode_table(struct bankshot2_device *);

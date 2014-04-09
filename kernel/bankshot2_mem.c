@@ -430,6 +430,26 @@ int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 	return errval;
 }
 
+/* Examine the meta-data block node up to the end_idx for any non-null
+ * pointers. If found return false, else return true.
+ * Required to determine if a meta-data block contains no pointers and hence
+ * can be freed.
+ */
+static inline bool is_empty_meta_block(__le64 *node, unsigned int start_idx,
+					unsigned int end_idx)
+{
+	int i, last_idx = (1 << META_BLK_SHIFT) - 1;
+	for (i = 0; i < start_idx; i++)
+		if (unlikely(node[i]))
+			return false;
+	for (i = end_idx + 1; i < last_idx; i++)
+		if (unlikely(node[i]))
+			return false;
+	return true;
+}
+
+/* Caller must hold super_block lock. If start_hint procided, it is
+ * only valid until the caller releases the super_block lock */
 void __bankshot2_free_block(struct bankshot2_device *bs2_dev,
 		unsigned long blocknr, unsigned short btype,
 		struct bankshot2_blocknode **start_hint)
@@ -522,6 +542,92 @@ void bankshot2_free_block(struct bankshot2_device *bs2_dev,
 	mutex_lock(&bs2_dev->s_lock);
 	__bankshot2_free_block(bs2_dev, blocknr, btype, NULL);
 	mutex_unlock(&bs2_dev->s_lock);
+}
+
+/* recursive_truncate_blocks: recursively deallocate a range of blocks from
+ * the first_blocknr to last_blocknr in the inode's btree.
+ * Input:
+ * block: points to the root of the b-tree where the blocks need to be allocated
+ * height: height of the b-tree
+ * first_blocknr: first block in the specified range
+ * last_blocknr: last blocknr in the specified range
+ * end: last byte offset of the range
+ */
+int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
+		u32 height, u32 btype, unsigned long first_blocknr,
+		unsigned long last_blocknr, bool *meta_empty)
+{
+	struct bankshot2_blocknode *start_hint = NULL;
+	unsigned long blocknr, first_blk, last_blk;
+	unsigned int node_bits, first_index, last_index, i;
+	__le64 *node;
+	unsigned int freed = 0, bzero;
+	int start, end;
+	bool mpty, all_range_freed = true;
+
+	node = bankshot2_get_block(bs2_dev, le64_to_cpu(block));
+	node_bits = (height - 1) * META_BLK_SHIFT;
+
+	start = first_index = first_blocknr >> node_bits;
+	end = last_index = last_blocknr >> node_bits;
+
+	if (height == 1) {
+		mutex_lock(&bs2_dev->s_lock);
+		for (i = first_index; i <= last_index; i++) {
+			if (unlikely(!node[i]))
+				continue;
+			/* Freeing the data block */
+			blocknr = bankshot2_get_blocknr(le64_to_cpu(node[i]));
+			__bankshot2_free_block(bs2_dev, blocknr, btype,
+						&start_hint);
+			freed++;
+		}
+		mutex_unlock(&bs2_dev->s_lock);
+	} else {
+		for (i = first_index; i <= last_index; i++) {
+			if (unlikely(!node[i]))
+				continue;
+			first_blk = (i == first_index) ? (first_blocknr &
+				((1 << node_bits) - 1)) : 0;
+			last_blk = (i == last_index) ? (last_blocknr &
+				((1 << node_bits) - 1)) : (1 << node_bits) - 1;
+
+			freed += recursive_truncate_blocks(bs2_dev, node[i],
+					height - 1, btype, first_blk,
+					last_blk, &mpty);
+
+			if (mpty) {
+				/* Free the meta-data block; */
+				blocknr = bankshot2_get_blocknr(
+							le64_to_cpu(node[i]));
+				bankshot2_free_block(bs2_dev, blocknr,
+						BANKSHOT2_BLOCK_TYPE_4K);
+			} else {
+				if (i == first_index)
+					start++;
+				else if (i == last_index)
+					end--;
+				all_range_freed = false;
+			}
+		}
+	}
+
+	if (all_range_freed &&
+			is_empty_meta_block(node, first_index, last_index)) {
+		*meta_empty = true;
+	} else {
+		/* Zero out the freed range if the meta-block is not empty */
+		if (start <= end) {
+			bzero = (end - start + 1) * sizeof(u64);
+//			bankshot2_memunlock_block(bs2_dev, node);
+			memset(&node[start], 0, bzero);
+//			bankshot2_memlock_block(bs2_dev, node);
+			bankshot2_flush_buffer(&node[start], bzero, false);
+		}
+		*meta_empty = false;
+	}
+
+	return freed;
 }
 
 int bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
