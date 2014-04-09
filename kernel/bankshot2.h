@@ -95,6 +95,7 @@ struct bankshot2_inode {
 	__le32	i_gid;              /* Group Id */
 	__le32	i_generation;       /* File version (for NFS) */
 	__le32	i_atime;            /* Access time */
+	__le64	i_ino;		    /* Inode number in bankshot2 */
 	__le64	backup_ino;	    /* Inode number in backing store */
 
 	struct {

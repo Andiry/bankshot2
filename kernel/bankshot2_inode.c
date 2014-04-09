@@ -1,6 +1,6 @@
 /*
  * inode code.
- * Copied from pmfs inode code.
+ * Copied from Pmfs inode code.
  */
 
 #include "bankshot2.h"
@@ -177,7 +177,7 @@ void bankshot2_get_inode_flags(struct inode *inode, struct bankshot2_inode *pi)
 static void bankshot2_update_inode(struct inode *inode,
 					struct bankshot2_inode *pi)
 {
-//	pmfs_memunlock_inode(inode->i_sb, pi);
+//	bankshot2_memunlock_inode(inode->i_sb, pi);
 	pi->i_mode = cpu_to_le16(inode->i_mode);
 	pi->i_uid = cpu_to_le32(i_uid_read(inode));
 	pi->i_gid = cpu_to_le32(i_gid_read(inode));
@@ -193,7 +193,7 @@ static void bankshot2_update_inode(struct inode *inode,
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		pi->dev.rdev = cpu_to_le32(inode->i_rdev);
 
-//	pmfs_memlock_inode(inode->i_sb, pi);
+//	bankshot2_memlock_inode(inode->i_sb, pi);
 }
 
 int bankshot2_new_inode(struct bankshot2_device *bs2_dev, struct inode *inode,
@@ -283,6 +283,7 @@ retry:
 //	bankshot2_set_inode_flags(inode, pi);
 
 	*new_ino = ino;
+	pi->i_ino = cpu_to_le64(ino);
 	pi->backup_ino = cpu_to_le64(inode->i_ino);
 
 	return 0;
@@ -382,6 +383,70 @@ found:
 	return 0;
 }
 
+static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	unsigned long inode_nr;
+//	bankshot2_transaction_t *trans;
+	int err = 0;
+
+	mutex_lock(&bs2_dev->inode_table_mutex);
+
+	bs2_dbg("Before free_inode: %llx free_inodes %x "
+		"total inodes %x hint %x\n",
+		pi->i_ino, bs2_dev->s_free_inodes_count,
+		bs2_dev->s_inodes_count, bs2_dev->s_free_inode_hint);
+
+	inode_nr = pi->i_ino;
+
+//	trans = bankshot2_new_transaction(sb, MAX_INODE_LENTRIES);
+//	if (IS_ERR(trans)) {
+//		err = PTR_ERR(trans);
+//		goto out;
+//	}
+
+//	bankshot2_add_logentry(sb, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
+
+//	bankshot2_memunlock_inode(sb, pi);
+
+	pi->root = 0;
+	/* pi->i_links_count = 0;
+	pi->i_xattr = 0; */
+	pi->i_size = 0;
+	pi->i_dtime = cpu_to_le32(get_seconds());
+//	bankshot2_memlock_inode(sb, pi);
+
+//	bankshot2_commit_transaction(sb, trans);
+
+	/* increment s_free_inodes_count */
+	if (inode_nr < (bs2_dev->s_free_inode_hint))
+		bs2_dev->s_free_inode_hint = (inode_nr);
+
+	bs2_dev->s_free_inodes_count += 1;
+
+	if ((bs2_dev->s_free_inodes_count) ==
+	    (bs2_dev->s_inodes_count) - BANKSHOT2_FREE_INODE_HINT_START) {
+		/* filesystem is empty */
+		bs2_dbg("fs is empty!\n");
+		bs2_dev->s_free_inode_hint = (BANKSHOT2_FREE_INODE_HINT_START);
+	}
+
+	bs2_dbg("After free_inode: free_nodes %x total_nodes %x hint %x\n",
+		   bs2_dev->s_free_inodes_count, bs2_dev->s_inodes_count,
+		   bs2_dev->s_free_inode_hint);
+//out:
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+	return err;
+}
+
+static inline unsigned long bankshot2_sparse_last_blocknr(unsigned int height,
+		unsigned long last_blocknr)
+{
+	if (last_blocknr >= (1UL << (height * META_BLK_SHIFT)))
+		last_blocknr = (1UL << (height * META_BLK_SHIFT)) - 1;
+	return last_blocknr;
+}
+
 void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi)
 {
@@ -404,7 +469,7 @@ void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 		last_blocknr = 0;
 
 	last_blocknr = bankshot2_sparse_last_blocknr(pi->height, last_blocknr);
-	err = bankshot2_free_inode(pi);
+	err = bankshot2_free_inode(bs2_dev, pi);
 	if (err) {
 		bs2_info("%s: free_inode failed %d\n", __func__, err);
 		return;
