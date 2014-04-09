@@ -381,3 +381,38 @@ found:
 
 	return 0;
 }
+
+void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	__le64 root;
+	unsigned long last_blocknr;
+	unsigned int height, btype;
+	int err = 0;
+
+	if (!pi)
+		return;
+
+	root = pi->root;
+	height = pi->height;
+	btype = pi->i_blk_type;
+
+	if (likely(pi->i_size))
+		last_blocknr = (pi->i_size - 1) >>
+				bankshot2_inode_blk_shift(pi);
+	else
+		last_blocknr = 0;
+
+	last_blocknr = bankshot2_sparse_last_blocknr(pi->height, last_blocknr);
+	err = bankshot2_free_inode(pi);
+	if (err) {
+		bs2_info("%s: free_inode failed %d\n", __func__, err);
+		return;
+	}
+	pi = NULL;
+
+	bankshot2_free_inode_subtree(bs2_dev, root, height, btype,
+					last_blocknr);
+}
+
+
