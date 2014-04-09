@@ -82,7 +82,7 @@ index 0000000..8631c93
 + *    a 64 byte log-entry can store 48 bytes of data and we would like
 + *    to log an inode using only 2 log-entries
 + * 2) root must be immediately after the qw containing height because we update
-+ *    root and height atomically using cmpxchg16b in pmfs_decrease_btree_height 
++ *    root and height atomically using cmpxchg16b in pmfs_decrease_btree_height
 + * 3) i_size, i_ctime, and i_mtime must be in that order and i_size must be at
 + *    16 byte aligned offset from the start of the inode. We use cmpxchg16b to
 + *    update these three fields atomically.
@@ -155,7 +155,7 @@ index 0000000..8631c93
 + * The fields are partitioned into static and dynamic fields. The static fields
 + * never change after file system creation. This was primarily done because
 + * pmfs_get_block() returns NULL if the block offset is 0 (helps in catching
-+ * bugs). So if we modify any field using journaling (for consistency), we 
++ * bugs). So if we modify any field using journaling (for consistency), we
 + * will have to modify s_sum which is at offset 0. So journaling code fails.
 + * This (static+dynamic fields) is a temporary solution and can be avoided
 + * once the file system becomes stable and pmfs_get_block() returns correct
@@ -174,7 +174,7 @@ index 0000000..8631c93
 +	/* points to the location of struct pmfs_inode for the inode table */
 +	__le64          s_inode_table_offset;
 +
-+	__le64  	s_start_dynamic; 
++	__le64  	s_start_dynamic;
 +
 +	/* all the dynamic fields should go here */
 +	/* s_mtime and s_wtime should be together and their order should not be
@@ -220,12 +220,12 @@ index 0000000..8631c93
 +	uint64_t async_cleaned_blocks;
 +	int async_triggered;
 +	atomic_t sync_eviction_triggered;
-+	
++
 +};
 +
 +typedef enum {
 +	WAKEUP_ON_COMPLETION=0,
-+	DO_COMPLETION=1, /*End of job. Could be endio for read or write  */	
++	DO_COMPLETION=1, /*End of job. Could be endio for read or write  */
 +	SYS_BIO=2, /*use orig bio to call endio and destroy job descriptor*/
 +	SYS_BIO_LAST=3, /* we call endio on sys bio only once*/
 +	FREE_ON_COMPLETION=4
@@ -234,25 +234,25 @@ index 0000000..8631c93
 +/* Valid status flags bit offsets - used to track request */
 +#define JOB_QUEUED_TO_DISK	1 /* The job is added to the backing store list */
 +#define JOB_ISSUED_TO_DISK	2 /* The job as been submitted to the backing store */
-+#define JOB_QUEUED_TO_CACHE	3 /* THe job has been queued for cache io */ 
-+#define JOB_ISSUED_TO_CACHE	4 /* The job has been submitted to cache */ 
-+#define JOB_DONE		5  /* The job has completed */ 
++#define JOB_QUEUED_TO_CACHE	3 /* THe job has been queued for cache io */
++#define JOB_ISSUED_TO_CACHE	4 /* The job has been submitted to cache */
++#define JOB_DONE		5  /* The job has completed */
 +#define JOB_ERROR		6 /* The job has error */
 +#define JOB_ABORT 		7 /* Say the cached block is accessed again, we abort eviction */
 +
 +struct job_descriptor{
-+	struct list_head store_queue;  /* This is the queue on which the job is placed before issuing. can be backing store or cache queue. Null if no queue */ 
++	struct list_head store_queue;  /* This is the queue on which the job is placed before issuing. can be backing store or cache queue. Null if no queue */
 +	struct list_head jobs; /* List of jobs that are issued by the thread. Used to track completion */
 +	struct bankshot2_device *bs2_dev;
 +	struct task_struct *job_parent; /* Pointer to the task struct of the thread that initiated this job */
 +	uint64_t b_offset;
 +	uint64_t c_offset;
-+	size_t num_bytes; 
++	size_t num_bytes;
 +	atomic_t status; /* use atomic operations to set the status of the job queue. Only when the list is global we need locks. I use mb() when operating on it */
 +//	uint8_t moneta_cmd;
 +	unsigned long disk_cmd;
-+	JOB_TYPE type; 
-+	struct bio *bio;	
++	JOB_TYPE type;
++	struct bio *bio;
 +	struct bio *sys_bio;
 +};
 +
@@ -357,7 +357,7 @@ index 0000000..8631c93
 +	} else if (btype == PMFS_BLOCK_TYPE_2M) {
 +		num_blocks = 512;
 +	} else {
-+		//btype == PMFS_BLOCK_TYPE_1G 
++		//btype == PMFS_BLOCK_TYPE_1G
 +		num_blocks = 0x40000;
 +	}
 +	return num_blocks;
