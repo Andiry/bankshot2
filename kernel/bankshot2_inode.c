@@ -439,6 +439,34 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 	return err;
 }
 
+unsigned int bankshot2_free_inode_subtree(struct bankshot2_device *bs2_dev,
+		__le64 root, u32 height, u32 btype, unsigned long last_blocknr)
+{
+	unsigned long first_blocknr;
+	unsigned int freed;
+	bool mpty;
+
+	if (!root)
+		return 0;
+
+	if (height == 0) {
+		first_blocknr = bankshot2_get_blocknr(le64_to_cpu(root));
+		bankshot2_free_block(bs2_dev, first_blocknr, btype);
+		freed = 1;
+	} else {
+		first_blocknr = 0;
+
+		freed = recursive_truncate_blocks(bs2_dev, root, height, btype,
+				first_blocknr, last_blocknr, &mpty);
+		BUG_ON(!mpty);
+		first_blocknr = bankshot2_get_blocknr(le64_to_cpu(root));
+		bankshot2_free_block(bs2_dev, first_blocknr,
+					BANKSHOT2_BLOCK_TYPE_4K);
+	}
+
+	return freed;
+}
+
 static inline unsigned long bankshot2_sparse_last_blocknr(unsigned int height,
 		unsigned long last_blocknr)
 {

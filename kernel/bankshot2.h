@@ -402,6 +402,11 @@ static inline u64 __bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 	return bp;
 }
 
+static inline unsigned long bankshot2_get_blocknr(u64 block)
+{
+	return block >> PAGE_SHIFT;
+}
+
 static inline void bankshot2_update_isize(struct bankshot2_inode *pi,
 						u64 new_size)
 {
