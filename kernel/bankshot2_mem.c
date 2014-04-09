@@ -24,6 +24,14 @@ static void __bankshot2_free_blocknode(struct bankshot2_device *bs2_dev,
 	kmem_cache_free(bs2_dev->bs2_blocknode_cachep, bnode);
 }
 
+static struct bankshot2_blocknode *bankshot2_next_blocknode(
+		struct bankshot2_blocknode *i, struct list_head *head)
+{
+	if (list_is_last(&i->link, head))
+		return NULL;
+	return list_first_entry(&i->link, typeof(*i), link);
+}
+
 int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero)
 {
@@ -420,6 +428,100 @@ int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 //	inode->i_blocks = le64_to_cpu(pi->i_blocks);
 
 	return errval;
+}
+
+void __bankshot2_free_block(struct bankshot2_device *bs2_dev,
+		unsigned long blocknr, unsigned short btype,
+		struct bankshot2_blocknode **start_hint)
+{
+	struct list_head *head = &(bs2_dev->block_inuse_head);
+	unsigned long new_block_low;
+	unsigned long new_block_high;
+	unsigned long num_blocks = 0;
+	struct bankshot2_blocknode *i;
+	struct bankshot2_blocknode *free_blocknode = NULL;
+	struct bankshot2_blocknode *curr_node;
+
+	num_blocks = bankshot2_get_numblocks(btype);
+	new_block_low = blocknr;
+	new_block_high = blocknr + num_blocks - 1;
+
+	BUG_ON(list_empty(head));
+
+	if (start_hint && *start_hint &&
+			new_block_low >= (*start_hint)->block_low)
+		i = *start_hint;
+	else
+		i = list_first_entry(head, typeof(*i), link);
+
+	list_for_each_entry_from(i, head, link) {
+		if (new_block_low > i->block_high) {
+			// Skip to next blocknode
+			continue;
+		}
+
+		if ((new_block_low == i->block_low) &&
+		    (new_block_high == i->block_high)) {
+			// Fits entire datablock
+			if (start_hint)
+				*start_hint = bankshot2_next_blocknode(i, head);
+			list_del(&i->link);
+			free_blocknode = i;
+			bs2_dev->num_blocknode_allocated--;
+			bs2_dev->num_free_blocks += num_blocks;
+			goto block_found;
+		}
+
+		if ((new_block_low == i->block_low) &&
+		    (new_block_high < i->block_high)) {
+			// Align to left
+			i->block_low = new_block_high + 1;
+			bs2_dev->num_free_blocks += num_blocks;
+			if (start_hint)
+				*start_hint = i;
+			goto block_found;
+		}
+
+		if ((new_block_low > i->block_low) &&
+		    (new_block_high == i->block_high)) {
+			// Align to right
+			i->block_high = new_block_low - 1;
+			bs2_dev->num_free_blocks += num_blocks;
+			if (start_hint)
+				*start_hint = bankshot2_next_blocknode(i, head);
+			goto block_found;
+		}
+
+		if ((new_block_low > i->block_low) &&
+		    (new_block_high < i->block_high)) {
+			// Align in the middle
+			curr_node = bankshot2_alloc_blocknode(bs2_dev);
+			if (!curr_node)
+				goto block_found;
+			curr_node->block_low = new_block_high + 1;
+			curr_node->block_high = i->block_high;
+			i->block_high = new_block_low - 1;
+			list_add(&curr_node->link, &i->link);
+			bs2_dev->num_free_blocks += num_blocks;
+			if (start_hint)
+				*start_hint = curr_node;
+			goto block_found;
+		}
+	}
+
+	bs2_info("Unable to free block %ld\n", blocknr);
+
+block_found:
+	if (free_blocknode)
+		__bankshot2_free_blocknode(bs2_dev, free_blocknode);
+}
+
+void bankshot2_free_block(struct bankshot2_device *bs2_dev,
+		unsigned long blocknr, unsigned short btype)
+{
+	mutex_lock(&bs2_dev->s_lock);
+	__bankshot2_free_block(bs2_dev, blocknr, btype, NULL);
+	mutex_unlock(&bs2_dev->s_lock);
 }
 
 int bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
