@@ -169,8 +169,8 @@ static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
 		bankshot2_flush_buffer(start_addr + len, 1, false);
 }
 
-ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
-		void *data1, u64 st_ino)
+int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
+		void *data1, u64 st_ino, ssize_t *actual_length)
 {
 	struct bankshot2_inode *pi;
 	struct bankshot2_cache_data *data =
@@ -191,7 +191,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi)
-		return 0;
+		return -EINVAL;
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -207,7 +207,7 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		ret = bankshot2_copy_to_cache(bs2_dev, addr, bytes, xmem);
 		if (ret)
-			break;
+			return ret;
 
 		copied = bytes;
 		__copy_to_user(buf, xmem + offset, bytes);
@@ -233,7 +233,8 @@ ssize_t bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		bankshot2_update_isize(pi, pos);
 	}	
 
-	return read ? read : status;
+	*actual_length = read;
+	return status;
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,

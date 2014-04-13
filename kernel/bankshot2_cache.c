@@ -102,6 +102,12 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 		return -EINVAL;
 	}
 
+	if (data->extent_start == (uint64_t)(-1) ||
+	    data->extent_start == (uint64_t)(-512) ||
+	    data->extent_start_file_offset > data->offset ||
+	    data->file_length == 0)
+		return -3;
+
 	return 0;
 
 }
@@ -218,12 +224,15 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
+	ssize_t actual_length = 0;
 
 	data = &_data;
 
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret) {
 		bs2_info("Get extent returned %d\n", ret);
+		if (ret == -3)
+			ret = 0;
 		return ret;
 	}
 
@@ -241,13 +250,25 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	if (data->rnw == WRITE_EXTENT)
 		bankshot2_xip_file_write(bs2_dev, data, st_ino);
 	else
-		bankshot2_xip_file_read(bs2_dev, data, st_ino);
+		ret = bankshot2_xip_file_read(bs2_dev, data, st_ino,
+						&actual_length);
 
+	if (ret || data->size != actual_length) {
+		bs2_info("xip_file operation returned %d, "
+				"request len %lu, actual len %lu\n",
+				ret, data->size, actual_length);
+	}
+
+	data->size = actual_length;
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED, data->file, data->offset);
 
+	data->extent_length = actual_length;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
+
+	if (data->size > 0)
+		ret = 0;
 
 	return ret;
 
