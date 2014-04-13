@@ -246,7 +246,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	size_t bytes;
 	ssize_t written = 0;
 	u64 pos = data->offset;
-	u64 addr = data->extent_start;
+//	u64 addr = data->extent_start;
 	size_t count = data->size;
 	char *buf = data->buf;
 	unsigned long index;
