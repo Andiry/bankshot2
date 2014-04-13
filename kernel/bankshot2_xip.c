@@ -238,7 +238,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
-		void *data1, u64 st_ino)
+		void *data1, u64 st_ino, ssize_t *actual_length)
 {
 	struct bankshot2_inode *pi;
 	struct bankshot2_cache_data *data =
@@ -305,7 +305,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		bankshot2_update_isize(pi, pos);
 	}	
 
-	return written ? written : status;
+	*actual_length = written;
+	return status;
 }
 
 static const struct vm_operations_struct bankshot2_xip_vm_ops = {

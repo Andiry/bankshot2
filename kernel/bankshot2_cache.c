@@ -248,7 +248,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	}
 
 	if (data->rnw == WRITE_EXTENT)
-		bankshot2_xip_file_write(bs2_dev, data, st_ino);
+		ret = bankshot2_xip_file_write(bs2_dev, data, st_ino,
+						&actual_length);
 	else
 		ret = bankshot2_xip_file_read(bs2_dev, data, st_ino,
 						&actual_length);
