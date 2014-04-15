@@ -45,15 +45,16 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 		bs2_dbg("File length: %llu\n", data->file_length);
 
 		if (data->offset >= data->file_length) {
-			bs2_dbg("File offset >= file length: %llu %llu\n", data->offset,
-					data->file_length);
+			bs2_dbg("File offset >= file length: %llu %llu\n",
+					data->offset, data->file_length);
 			data->extent_start = -512;
 			data->extent_length = -512;
 			data->extent_start_file_offset = -512;
 		} else {
 			filemap_write_and_wait(inode->i_mapping);
-			ret = inode->i_op->fiemap(inode, &fieinfo, data->offset / 512 * 512,
-						data->file_length - data->offset / 512 * 512);
+			ret = inode->i_op->fiemap(inode, &fieinfo,
+				data->offset / 512 * 512,
+				data->file_length - data->offset / 512 * 512);
 			bs2_dbg("Extent fiemap return %d extents, ret %d\n",
 					fieinfo.fi_extents_mapped, ret);
 			if (fieinfo.fi_extents_mapped == 0) {
@@ -61,9 +62,11 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 				data->extent_length = -512;
 				data->extent_start_file_offset = -512;
 			} else {
-				bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx, LogStart: 0x%llx\n",
-						data->extent_start, data->extent_length,
-						data->extent_start_file_offset);
+				bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx,"
+					" LogStart: 0x%llx, offset 0x%llu\n",
+					data->extent_start, data->extent_length,
+					data->extent_start_file_offset,
+					data->offset);
 			}
 		}
 	} else {

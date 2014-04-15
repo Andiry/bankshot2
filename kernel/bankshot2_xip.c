@@ -130,10 +130,12 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	}
 	pi = bankshot2_get_inode(bs2_dev, ino);
 
+	bs2_dbg("%s: ino %llu, request pgoff %lu\n", __func__, ino, vmf->pgoff);
 	rcu_read_lock();
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (vmf->pgoff >= size) {
-		bs2_info("pgoff >= size(SIGBUS).\n");
+		bs2_info("pgoff %lu >= size %lu (SIGBUS).\n",
+				vmf->pgoff, size);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}

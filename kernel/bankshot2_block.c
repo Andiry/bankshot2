@@ -48,7 +48,7 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 	int idx;
 
 	bs2_dev = (struct bankshot2_device *)q->queuedata;
-	bs2_info("Bio sends to block device\n");
+//	bs2_dbg("Bio sends to block device\n");
 	bio_get(bio);
 	size = bio->bi_size;
 	sectors = bio->bi_sector;
