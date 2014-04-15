@@ -191,6 +191,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	unsigned long xpfn;
 	int ret;
 
+	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+			__func__, st_ino, pos, count);
+
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi)
 		return -EINVAL;
@@ -259,7 +262,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	unsigned long xpfn;
 //	char *buf1;
 
-	bs2_dbg("%s\n", __func__);
+	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+			__func__, st_ino, pos, count);
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi)
 		return 0;

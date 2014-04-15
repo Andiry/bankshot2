@@ -63,7 +63,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 				data->extent_start_file_offset = -512;
 			} else {
 				bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx,"
-					" LogStart: 0x%llx, offset 0x%llu\n",
+					" LogStart: 0x%llx, offset 0x%llx\n",
 					data->extent_start, data->extent_length,
 					data->extent_start_file_offset,
 					data->offset);
