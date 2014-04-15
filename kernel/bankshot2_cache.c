@@ -266,7 +266,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	data->size = actual_length;
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
 			data->write ? PROT_WRITE : PROT_READ,
-			MAP_SHARED, data->file, data->offset);
+			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
+
+	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
+		"request len %lu, mmap_addr %lx\n",
+		data->file, data->offset, actual_length, data->mmap_addr);
 
 	data->extent_length = actual_length;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));

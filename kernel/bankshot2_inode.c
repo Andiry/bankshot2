@@ -348,8 +348,8 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		pi = bankshot2_get_inode(bs2_dev, ino);
 		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
 			bs2_dbg("Found cache inode %llu\n", ino);
-			*st_ino = ino;
-			return 0;
+			data->cache_file_size = le64_to_cpu(pi->i_size);
+			goto found;
 		} else if (!pi) {
 			bs2_info("Try to get ino %llu but cache inode not found"
 					", Allocate new inode\n", ino);
@@ -376,6 +376,7 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 	}
 
 	bs2_info("Allocated new inode %llu\n", ino);
+	data->cache_file_size = 0;
 found:
 	*st_ino = ino;
 	data->cache_ino = ino;

@@ -130,7 +130,8 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	}
 	pi = bankshot2_get_inode(bs2_dev, ino);
 
-	bs2_dbg("%s: ino %llu, request pgoff %lu\n", __func__, ino, vmf->pgoff);
+	bs2_dbg("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
+			__func__, ino, vmf->pgoff, vmf->virtual_address);
 	rcu_read_lock();
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (vmf->pgoff >= size) {
@@ -150,6 +151,8 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 				xip_pfn);
+	bs2_dbg("%s: insert page: pfn %lu, request pgoff %lu, vaddr %p\n",
+			__func__, xip_pfn, vmf->pgoff, vmf->virtual_address);
 	if (ret == -ENOMEM) {
 		ret = VM_FAULT_SIGBUS;
 		goto out;
