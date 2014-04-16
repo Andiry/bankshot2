@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/file.h>
 #include <linux/mman.h>
+#include <linux/rbtree.h>
 
 #include <asm/uaccess.h>
 
@@ -97,11 +98,22 @@ struct bankshot2_inode {
 	__le32	i_atime;            /* Access time */
 	__le64	i_ino;		    /* Inode number in bankshot2 */
 	__le64	backup_ino;	    /* Inode number in backing store */
+	struct rb_root extent_tree; /* Extent tree root */
+	rwlock_t extent_tree_lock;  /* Extent tree lock */
+
 
 	struct {
 		__le32 rdev;    /* major/minor # */
 	} dev;              /* device inode */
 	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
+};
+
+struct extent_entry {
+	struct rb_node node;
+	off_t offset;
+	size_t length;
+	int dirty;
+	unsigned long mmap_addr;
 };
 
 typedef struct bankshot2_journal {

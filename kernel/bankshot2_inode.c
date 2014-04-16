@@ -267,6 +267,9 @@ retry:
 	pi->height = 0;
 	pi->root = 0;
 	pi->i_dtime = 0;
+	pi->extent_tree = RB_ROOT;
+	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
+
 //	bankshot2_memlock_inode(sb, pi);
 
 	bs2_dev->s_free_inodes_count -= 1;

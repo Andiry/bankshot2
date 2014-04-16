@@ -33,6 +33,15 @@ static int __init bankshot2_init(void)
 		goto check_fail;
 	}
 
+	if (sizeof(struct bankshot2_inode) > BANKSHOT2_INODE_SIZE) {
+		bs2_info("Inode size too big: limit %d bytes, "
+				"actual %lu bytes\n",
+				BANKSHOT2_INODE_SIZE,
+				sizeof(struct bankshot2_inode));
+		ret = -EINVAL;
+		goto check_fail;
+	}
+
 	bs2_dev = kzalloc(sizeof(struct bankshot2_device), GFP_KERNEL);
 	if (!bs2_dev)
 		return -ENOMEM;
