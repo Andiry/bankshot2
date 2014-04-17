@@ -78,6 +78,10 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 struct bankshot2_inode {
 	/* first 48 bytes */
 	__le16	i_rsvd;         /* reserved. used to be checksum */
+	__le64	i_ino;		    /* Inode number in bankshot2 */
+	__le64	backup_ino;	    /* Inode number in backing store */
+	struct rb_root extent_tree; /* Extent tree root */
+	rwlock_t extent_tree_lock;  /* Extent tree lock */
 	u8	    height;         /* height of data b-tree; max 3 for now */
 	u8	    i_blk_type;     /* data block size this inode uses */
 	__le32	i_flags;            /* Inode flags */
@@ -96,10 +100,6 @@ struct bankshot2_inode {
 	__le32	i_gid;              /* Group Id */
 	__le32	i_generation;       /* File version (for NFS) */
 	__le32	i_atime;            /* Access time */
-	__le64	i_ino;		    /* Inode number in bankshot2 */
-	__le64	backup_ino;	    /* Inode number in backing store */
-	struct rb_root extent_tree; /* Extent tree root */
-	rwlock_t extent_tree_lock;  /* Extent tree lock */
 
 
 	struct {
@@ -110,6 +110,14 @@ struct bankshot2_inode {
 
 struct extent_entry {
 	struct rb_node node;
+	off_t offset;
+	size_t length;
+	int dirty;
+	unsigned long mmap_addr;
+};
+
+/* Test purpose only */
+struct extent_entry_user {
 	off_t offset;
 	size_t length;
 	int dirty;
@@ -545,3 +553,15 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		void *data, u64 st_ino, ssize_t *actual_length);
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		void *data, u64 st_ino, ssize_t *actual_length);
+
+/* bankshot2_extent.c */
+int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent);
+int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *data);
+void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset);
+void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi);
+void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi);

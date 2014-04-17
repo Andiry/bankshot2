@@ -1,5 +1,4 @@
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 static inline int bankshot2_rbtree_compare(struct extent_entry *curr,
 		struct extent_entry *new)
@@ -55,7 +54,7 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 }
 
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, off_t offset)
+			struct bankshot2_inode *pi, off_t offset)
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
@@ -72,6 +71,10 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		} else if (compVal == 1) {
 			temp = temp->rb_right;
 		} else {
+			bs2_dbg("Delete extent to pi %llu, extent offset %lu, "
+				"length %lu, mmap addr %lx\n",
+				pi->i_ino, curr->offset, curr->length,
+				curr->mmap_addr);
 			rb_erase(&curr->node, &pi->extent_tree);
 			kfree(curr);
 			break;
@@ -83,7 +86,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
+		struct bankshot2_inode *pi, struct extent_entry *data)
 {
 	struct extent_entry *new, *curr, *prev, *next;
 	struct rb_node *pre_node, *next_node;
@@ -95,7 +98,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		return -ENOMEM;
 
 	new->offset = data->offset;
-	new->length = data->size;
+	new->length = data->length;
 	new->mmap_addr = data->mmap_addr;
 	new->dirty = 1; //FIXME: We need to assume all extents are dirty
 //	rb_init_node(&new->node);

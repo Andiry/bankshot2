@@ -9,11 +9,20 @@
 
 #include "kernel/bankshot2_cache.h"
 
+struct extent_entry {
+	off_t offset;
+	size_t length;
+	int dirty;
+	unsigned long mmap_addr;
+};
+
 int main(void)
 {
 	int fd, fd1, fd2;
 	unsigned long a = 1, b = 4;
 	struct bankshot2_cache_data data;
+	struct extent_entry extent;
+	off_t offset;
 	struct bankshot2_mmap_request mmap1;
 	void *addr;
 	int rnw = 1;
@@ -43,6 +52,42 @@ int main(void)
 		printf("IOCTL_GET_INODE failed\n");
 
 	printf("Cache inode number: %lu\n", data.cache_ino);
+
+	extent.offset = 0;
+	extent.length = 4096;
+	extent.dirty = 1;
+	extent.mmap_addr = 0x10000;
+
+	ret = ioctl(fd, BANKSHOT2_IOCTL_ADD_EXTENT, &extent);
+
+	extent.offset = 4096;
+	extent.length = 4096;
+	extent.dirty = 1;
+	extent.mmap_addr = 0x11000;
+
+	ret = ioctl(fd, BANKSHOT2_IOCTL_ADD_EXTENT, &extent);
+
+	extent.offset = 8192;
+	extent.length = 4096;
+	extent.dirty = 1;
+	extent.mmap_addr = 0x13000;
+
+	ret = ioctl(fd, BANKSHOT2_IOCTL_ADD_EXTENT, &extent);
+
+	extent.offset = 16384;
+	extent.length = 4096;
+	extent.dirty = 1;
+	extent.mmap_addr = 0x18000;
+
+	ret = ioctl(fd, BANKSHOT2_IOCTL_ADD_EXTENT, &extent);
+
+	offset = 4096;
+	ret = ioctl(fd, BANKSHOT2_IOCTL_REMOVE_EXTENT, &offset);
+	offset = 4096;
+	ret = ioctl(fd, BANKSHOT2_IOCTL_REMOVE_EXTENT, &offset);
+	offset = 16387;
+	ret = ioctl(fd, BANKSHOT2_IOCTL_REMOVE_EXTENT, &offset);
+//	ret = ioctl(fd, BANKSHOT2_IOCTL_REMOVE_EXTENT, &extent);
 	return 0;
 
 

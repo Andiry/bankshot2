@@ -56,6 +56,43 @@ static void bankshot2_ioctl_mmap_request(struct bankshot2_device *bs2_dev,
 				mmap_request->fd,   mmap_request->offset);
 }
 
+int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev, void *arg)
+{
+	struct extent_entry *data;
+	struct extent_entry_user *data1;
+	struct bankshot2_inode *pi;
+	int ret;
+
+	data = kmalloc(sizeof(struct extent_entry), GFP_KERNEL);
+	data1 = (struct extent_entry_user *)arg;
+	pi = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
+
+	data->offset = data1->offset;
+	data->length = data1->length;
+	data->dirty = data1->dirty;
+	data->mmap_addr = data1->mmap_addr;
+
+	ret = bankshot2_add_extent(bs2_dev, pi, data);
+
+	if (data->dirty)
+		bankshot2_print_tree(bs2_dev, pi);
+	return ret;
+}
+
+int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev, void *arg)
+{
+	off_t offset;
+	struct bankshot2_inode *pi;
+
+	offset = *(off_t *)arg;
+	pi = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
+
+	bankshot2_remove_extent(bs2_dev, pi, offset);
+
+	bankshot2_print_tree(bs2_dev, pi);
+	return 0;
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -75,6 +112,12 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_GET_INODE:
 		ret = bankshot2_ioctl_get_cache_inode(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_ADD_EXTENT: /* Test purpose only */
+		ret = bankshot2_ioctl_add_extent(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_REMOVE_EXTENT: /* Test purpose only */
+		ret = bankshot2_ioctl_remove_extent(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;
