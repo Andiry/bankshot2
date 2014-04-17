@@ -21,7 +21,7 @@
 
 #include <asm/uaccess.h>
 
-#define bs2_dbg(s, args ...)	pr_info(s, ## args)
+#define bs2_dbg(s, args ...)	pr_debug(s, ## args)
 #define bs2_info(s, args ...)	pr_info(s, ## args)
 
 #define BANKSHOT2_RESERVE_SPACE	(4 << 20)

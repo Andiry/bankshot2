@@ -99,7 +99,7 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 	struct bankshot2_device *bs2_dev = filp->private_data;
 	int ret = 0;
 
-	bs2_info("ioctl sends to device, cmd 0x%x\n", cmd);
+	bs2_dbg("ioctl sends to device, cmd 0x%x\n", cmd);
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
 		ret = bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);

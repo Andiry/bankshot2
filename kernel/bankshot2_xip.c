@@ -242,7 +242,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = read;
-	return status;
+	return status < 0 ? status : 0;
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
@@ -315,7 +315,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = written;
-	return status;
+	return status < 0 ? status : 0;
 }
 
 static const struct vm_operations_struct bankshot2_xip_vm_ops = {
