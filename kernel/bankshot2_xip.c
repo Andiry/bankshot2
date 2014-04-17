@@ -24,7 +24,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, iblock,
 						1, true);
 		if (err) {
-			bs2_dbg("[%s:%d] Alloc failed!\n", __func__, __LINE__);
+			bs2_info("[%s:%d] Alloc failed!\n", __func__, __LINE__);
 			goto err;
 		}
 # if 0
