@@ -54,6 +54,34 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 	return -1;
 }
 
+void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	int compVal;
+
+	temp = pi->extent_tree.rb_node;
+	write_lock(&pi->extent_tree_lock);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr, offset);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			rb_erase(&curr->node, &pi->extent_tree);
+			kfree(curr);
+			break;
+		}
+	}
+
+	write_unlock(&pi->extent_tree_lock);
+	return;
+}
+
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
 {
@@ -154,3 +182,46 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	write_unlock(&pi->extent_tree_lock);
 	return 0;
 }
+
+void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+	temp = rb_first(&pi->extent_tree);
+	read_lock(&pi->extent_tree_lock);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("pi %llu, extent offset %lu, length %lu, "
+				"mmap addr %lx\n", pi->i_ino, curr->offset,
+				curr->length, curr->mmap_addr);
+		temp = rb_next(temp);
+	}
+
+	read_unlock(&pi->extent_tree_lock);
+	return;
+}
+
+void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+	temp = rb_first(&pi->extent_tree);
+	write_lock(&pi->extent_tree_lock);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+//		bs2_info("pi %llu, extent offset %lu, length %lu, "
+//				"mmap addr %lx\n", pi->i_ino, curr->offset,
+//				curr->length, curr->mmap_addr);
+		temp = rb_next(temp);
+		rb_erase(&curr->node, &pi->extent_tree);
+		kfree(curr);
+	}
+
+	write_unlock(&pi->extent_tree_lock);
+	return;
+}
+
