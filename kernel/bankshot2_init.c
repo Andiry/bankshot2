@@ -52,6 +52,12 @@ static int __init bankshot2_init(void)
 		goto kmem_fail;
 	}
 
+	ret = bankshot2_init_extents(bs2_dev);
+	if (ret) {
+		bs2_info("Bankshot2 kmem setup failed.\n");
+		goto extents_fail;
+	}
+
 	ret = bankshot2_init_char(bs2_dev);
 	if (ret) {
 		bs2_info("Bankshot2 char setup failed.\n");
@@ -102,10 +108,13 @@ super_fail:
 	bankshot2_destroy_char(bs2_dev);
 
 char_fail:
-	kfree(bs2_dev);
+	bankshot2_destroy_extents(bs2_dev);
+
+extents_fail:
+	bankshot2_destroy_kmem(bs2_dev);
 
 kmem_fail:
-	bankshot2_destroy_kmem(bs2_dev);
+	kfree(bs2_dev);
 
 check_fail:
 	return ret;
@@ -120,6 +129,7 @@ static void __exit bankshot2_exit(void)
 	bankshot2_destroy_block(bs2_dev);
 	bankshot2_destroy_super(bs2_dev);
 	bankshot2_destroy_char(bs2_dev);
+	bankshot2_destroy_extents(bs2_dev);
 	bankshot2_destroy_kmem(bs2_dev);
 	kfree(bs2_dev);
 }

@@ -323,6 +323,7 @@ struct bankshot2_device {
 	struct block_device *self_bdev;
 	uint64_t bs_sects;
 
+	struct kmem_cache *bs2_extent_slab;
 	/*
 	 * Backing store of pages and lock to protect it. This is the contents
 	 * of the block device.
@@ -565,3 +566,5 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
 void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
+int bankshot2_init_extents(struct bankshot2_device *);
+void bankshot2_destroy_extents(struct bankshot2_device *);

@@ -76,7 +76,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 				pi->i_ino, curr->offset, curr->length,
 				curr->mmap_addr);
 			rb_erase(&curr->node, &pi->extent_tree);
-			kfree(curr);
+			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
 			break;
 		}
 	}
@@ -93,7 +93,8 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	struct rb_node **temp, *parent;
 	int compVal;
 
-	new = kzalloc(sizeof(struct extent_entry), GFP_KERNEL);
+	new = (struct extent_entry *)
+		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -128,7 +129,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			curr->length, curr->mmap_addr, new->offset, new->length,
 			new->mmap_addr);
 			write_unlock(&pi->extent_tree_lock);
-			kfree(new);
+			kmem_cache_free(bs2_dev->bs2_extent_slab, new);
 			return 0;
 		}
 	}
@@ -152,7 +153,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			rb_erase(&new->node, &pi->extent_tree);
 			if (new->dirty)
 				prev->dirty = 1;
-			kfree(new);
+			kmem_cache_free(bs2_dev->bs2_extent_slab, new);
 			new = prev;
 		}
 	}
@@ -176,7 +177,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			if (next->dirty)
 				new->dirty = next->dirty;
 			rb_erase(&next->node, &pi->extent_tree);
-			kfree(next);
+			kmem_cache_free(bs2_dev->bs2_extent_slab, next);
 		} else {
 			break;
 		}
@@ -221,10 +222,26 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 //				curr->length, curr->mmap_addr);
 		temp = rb_next(temp);
 		rb_erase(&curr->node, &pi->extent_tree);
-		kfree(curr);
+		kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
 	}
 
 	write_unlock(&pi->extent_tree_lock);
 	return;
+}
+
+int bankshot2_init_extents(struct bankshot2_device *bs2_dev)
+{
+	bs2_dev->bs2_extent_slab = kmem_cache_create(
+					"bankshot2_extent_slab",
+					sizeof(struct extent_entry),
+					0, 0, NULL);
+	if (bs2_dev->bs2_extent_slab == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void bankshot2_destroy_extents(struct bankshot2_device *bs2_dev)
+{
+	kmem_cache_destroy(bs2_dev->bs2_extent_slab);
 }
 
