@@ -175,9 +175,9 @@ static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
 }
 
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
-		void *data1, u64 st_ino, ssize_t *actual_length)
+		void *data1, struct bankshot2_inode *pi,
+		ssize_t *actual_length)
 {
-	struct bankshot2_inode *pi;
 	struct bankshot2_cache_data *data =
 		(struct bankshot2_cache_data *)data1;
 	long status = 0;
@@ -195,11 +195,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	int ret;
 
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
-			__func__, st_ino, pos, count);
-
-	pi = bankshot2_get_inode(bs2_dev, st_ino);
-	if (!pi)
-		return -EINVAL;
+			__func__, pi->i_ino, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -246,9 +242,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
-		void *data1, u64 st_ino, ssize_t *actual_length)
+		void *data1, struct bankshot2_inode *pi,
+		ssize_t *actual_length)
 {
-	struct bankshot2_inode *pi;
 	struct bankshot2_cache_data *data =
 		(struct bankshot2_cache_data *)data1;
 	long status = 0;
@@ -266,10 +262,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 //	char *buf1;
 
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
-			__func__, st_ino, pos, count);
-	pi = bankshot2_get_inode(bs2_dev, st_ino);
-	if (!pi)
-		return 0;
+			__func__, pi->i_ino, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */

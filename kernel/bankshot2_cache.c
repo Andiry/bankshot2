@@ -225,6 +225,7 @@ static int bankshot2_find_or_alloc_extents(struct bankshot2_device *bs2_dev,
 int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
+	struct bankshot2_inode *pi;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
@@ -251,11 +252,17 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		return ret;
 	}
 
+	pi = bankshot2_get_inode(bs2_dev, st_ino);
+	if (!pi) {
+		bs2_info("Failed to get cache inode\n");
+		return -EINVAL;
+	}
+
 	if (data->rnw == WRITE_EXTENT)
-		ret = bankshot2_xip_file_write(bs2_dev, data, st_ino,
+		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
 						&actual_length);
 	else
-		ret = bankshot2_xip_file_read(bs2_dev, data, st_ino,
+		ret = bankshot2_xip_file_read(bs2_dev, data, pi,
 						&actual_length);
 
 	if (ret || data->size != actual_length) {
