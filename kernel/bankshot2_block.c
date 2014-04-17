@@ -28,7 +28,7 @@ int bankshot2_block_ioctl(struct block_device *bd, fmode_t mode,
 {
 //	struct bankshot2_device *bs2_dev = bd->bd_disk->private_data;
 
-	bs2_info("ioctl sends to block device, cmd 0x%x\n", cmd);
+	bs2_dbg("ioctl sends to block device, cmd 0x%x\n", cmd);
 
 	return 0;
 }
