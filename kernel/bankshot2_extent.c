@@ -86,23 +86,14 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *data)
+		struct bankshot2_inode *pi, struct extent_entry *new)
 {
-	struct extent_entry *new, *curr, *prev, *next;
+	struct extent_entry *curr, *prev, *next;
 	struct rb_node *pre_node, *next_node;
 	struct rb_node **temp, *parent;
 	int compVal;
 
-	new = (struct extent_entry *)
-		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-
-	new->offset = data->offset;
-	new->length = data->length;
-	new->mmap_addr = data->mmap_addr;
 	new->dirty = 1; //FIXME: We need to assume all extents are dirty
-//	rb_init_node(&new->node);
 
 	bs2_dbg("Insert extent to pi %llu, extent offset %lu, length %lu, "
 			"mmap addr %lx\n", pi->i_ino, new->offset,
