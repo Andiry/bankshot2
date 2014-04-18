@@ -45,12 +45,12 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 			extent->dirty = curr->dirty;
 			extent->mmap_addr = curr->mmap_addr;
 			read_unlock(&pi->extent_tree_lock);
-			return 0;
+			return 1;
 		}
 	}
 
 	read_unlock(&pi->extent_tree_lock);
-	return -1;
+	return 0;
 }
 
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,

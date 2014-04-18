@@ -272,32 +272,45 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 				ret, data->size, actual_length);
 	}
 
+	if (actual_length <= 0) {
+		bs2_info("data size incorrect: %lu\n", actual_length);
+		data->mmap_addr = 0;
+		ret = -EINVAL;
+		goto out;
+	}
+
 	data->size = actual_length;
-	if (data->size > 0) {
-		data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
+
+	new = (struct extent_entry *)
+		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+#if 0
+	new->offset = data->offset;
+	ret = bankshot2_find_extent(bs2_dev, pi, new);
+	if (ret) {
+		bs2_info("Find existing extent: offset %lu, length %lu, "
+				"mmap_addr %lx\n", new->offset,
+				new->length, new->mmap_addr);
+		data->mmap_addr = new->mmap_addr + data->offset - new->offset;
+		ret = 0;
+		goto out;
+	}
+#endif
+	data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
 
-		new = (struct extent_entry *)
-			kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
-		if (!new)
-			return -ENOMEM;
-
-		new->offset = data->offset;
-		new->length = data->size;
-		new->mmap_addr = data->mmap_addr;
-		bankshot2_add_extent(bs2_dev, pi, new);
-		ret = 0;
-	} else {
-		bs2_info("data size incorrect: %lu\n", data->size);
-		data->mmap_addr = 0;
-		ret = -EINVAL;
-	}
+	new->offset = data->offset;
+	new->length = data->size;
+	new->mmap_addr = data->mmap_addr;
+	bankshot2_add_extent(bs2_dev, pi, new);
 
 	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
 		"request len %lu, mmap_addr %lx\n",
 		data->file, data->offset, actual_length, data->mmap_addr);
 
+out:
 	data->extent_length = actual_length;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
