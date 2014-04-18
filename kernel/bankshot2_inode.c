@@ -512,4 +512,31 @@ void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 					last_blocknr);
 }
 
+int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int num_free)
+{
+	__le64 root;
+	unsigned long last_blocknr;
+	unsigned long height, btype;
+	int ret;
 
+	if (!pi || pi->i_size < num_free * PAGE_SIZE) {
+		bs2_info("pi %llu does not have %d pages: size %llu\n",
+				pi->i_ino, num_free, pi->i_size);
+		return -ENOSPC;
+	}
+
+	root = pi->root;
+	height = pi->height;
+	btype = pi->i_blk_type;
+
+	last_blocknr = (pi->i_size - 1) >> bankshot2_inode_blk_shift(pi);
+
+	last_blocknr = bankshot2_sparse_last_blocknr(pi->height,
+					last_blocknr);
+
+	ret = bankshot2_free_inode_num_blocks(bs2_dev, root, height, btype,
+					last_blocknr, num_free);
+
+	return ret;
+}
