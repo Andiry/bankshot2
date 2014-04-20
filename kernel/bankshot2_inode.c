@@ -51,7 +51,7 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 		return 0;
 
 	bp = __bankshot2_find_data_block(bs2_dev, pi, blocknr);
-	bs2_dbg("find_data_block %lx, %x %llx blk_p %p blk_shift %x"
+	bs2_dbg("find_data_block %lu, %x %llu blk_p %p blk_shift %x"
 		" blk_offset %lx\n", file_blocknr, pi->height, bp,
 		bankshot2_get_block(bs2_dev, bp), blk_shift, blk_offset);
 

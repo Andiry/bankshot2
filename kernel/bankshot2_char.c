@@ -56,7 +56,8 @@ static void bankshot2_ioctl_mmap_request(struct bankshot2_device *bs2_dev,
 				mmap_request->fd,   mmap_request->offset);
 }
 
-int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev, void *arg)
+static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
+					void *arg)
 {
 	struct extent_entry *data;
 	struct extent_entry_user *data1;
@@ -79,7 +80,8 @@ int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev, void *arg)
 	return ret;
 }
 
-int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev, void *arg)
+static int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev,
+					void *arg)
 {
 	off_t offset;
 	struct bankshot2_inode *pi;
@@ -90,6 +92,21 @@ int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev, void *arg)
 	bankshot2_remove_extent(bs2_dev, pi, offset);
 
 	bankshot2_print_tree(bs2_dev, pi);
+	return 0;
+}
+
+static int bankshot2_ioctl_free_blocks(struct bankshot2_device *bs2_dev,
+					void *arg)
+{
+	int num_free;
+	struct bankshot2_inode *pi;
+
+	num_free = *(int *)arg;
+	pi = bankshot2_get_inode(bs2_dev, 3);
+
+	bankshot2_reclaim_num_blocks(bs2_dev, pi, num_free);
+
+//	bankshot2_print_tree(bs2_dev, pi);
 	return 0;
 }
 
@@ -118,6 +135,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_REMOVE_EXTENT: /* Test purpose only */
 		ret = bankshot2_ioctl_remove_extent(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_FREE_BLOCKS: /* Test purpose only */
+		ret = bankshot2_ioctl_free_blocks(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;

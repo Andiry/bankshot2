@@ -229,6 +229,9 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 	int num_pages;
 	int total_freed = 0, freed;
 
+//	bs2_info("Before free:\n");
+//	bankshot2_print_tree(bs2_dev, pi);
+
 	temp = rb_first(&pi->extent_tree);
 	write_lock(&pi->extent_tree_lock);
 	while (temp && num_free > 0) {
@@ -261,6 +264,8 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 
 	write_unlock(&pi->extent_tree_lock);
 
+//	bs2_info("After free:\n");
+//	bankshot2_print_tree(bs2_dev, pi);
 	return total_freed;
 }
 

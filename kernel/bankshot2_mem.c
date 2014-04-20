@@ -160,6 +160,7 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 	}
 	*blocknr = new_block_low;
 
+	bs2_dbg("Allocate block at %lu\n", new_block_low);
 	return errval;
 }
 
@@ -549,6 +550,7 @@ void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, int num_free)
 {
 	u64 block;
+	unsigned long blocknr;
 	unsigned long index;
 
 	while (num_free > 0) {
@@ -558,7 +560,8 @@ void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
 			bs2_info("block not found at %lu!\n", offset);
 			return;
 		}
-		bankshot2_free_block(bs2_dev, block, pi->i_blk_type);
+		blocknr = bankshot2_get_blocknr(le64_to_cpu(block));
+		bankshot2_free_block(bs2_dev, blocknr, pi->i_blk_type);
 		offset += PAGE_SIZE;
 		num_free--;
 	}
