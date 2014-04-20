@@ -544,6 +544,26 @@ void bankshot2_free_block(struct bankshot2_device *bs2_dev,
 	mutex_unlock(&bs2_dev->s_lock);
 }
 
+/* Free num_free blocks, start from offset */
+void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset, int num_free)
+{
+	u64 block;
+	unsigned long index;
+
+	while (num_free > 0) {
+		index = offset >> bs2_dev->s_blocksize_bits;
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("block not found at %lu!\n", offset);
+			return;
+		}
+		bankshot2_free_block(bs2_dev, block, pi->i_blk_type);
+		offset += PAGE_SIZE;
+		num_free--;
+	}
+}
+
 /* recursive_truncate_blocks: recursively deallocate a range of blocks from
  * the first_blocknr to last_blocknr in the inode's btree.
  * Input:

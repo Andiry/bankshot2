@@ -525,6 +525,8 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero);
 void bankshot2_free_block(struct bankshot2_device *bs2_dev,
 		unsigned long blocknr, unsigned short btype);
+void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset, int num_free);
 int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
 		u32 height, u32 btype, unsigned long first_blocknr,
 		unsigned long last_blocknr, bool *meta_empty);
@@ -539,6 +541,8 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		void *data, struct inode *inode, u64 *st_ino);
 int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
+int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int num_free);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,
@@ -566,5 +570,7 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
 void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
+int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int num_free);
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);

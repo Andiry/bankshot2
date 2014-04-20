@@ -220,6 +220,50 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	return;
 }
 
+int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int num_free)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	off_t offset;
+	int num_pages;
+	int total_freed = 0, freed;
+
+	temp = rb_first(&pi->extent_tree);
+	write_lock(&pi->extent_tree_lock);
+	while (temp && num_free > 0) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("pi %llu, extent offset %lu, length %lu, "
+				"mmap addr %lx\n", pi->i_ino, curr->offset,
+				curr->length, curr->mmap_addr);
+		temp = rb_next(temp);
+		offset = curr->offset;
+		num_pages = curr->length / PAGE_SIZE;
+		if (num_pages > num_free) {
+			// Shrink the extent;
+			freed = num_free;
+			vm_munmap(curr->mmap_addr, num_free * PAGE_SIZE);
+			curr->length -= num_free * PAGE_SIZE;
+			curr->offset += num_free * PAGE_SIZE;
+			curr->mmap_addr += num_free * PAGE_SIZE;
+		} else {
+			// Delete the extent;
+			freed = num_pages;
+			vm_munmap(curr->mmap_addr, curr->length);
+			rb_erase(&curr->node, &pi->extent_tree);
+			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+		}
+
+		bankshot2_free_blocks(bs2_dev, pi, offset, freed); 
+		total_freed += freed;
+		num_free -= freed;
+	}
+
+	write_unlock(&pi->extent_tree_lock);
+
+	return total_freed;
+}
+
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)
 {
 	bs2_dev->bs2_extent_slab = kmem_cache_create(
