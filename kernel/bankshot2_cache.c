@@ -310,6 +310,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		"request len %lu, mmap_addr %lx\n",
 		data->file, data->offset, actual_length, data->mmap_addr);
 
+//	bankshot2_print_tree(bs2_dev, pi);
 out:
 	data->extent_length = actual_length;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));

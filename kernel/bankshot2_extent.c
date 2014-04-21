@@ -236,7 +236,7 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 	write_lock(&pi->extent_tree_lock);
 	while (temp && num_free > 0) {
 		curr = container_of(temp, struct extent_entry, node);
-		bs2_info("pi %llu, extent offset %lu, length %lu, "
+		bs2_info("Free: pi %llu, extent offset %lu, length %lu, "
 				"mmap addr %lx\n", pi->i_ino, curr->offset,
 				curr->length, curr->mmap_addr);
 		temp = rb_next(temp);

@@ -22,12 +22,19 @@ int main(void)
 	buf = malloc(4096);
 	memset(buf, 'c', 4096);
 
-	fd1 = open("/mnt/ramdisk/test2", O_RDWR | O_CREAT, 0640);
+	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
+	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
 	printf("mmap addr: \t%p\n", addr);
 	memset(buf, 'c', 4096);
 	memcpy(addr, buf, 4096);
-	munmap(addr, 4096);
+	mmap1.addr = addr;
+	mmap1.length = 4096;
+//	munmap(addr, 4096);
+	ioctl(fd, BANKSHOT2_IOCTL_MUNMAP_REQUEST, &mmap1);
+
+	memcpy(buf, addr, 4096);
+
 
 	return 0;
 	data.file = fd1;
