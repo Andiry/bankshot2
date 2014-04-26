@@ -60,6 +60,8 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 #define DISK 0
 #define CACHE 1
 
+#define ALIGN_ADDRESS(addr) ((uint64_t)((addr >= PAGE_SIZE) ? (addr - \
+			(addr % PAGE_SIZE)) : 0))
 
 /* ========================= Data structures =============================== */
 

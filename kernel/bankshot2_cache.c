@@ -226,11 +226,12 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	struct bankshot2_inode *pi;
-	struct extent_entry *new;
+//	struct extent_entry *new;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
 	ssize_t actual_length = 0;
+	size_t request_len;
 
 	data = &_data;
 
@@ -259,6 +260,15 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		return -EINVAL;
 	}
 
+	// Update length
+	request_len = (data->extent_start_file_offset + data->extent_length)
+			> (data->offset + data->size) ?
+			data->size :
+			data->extent_start_file_offset + data->extent_length
+				- data->offset;
+
+	data->size = request_len;
+
 	if (data->rnw == WRITE_EXTENT)
 		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
 						&actual_length);
@@ -281,11 +291,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->size = actual_length;
 
+#if 0
 	new = (struct extent_entry *)
 		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
-#if 0
 	new->offset = data->offset;
 	ret = bankshot2_find_extent(bs2_dev, pi, new);
 	if (ret) {
@@ -297,14 +307,17 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		goto out;
 	}
 #endif
-	data->mmap_addr = bankshot2_mmap(bs2_dev, 0, data->size,
+	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
+			data->size + (data->offset % PAGE_SIZE),
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
 
+#if 0
 	new->offset = data->offset;
 	new->length = data->size;
 	new->mmap_addr = data->mmap_addr;
 	bankshot2_add_extent(bs2_dev, pi, new);
+#endif
 
 	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
 		"request len %lu, mmap_addr %lx\n",
@@ -312,7 +325,10 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 //	bankshot2_print_tree(bs2_dev, pi);
 out:
-	data->extent_length = actual_length;
+	// Align extent_start_file_offset and extent_length to PAGE_SIZE
+	data->extent_start_file_offset = ALIGN_ADDRESS(data->offset);
+	data->extent_length = actual_length + data->offset
+				- data->extent_start_file_offset;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	return ret;
