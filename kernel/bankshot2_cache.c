@@ -226,7 +226,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	struct bankshot2_inode *pi;
-//	struct extent_entry *new;
+	struct extent_entry *new;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
@@ -291,11 +291,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->size = actual_length;
 
-#if 0
 	new = (struct extent_entry *)
 		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
+#if 0
 	new->offset = data->offset;
 	ret = bankshot2_find_extent(bs2_dev, pi, new);
 	if (ret) {
@@ -312,16 +312,14 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
 
-#if 0
-	new->offset = data->offset;
-	new->length = data->size;
-	new->mmap_addr = data->mmap_addr;
+	new->offset = ALIGN_ADDRESS(data->offset);
+	new->length = actual_length + data->offset - new->offset;
 	bankshot2_add_extent(bs2_dev, pi, new);
-#endif
 
 	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
-		"request len %lu, mmap_addr %lx\n",
-		data->file, data->offset, actual_length, data->mmap_addr);
+		"request len %lu, mmaped len %llu, mmap_addr %lx\n",
+		data->file, data->offset, actual_length,
+		data->size + (data->offset % PAGE_SIZE), data->mmap_addr);
 
 //	bankshot2_print_tree(bs2_dev, pi);
 out:
@@ -332,7 +330,6 @@ out:
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	return ret;
-
 }
 
 int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)

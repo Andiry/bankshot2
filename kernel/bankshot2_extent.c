@@ -43,7 +43,7 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 			extent->offset = curr->offset;
 			extent->length = curr->length;
 			extent->dirty = curr->dirty;
-			extent->mmap_addr = curr->mmap_addr;
+//			extent->mmap_addr = curr->mmap_addr;
 			read_unlock(&pi->extent_tree_lock);
 			return 1;
 		}
@@ -72,9 +72,8 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 			temp = temp->rb_right;
 		} else {
 			bs2_dbg("Delete extent to pi %llu, extent offset %lu, "
-				"length %lu, mmap addr %lx\n",
-				pi->i_ino, curr->offset, curr->length,
-				curr->mmap_addr);
+				"length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
 			rb_erase(&curr->node, &pi->extent_tree);
 			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
 			break;
@@ -95,9 +94,8 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 
 	new->dirty = 1; //FIXME: We need to assume all extents are dirty
 
-	bs2_dbg("Insert extent to pi %llu, extent offset %lu, length %lu, "
-			"mmap addr %lx\n", pi->i_ino, new->offset,
-			new->length, new->mmap_addr);
+	bs2_dbg("Insert extent to pi %llu, extent offset %lu, length %lu\n",
+			pi->i_ino, new->offset, new->length);
 
 	temp = &(pi->extent_tree.rb_node);
 	parent = NULL;
@@ -115,10 +113,9 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		} else {
 			bs2_info("want to insert extent but it already exists, "
 			"pi %llu, existing extent offset %lu, length %lu, "
-			"mmap addr %lx, new extent offset %lu, length %lu, "
-			"mmap addr %lx\n", pi->i_ino, curr->offset,
-			curr->length, curr->mmap_addr, new->offset, new->length,
-			new->mmap_addr);
+			"new extent offset %lu, length %lu\n",
+			pi->i_ino, curr->offset, curr->length, new->offset,
+			new->length);
 			write_unlock(&pi->extent_tree_lock);
 			kmem_cache_free(bs2_dev->bs2_extent_slab, new);
 			return 0;
@@ -132,9 +129,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	pre_node = rb_prev(&new->node);
 	if (pre_node) {
 		prev = container_of(pre_node, struct extent_entry, node);
-		if ((prev->offset + prev->length >= new->offset) &&
-		    (prev->mmap_addr + (new->offset - prev->offset)
-				== new->mmap_addr)) {
+		if (prev->offset + prev->length >= new->offset) {
 			if (prev->offset + prev->length
 					< new->offset + new->length) {
 				prev->length = new->offset + new->length
@@ -156,9 +151,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			break;
 
 		next = container_of(next_node, struct extent_entry, node);
-		if ((new->offset + new->length >= next->offset) &&
-		    (new->mmap_addr + (next->offset - new->offset)
-				== next->mmap_addr)) {
+		if (new->offset + new->length >= next->offset) {
 			if (next->offset + next->length
 					> new->offset + new->length) {
 				new->length = next->offset + next->length
@@ -188,9 +181,8 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 	read_lock(&pi->extent_tree_lock);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
-		bs2_info("pi %llu, extent offset %lu, length %lu, "
-				"mmap addr %lx\n", pi->i_ino, curr->offset,
-				curr->length, curr->mmap_addr);
+		bs2_info("pi %llu, extent offset %lu, length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
 		temp = rb_next(temp);
 	}
 
@@ -236,23 +228,21 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 	write_lock(&pi->extent_tree_lock);
 	while (temp && num_free > 0) {
 		curr = container_of(temp, struct extent_entry, node);
-		bs2_info("Free: pi %llu, extent offset %lu, length %lu, "
-				"mmap addr %lx\n", pi->i_ino, curr->offset,
-				curr->length, curr->mmap_addr);
+		bs2_info("Free: pi %llu, extent offset %lu, length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
 		temp = rb_next(temp);
 		offset = curr->offset;
 		num_pages = curr->length / PAGE_SIZE;
 		if (num_pages > num_free) {
 			// Shrink the extent;
 			freed = num_free;
-			vm_munmap(curr->mmap_addr, num_free * PAGE_SIZE);
+//			vm_munmap(curr->mmap_addr, num_free * PAGE_SIZE);
 			curr->length -= num_free * PAGE_SIZE;
 			curr->offset += num_free * PAGE_SIZE;
-			curr->mmap_addr += num_free * PAGE_SIZE;
 		} else {
 			// Delete the extent;
 			freed = num_pages;
-			vm_munmap(curr->mmap_addr, curr->length);
+//			vm_munmap(curr->mmap_addr, curr->length);
 			rb_erase(&curr->node, &pi->extent_tree);
 			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
 		}
