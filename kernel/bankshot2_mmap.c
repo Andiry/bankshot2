@@ -3,14 +3,95 @@
  * Basically copied from mm/mmap.c and other mm source files.
  */
 
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/mount.h>
-#include <linux/audit.h>
-#include <linux/security.h>
-#include <linux/hugetlb.h>
 #include "bankshot2.h"
 
+#if 0
+static inline int trylock_page(struct page *page)
+{
+	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+}
+
+static inline void lock_page(struct page *page)
+{
+	might_sleep();
+	if (!trylock_page(page))
+		__lock_page(page);
+}
+
+static void __bankshot2_unmap(struct address_space *mapping,
+		struct page *page, unsigned long pgoff)
+{
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	unsigned long address;
+	pte_t *pte;
+	pte_t pteval;
+	spinlock_t *ptl;
+
+	mutex_lock(&mapping->i_mmap_mutex);
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+		mm = vma->vm_mm;
+		address = vma->vm_start +
+			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+		pte = page_check_address(page, mm, address, &ptl, 1);
+		if (pte) {
+			/* Nuke the page table entry. */
+			flush_cache_page(vma, address, pte_pfn(*pte));
+			pteval = ptep_clear_flush(vma, address, pte);
+			page_remove_rmap(page);
+			dec_mm_counter(mm, MM_FILEPAGES);
+			BUG_ON(pte_dirty(pteval));
+			pte_unmap_unlock(pte, ptl);
+			/* must invalidate_page _before_ freeing the page */
+			mmu_notifier_invalidate_page(mm, address);
+			page_cache_release(page);
+		}
+	}
+	mutex_unlock(&mapping->i_mmap_mutex);
+}
+#endif
+
+void bankshot2_munmap(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset, int num_pages)
+{
+	struct page *page;
+	u64 block;
+	off_t curr = offset;
+	unsigned long iblock = 0;
+	unsigned long pfn;
+	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK;
+	int ret;
+
+	bs2_info("%s: unmap offset %lu, %d pages\n", __func__,
+			offset, num_pages);
+	while(num_pages > 0) {
+		iblock = offset >> PAGE_SHIFT;
+		block = bankshot2_find_data_block(bs2_dev, pi, iblock);
+		if (!block) {
+			bs2_info("%s: Offset %lu not found!\n",
+					__func__, curr);
+			goto update;
+		}
+
+		pfn = bankshot2_get_pfn(bs2_dev, block);
+		page = pfn_to_page(pfn);
+		bs2_info("%s: unmap pfn %lu, mmaped %d, mapping %p\n", __func__, pfn, page_mapped(page), page->mapping);
+//		lock_page(page);
+//		ret = try_to_unmap(page, ttu);
+		bankshot2_unmap(page->mapping, page, iblock);
+//		unlock_page(page);
+
+		if (ret != SWAP_SUCCESS)
+			bs2_info("%s: Offset %lu try_to_unmap failed %d!\n",
+					__func__, curr, ret);
+update:
+		offset += PAGE_SIZE;
+		num_pages--;
+	}
+}
+
+#if 0
 #define mmap_min_addr	0UL
 
 long __mlock_vma_pages_range(struct vm_area_struct *vma,
@@ -609,3 +690,4 @@ out:
 	return retval;
 }
 
+#endif

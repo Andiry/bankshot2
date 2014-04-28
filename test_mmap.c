@@ -24,19 +24,35 @@ int main(void)
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
-	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
+
+	mmap1.fd = fd1;
+	mmap1.addr = NULL;
+	mmap1.length = 4096;
+	mmap1.prot = PROT_WRITE;
+	mmap1.flags = MAP_SHARED;
+	mmap1.offset = 0;
+
+//	addr = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fd1, 0);
+	ioctl(fd, BANKSHOT2_IOCTL_MMAP_REQUEST, &mmap1);
+	addr = (void *)mmap1.mmap_addr;
+
 	printf("mmap addr: \t%p\n", addr);
 	memset(buf, 'c', 4096);
 	memcpy(addr, buf, 4096);
 	mmap1.addr = addr;
 	mmap1.length = 4096;
+	sleep(5);
+	printf("unmmap addr: \t%p\n", addr);
 //	munmap(addr, 4096);
 	ioctl(fd, BANKSHOT2_IOCTL_MUNMAP_REQUEST, &mmap1);
 
-	memcpy(buf, addr, 4096);
+	sleep(10);
+//	memcpy(buf, addr, 4096);
+	memcpy(addr, buf, 4096);
 
 
 	return 0;
+
 	data.file = fd1;
 	data.offset = 0;
 	data.size = 4096;

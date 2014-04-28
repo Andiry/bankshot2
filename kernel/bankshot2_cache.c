@@ -316,7 +316,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	new->length = actual_length + data->offset - new->offset;
 	bankshot2_add_extent(bs2_dev, pi, new);
 
-	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
+	bs2_info("bankshot2 mmap: file %d, offset %llu, "
 		"request len %lu, mmaped len %llu, mmap_addr %lx\n",
 		data->file, data->offset, actual_length,
 		data->size + (data->offset % PAGE_SIZE), data->mmap_addr);

@@ -17,6 +17,12 @@
 #include <linux/delay.h>
 #include <linux/file.h>
 #include <linux/mman.h>
+#include <linux/mm.h>
+#include <linux/rmap.h>
+#include <linux/pagemap.h>
+#include <linux/export.h>
+#include <linux/hugetlb.h>
+#include <linux/mmu_notifier.h>
 #include <linux/rbtree.h>
 
 #include <asm/uaccess.h>
@@ -576,3 +582,8 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
+
+/* bankshot2_mmap.c */
+void bankshot2_munmap(struct bankshot2_device *bs2_dev,
+			 struct bankshot2_inode *pi,
+			 off_t offset, int num_pages);

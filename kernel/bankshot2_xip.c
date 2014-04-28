@@ -128,6 +128,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
 	struct bankshot2_inode *pi;
+	struct page *page;
 	pgoff_t size;
 	void *xip_mem;
 	unsigned long xip_pfn;
@@ -142,7 +143,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	}
 	pi = bankshot2_get_inode(bs2_dev, ino);
 
-	bs2_dbg("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
+	bs2_info("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
 			__func__, ino, vmf->pgoff, vmf->virtual_address);
 	rcu_read_lock();
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -160,11 +161,15 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
+	page = pfn_to_page(xip_pfn);
+	page->mapping = mapping;
+	atomic_inc(&page->_mapcount);
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 				xip_pfn);
-	bs2_dbg("%s: insert page: pfn %lu, request pgoff %lu, vaddr %p\n",
-			__func__, xip_pfn, vmf->pgoff, vmf->virtual_address);
+	bs2_info("%s: insert page: vma %p, pfn %lu, request pgoff %lu, vaddr %p, "
+			"mapping %p\n",	__func__, vma, xip_pfn, vmf->pgoff,
+			vmf->virtual_address, mapping);
 	if (ret == -ENOMEM) {
 		ret = VM_FAULT_SIGBUS;
 		goto out;

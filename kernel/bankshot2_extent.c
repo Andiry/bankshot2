@@ -179,6 +179,7 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 
 	temp = rb_first(&pi->extent_tree);
 	read_lock(&pi->extent_tree_lock);
+	bs2_info("Print extent tree for pi %llu\n", pi->i_ino);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
 		bs2_info("pi %llu, extent offset %lu, length %lu\n",
@@ -247,6 +248,7 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
 		}
 
+		bankshot2_munmap(bs2_dev, pi, offset, freed);
 		bankshot2_free_blocks(bs2_dev, pi, offset, freed); 
 		total_freed += freed;
 		num_free -= freed;
