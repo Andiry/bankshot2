@@ -27,7 +27,7 @@ int main(void)
 
 	mmap1.fd = fd1;
 	mmap1.addr = NULL;
-	mmap1.length = 4096;
+	mmap1.length = 4096 * 2;
 	mmap1.prot = PROT_WRITE;
 	mmap1.flags = MAP_SHARED;
 	mmap1.offset = 0;
@@ -40,6 +40,7 @@ int main(void)
 	memset(buf, 'c', 4096);
 	memcpy(addr, buf, 4096);
 	mmap1.addr = addr;
+	mmap1.offset = 4096;
 	mmap1.length = 4096;
 	sleep(5);
 	printf("unmmap addr: \t%p\n", addr);

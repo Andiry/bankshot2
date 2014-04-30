@@ -122,6 +122,61 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+#if 0
+static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff;
+}
+
+static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
+}
+
+static void bankshot2_insert_vma(struct address_space *mapping,
+				struct vm_area_struct *vma)
+{
+	struct rb_root *root = &mapping->i_mmap; 
+	struct rb_node **link = &root->rb_node, *rb_parent = NULL;
+	unsigned long last = vma_last_pgoff(vma);
+	struct vm_area_struct *parent;
+
+	mutex_lock(&mapping->i_mmap_mutex);
+
+	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+	} else {
+//		vma_interval_tree_insert(vma, &mapping->i_mmap);
+		bs2_info("insert vma %p: start %lx, pgoff %lx, end %lx, last %lx, mm %p\n",
+				vma, vma->vm_start, vma_start_pgoff(vma),
+				vma->vm_end, vma_last_pgoff(vma),
+				vma->vm_mm);
+#if 0
+		while (*link) {
+			rb_parent = *link;
+			parent = rb_entry(rb_parent, vm_area_struct,
+						shared.linear.rb);
+			if (parent->vm_mm != vma->vm_mm) {
+				if (parent->vm_mm < vma->vm_mm)
+					link = &parent->shared.linear.rb.rb_left;
+				else
+					link = &parent->shared.linear.rb.rb_right;
+				continue;
+			}
+			if (parent->shared.linear.rb_subtree_last < last)
+				parent->shared.linear.rb_subtree_last = last;
+			if (start < vma_start_pgoff)
+				link = &parent->shared.linear.rb.rb_left;
+			else
+				link = &parent->shared.linear.rb.rb_right;
+		}
+#endif
+	}
+
+	mutex_unlock(&mapping->i_mmap_mutex);
+}
+#endif
+
 static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 					struct vm_fault *vmf)
 {
@@ -174,6 +229,8 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
+
+//	bankshot2_insert_vma(mapping, vma);
 
 	ret = VM_FAULT_NOPAGE;
 out:

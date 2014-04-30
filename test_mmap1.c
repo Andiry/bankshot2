@@ -28,7 +28,7 @@ int main(void)
 
 	mmap1.fd = fd1;
 	mmap1.addr = NULL;
-	mmap1.length = 4096;
+	mmap1.length = 8192;
 	mmap1.prot = PROT_WRITE;
 	mmap1.flags = MAP_SHARED;
 	mmap1.offset = 0;
@@ -49,7 +49,7 @@ int main(void)
 		sleep(1);
 		printf("memcpy to addr: \t%p\n", addr);
 //	sleep(10);
-		memcpy(buf, addr, 4096);
+		memcpy(buf, addr + 4096, 4096);
 	}
 
 	return 0;
