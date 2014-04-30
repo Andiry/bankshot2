@@ -5,6 +5,16 @@
 
 #include "bankshot2.h"
 
+static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff;
+}
+
+static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
+{
+	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
+}
+
 static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 {
 	struct vm_area_struct *vma;
@@ -16,15 +26,19 @@ static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 	temp = rb_first(&mapping->i_mmap);
 	while (temp) {
 		vma = rb_entry(temp, struct vm_area_struct, shared.linear.rb);
-		bs2_info("vma %p: start %lx, pgoff %lx, end %lx, last %lx, mm %p\n",
-				vma, vma->vm_start, vma->vm_pgoff,
-				vma->vm_end, vma->vm_pgoff,
-				vma->vm_mm);
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-		if (address < vma->vm_start || address >= vma->vm_end)
+		bs2_info("vma %p: start %lx, pgoff %lx, end %lx, last %lx, "
+				"mm %p, address %lx\n",
+				vma, vma->vm_start, vma_start_pgoff(vma),
+				vma->vm_end, vma_last_pgoff(vma),
+				vma->vm_mm, address);
+		if (address < vma->vm_start || address >= vma->vm_end) {
+			temp = rb_next(temp);
 			continue;
+		}
+
 		vm_munmap_page(mm, address, PAGE_SIZE);
 		remove = temp;
 		temp = rb_next(temp);
@@ -40,7 +54,6 @@ void bankshot2_munmap(struct bankshot2_device *bs2_dev,
 	off_t curr = offset;
 	unsigned long iblock = 0;
 	unsigned long pfn;
-	int ret;
 
 	bs2_info("%s: unmap offset %lu, %d pages\n", __func__,
 			offset, num_pages);

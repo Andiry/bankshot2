@@ -49,7 +49,7 @@ int main(void)
 
 	sleep(10);
 //	memcpy(buf, addr, 4096);
-	memcpy(addr, buf, 4096);
+	memcpy(addr + 4096, buf, 4096);
 
 
 	return 0;
