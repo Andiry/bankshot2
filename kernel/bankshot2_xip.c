@@ -198,7 +198,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	}
 	pi = bankshot2_get_inode(bs2_dev, ino);
 
-	bs2_info("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
+	bs2_dbg("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
 			__func__, ino, vmf->pgoff, vmf->virtual_address);
 	rcu_read_lock();
 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -222,7 +222,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 				xip_pfn);
-	bs2_info("%s: insert page: vma %p, pfn %lu, request pgoff %lu, vaddr %p, "
+	bs2_dbg("%s: insert page: vma %p, pfn %lu, request pgoff %lu, vaddr %p, "
 			"mapping %p\n",	__func__, vma, xip_pfn, vmf->pgoff,
 			vmf->virtual_address, mapping);
 	if (ret == -ENOMEM) {
@@ -258,12 +258,13 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	size_t bytes;
 	ssize_t read = 0;
 	u64 pos = data->offset;
-	size_t count = data->size;
+	size_t count = data->map_length;
+	size_t req_len = data->size;
 	u64 addr = data->extent_start;
 	char *buf = data->buf;
 	unsigned long index;
 	unsigned long offset;
-	size_t copied;
+	size_t copied, copy_user;
 	void *xmem;
 	unsigned long xpfn;
 	int ret;
@@ -288,7 +289,12 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			return ret;
 
 		copied = bytes;
-		__copy_to_user(buf, xmem + offset, bytes);
+		if (req_len > 0) {
+			copy_user = min(req_len, bytes);
+			__copy_to_user(buf, xmem + offset, copy_user);
+			req_len -= copy_user;
+			buf += copy_user;
+		}
 
 		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
 
@@ -300,7 +306,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				count -= status;
 				pos += status;
 				addr += status;
-				buf += status;
+//				buf += status;
 			}
 		}
 		if (status < 0)
@@ -326,11 +332,12 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	ssize_t written = 0;
 	u64 pos = data->offset;
 //	u64 addr = data->extent_start;
-	size_t count = data->size;
+	size_t count = data->map_length;
+	size_t req_len = data->size;
 	char *buf = data->buf;
 	unsigned long index;
 	unsigned long offset;
-	size_t copied;
+	size_t copied, copy_user;
 	void *xmem;
 	unsigned long xpfn;
 //	char *buf1;
@@ -353,8 +360,17 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 //		buf1 = (char *)xmem;
 //		bs2_dbg("Before copy from user\n");
 
-		copied = bytes -
-		__copy_from_user_inatomic_nocache(xmem + offset, buf, bytes);
+		if (req_len > 0) {
+			copy_user = min(req_len, bytes);
+			copied = bytes -
+				__copy_from_user_inatomic_nocache(xmem + offset,
+								buf, copy_user);
+			req_len -= copied;
+			buf += copied;
+		} else {
+			copied = bytes;
+		}
+
 //		bs2_dbg("After copy from user\n");
 
 //		bankshot2_copy_from_cache(bs2_dev, addr, bytes, xmem);
@@ -367,7 +383,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 				written += status;
 				count -= status;
 				pos += status;
-				buf += status;
+//				buf += status;
 			}
 		}
 		if (unlikely(copied != bytes))

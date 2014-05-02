@@ -18,6 +18,7 @@ struct bankshot2_cache_data{
 	uint64_t cache_ino; //Inode number in cache
 	uint64_t offset; //file offset in bytes
 	size_t size; //request size in bytes
+	size_t map_length; //the map length we want in bytes
 	size_t cache_file_size;
 	uint8_t rnw;
 	char *buf;
