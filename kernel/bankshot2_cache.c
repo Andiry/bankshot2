@@ -312,6 +312,12 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
 
+	if (data->mmap_addr >= (unsigned long)(-64)) {
+		// mmap failed
+		bs2_info("Mmap failed, returned %d\n", (int)(data->mmap_addr));
+		return (int)(data->mmap_addr);
+	}
+
 	new->offset = ALIGN_ADDRESS(data->offset);
 	new->length = actual_length + data->offset - new->offset;
 	bankshot2_add_extent(bs2_dev, pi, new);
