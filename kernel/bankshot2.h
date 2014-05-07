@@ -69,6 +69,15 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 #define ALIGN_ADDRESS(addr) ((uint64_t)((addr >= PAGE_SIZE) ? (addr - \
 			(addr % PAGE_SIZE)) : 0))
 
+/* Default mmap size : 2MB */
+
+#define MMAP_UNIT	2097152
+
+#define ALIGN_DOWN(addr) ((addr) & ~(MMAP_UNIT - 1))
+#define ALIGN_UP(addr) (((addr) & (MMAP_UNIT - 1)) ? \
+		(ALIGN_DOWN(addr + MMAP_UNIT)) : (addr))
+
+
 /* ========================= Data structures =============================== */
 
 
