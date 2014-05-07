@@ -258,10 +258,11 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	long status = 0;
 	size_t bytes;
 	ssize_t read = 0;
-	u64 pos = data->offset;
-	size_t count = data->map_length;
+	u64 pos;
+	u64 user_offset = data->offset;
+	size_t count;
 	size_t req_len = data->size;
-	u64 addr = data->extent_start;
+	u64 b_offset;
 	char *buf = data->buf;
 	unsigned long index;
 	unsigned long offset;
@@ -270,8 +271,27 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	unsigned long xpfn;
 	int ret;
 
+	/* If mmap length > 0, we need to copy start from mmap offset;
+	   otherwise we will just copy start from offset. */
+	/* Must ensure that the required extent is covered by fiemap extent */
+	if (data->mmap_length) {
+		pos = data->mmap_offset;
+		count = data->mmap_offset + data->mmap_length
+					> data->offset + data->size ?
+				data->mmap_length :
+				data->offset + data->size - data->mmap_offset;
+		b_offset = data->extent_start + data->mmap_offset
+				- data->extent_start_file_offset;
+	} else {
+		pos = data->offset;
+		count = data->size;
+		b_offset = data->extent_start + data->offset
+				- data->extent_start_file_offset;
+	}
+
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
+
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -285,16 +305,18 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		if (status)
 			break;
 
-		ret = bankshot2_copy_to_cache(bs2_dev, addr, bytes, xmem);
+		ret = bankshot2_copy_to_cache(bs2_dev, b_offset, bytes, xmem);
 		if (ret)
 			return ret;
 
 		copied = bytes;
-		if (req_len > 0) {
+		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
+				== index)) { // Same page
 			copy_user = min(req_len, bytes);
 			__copy_to_user(buf, xmem + offset, copy_user);
 			req_len -= copy_user;
 			buf += copy_user;
+			user_offset += copy_user;
 		}
 
 		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
@@ -306,7 +328,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				read += status;
 				count -= status;
 				pos += status;
-				addr += status;
+				b_offset += status;
 //				buf += status;
 			}
 		}
