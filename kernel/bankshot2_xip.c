@@ -353,17 +353,37 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	long status = 0;
 	size_t bytes;
 	ssize_t written = 0;
-	u64 pos = data->offset;
-//	u64 addr = data->extent_start;
-	size_t count = data->map_length;
+	u64 pos;
+	u64 user_offset = data->offset;
+	size_t count;
 	size_t req_len = data->size;
+	u64 b_offset;
 	char *buf = data->buf;
 	unsigned long index;
 	unsigned long offset;
 	size_t copied, copy_user;
 	void *xmem;
 	unsigned long xpfn;
+	int ret;
 //	char *buf1;
+
+	/* If mmap length > 0, we need to copy start from mmap offset;
+	   otherwise we will just copy start from offset. */
+	/* Must ensure that the required extent is covered by fiemap extent */
+	if (data->mmap_length) {
+		pos = data->mmap_offset;
+		count = data->mmap_offset + data->mmap_length
+					> data->offset + data->size ?
+				data->mmap_length :
+				data->offset + data->size - data->mmap_offset;
+		b_offset = data->extent_start + data->mmap_offset
+				- data->extent_start_file_offset;
+	} else {
+		pos = data->offset;
+		count = data->size;
+		b_offset = data->extent_start + data->offset
+				- data->extent_start_file_offset;
+	}
 
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
@@ -380,16 +400,24 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		if (status)
 			break;
 
+		/* Since we are mmaped to user space,
+		    need to copy data to cache first */
+		ret = bankshot2_copy_to_cache(bs2_dev, b_offset, bytes, xmem);
+		if (ret)
+			return ret;
+
 //		buf1 = (char *)xmem;
 //		bs2_dbg("Before copy from user\n");
 
-		if (req_len > 0) {
+		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
+				== index)) { // Same page
 			copy_user = min(req_len, bytes);
 			copied = bytes -
 				__copy_from_user_inatomic_nocache(xmem + offset,
 								buf, copy_user);
 			req_len -= copied;
 			buf += copied;
+			user_offset += copied;
 		} else {
 			copied = bytes;
 		}
