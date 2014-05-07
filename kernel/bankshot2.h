@@ -127,10 +127,11 @@ struct bankshot2_inode {
 
 struct extent_entry {
 	struct rb_node node;
-	off_t offset;
+	off_t offset; // file offset
 	size_t length;
 	int dirty;
-	unsigned long mmap_addr;
+	unsigned long b_offset; // Backing store physical offset
+	unsigned long mmap_addr; // Unused
 };
 
 /* Test purpose only */

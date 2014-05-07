@@ -20,13 +20,13 @@ static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	unsigned long address;
-//	struct rb_node *temp, *remove;
+	struct rb_node *temp, *remove;
 
 	bs2_info("%s:\n", __func__);
-//	temp = rb_first(&mapping->i_mmap);
-//	while (temp) {
-	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-//		vma = rb_entry(temp, struct vm_area_struct, shared.linear.rb);
+	temp = rb_first(&mapping->i_mmap);
+	while (temp) {
+//	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+		vma = rb_entry(temp, struct vm_area_struct, shared.linear.rb);
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
@@ -36,14 +36,14 @@ static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 				vma->vm_end, vma_last_pgoff(vma),
 				vma->vm_mm, address);
 		if (address < vma->vm_start || address >= vma->vm_end) {
-//			temp = rb_next(temp);
+			temp = rb_next(temp);
 			continue;
 		}
 
 		vm_munmap_page(mm, address, PAGE_SIZE);
-//		remove = temp;
-//		temp = rb_next(temp);
-//		rb_erase(remove, &mapping->i_mmap);
+		remove = temp;
+		temp = rb_next(temp);
+		rb_erase(remove, &mapping->i_mmap);
 	}
 }
 

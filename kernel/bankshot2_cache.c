@@ -83,9 +83,13 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev, void *arg,
 			data->mmap_length);
 
 		filemap_write_and_wait(inode->i_mapping);
+
+		/* Check the mapping start from mmap offset
+		   to the end of file */
 		ret = inode->i_op->fiemap(inode, &fieinfo,
 			data->mmap_offset,
-			data->file_length - data->offset);
+			data->file_length - data->mmap_offset);
+
 		bs2_dbg("Extent fiemap return %d extents, ret %d\n",
 				fieinfo.fi_extents_mapped, ret);
 		if (fieinfo.fi_extents_mapped == 0) {
@@ -171,6 +175,17 @@ static int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+/*
+ * cache_data input:
+ * offset: request offset, not aligned
+ * size: request length, not aligned
+ *
+ * output:
+ * mmap_offset: mmap offset, aligned to 2MB
+ * mmap_length: mmap length, aligned ot 2MB
+ * mmap_addr:   mmap address
+ * file_length: File length
+ */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
@@ -211,19 +226,25 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	}
 
 	// Update length for mmap and request
+	/* map_len: the length that will be mmaped to user space
+	   Aligned to 2MB, start from mmap_offset */
 	map_len = (data->extent_start_file_offset + data->extent_length)
-			> (data->offset + data->map_length) ?
-			data->map_length :
+			> (data->mmap_offset + data->mmap_length) ?
+			data->mmap_length :
 			data->extent_start_file_offset + data->extent_length
-				- data->offset;
+				- data->mmap_offset;
 
+	map_len = ALIGN_DOWN(map_len);
+
+	/* Request len: the length that user space required
+	   Start from offset, unaligned */
 	request_len = (data->extent_start_file_offset + data->extent_length)
 			> (data->offset + data->size) ?
 			data->size :
 			data->extent_start_file_offset + data->extent_length
 				- data->offset;
 
-	data->map_length = map_len;
+	data->mmap_length = map_len;
 	data->size = request_len;
 
 	bs2_dbg("data map_len %lu, size %lu\n", map_len, request_len);
@@ -265,30 +286,38 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		goto out;
 	}
 #endif
-	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
-			data->map_length + (data->offset % PAGE_SIZE),
+	if (data->mmap_length) {
+		data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
+			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
-			MAP_SHARED, data->file, data->offset / PAGE_SIZE);
+			MAP_SHARED, data->file, data->mmap_offset / PAGE_SIZE);
 
-	if (data->mmap_addr >= (unsigned long)(-64)) {
-		// mmap failed
-		bs2_info("Mmap failed, returned %d\n", (int)(data->mmap_addr));
-		return (int)(data->mmap_addr);
+		if (data->mmap_addr >= (unsigned long)(-64)) {
+			// mmap failed
+			bs2_info("Mmap failed, returned %d\n",
+				(int)(data->mmap_addr));
+			return (int)(data->mmap_addr);
+		}
+
+		new->offset = data->mmap_offset;
+		new->length = data->mmap_length;
+		new->b_offset = data->extent_start + data->mmap_offset
+				- data->extent_start_file_offset;
+		//FIXME: mapping information
+		bankshot2_add_extent(bs2_dev, pi, new);
+
+		bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
+			"request len %lu, mmap offset 0x%llx, mmaped len %lu, "
+			"mmap_addr %lx\n",
+			data->file, data->offset, data->size,
+			data->mmap_offset, data->mmap_length,
+			data->mmap_addr);
 	}
-
-	new->offset = ALIGN_ADDRESS(data->offset);
-	new->length = actual_length + data->offset - new->offset;
-	bankshot2_add_extent(bs2_dev, pi, new);
-
-	bs2_dbg("bankshot2 mmap: file %d, offset %llu, "
-		"request len %lu, mmaped len %llu, mmap_addr %lx\n",
-		data->file, data->offset, data->size,
-		data->map_length + (data->offset % PAGE_SIZE), data->mmap_addr);
 
 //	bankshot2_print_tree(bs2_dev, pi);
 out:
 	// Align extent_start_file_offset and extent_length to PAGE_SIZE
-	data->extent_start_file_offset = ALIGN_ADDRESS(data->offset);
+	data->extent_start_file_offset = data->mmap_offset;
 	data->extent_length = actual_length + data->offset
 				- data->extent_start_file_offset;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
