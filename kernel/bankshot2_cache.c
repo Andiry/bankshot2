@@ -204,7 +204,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	if (ret) {
 		bs2_dbg("Get extent returned %d\n", ret);
 		if (ret == -3)
-			ret = 0;
+			ret = EOF_OR_HOLE;
 		return ret;
 	}
 
@@ -255,7 +255,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		ret = bankshot2_xip_file_read(bs2_dev, data, pi,
 						&actual_length);
 
-	if (ret || data->map_length != actual_length) {
+	if (ret) {
 		bs2_info("xip_file operation returned %d, "
 				"request len %lu, actual len %lu\n",
 				ret, data->size, actual_length);
@@ -268,7 +268,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		goto out;
 	}
 
-	data->map_length = actual_length;
+//	data->map_length = actual_length;
+	data->actual_length = actual_length;
 
 	new = (struct extent_entry *)
 		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
@@ -317,9 +318,9 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 //	bankshot2_print_tree(bs2_dev, pi);
 out:
 	// Align extent_start_file_offset and extent_length to PAGE_SIZE
-	data->extent_start_file_offset = data->mmap_offset;
-	data->extent_length = actual_length + data->offset
-				- data->extent_start_file_offset;
+//	data->extent_start_file_offset = data->mmap_offset;
+//	data->extent_length = actual_length + data->offset
+//				- data->extent_start_file_offset;
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	return ret;

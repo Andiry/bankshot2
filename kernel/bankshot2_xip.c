@@ -289,6 +289,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				- data->extent_start_file_offset;
 	}
 
+	data->actual_offset = pos;
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
@@ -385,6 +386,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 				- data->extent_start_file_offset;
 	}
 
+	data->actual_offset = pos;
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 

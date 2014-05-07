@@ -3,6 +3,9 @@
 #define READ_EXTENT	0
 #define WRITE_EXTENT	1
 
+/* get extent return value */
+#define	EOF_OR_HOLE	(-3)
+
 struct bankshot2_mmap_request {
 	void*	addr;
 	size_t	length;
@@ -18,9 +21,10 @@ struct bankshot2_cache_data{
 	uint64_t cache_ino; //Inode number in cache
 	uint64_t offset; //file offset in bytes
 	uint64_t mmap_offset; //Mmap offset, align to 2MB
+	uint64_t actual_offset; //Actual offset, either offset or mmap_offset
 	size_t size; //request size in bytes
-	size_t map_length; //the map length we want in bytes
 	size_t mmap_length; //mmap length, must be multiply of 2MB
+	size_t actual_length; //Actual transferred length, start from actual_offset
 	size_t cache_file_size;
 	uint8_t rnw;
 	char *buf;
