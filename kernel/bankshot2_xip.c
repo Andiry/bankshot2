@@ -81,11 +81,14 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 			err = -ENODATA;
 			goto err;
 		}
+		err = 1;
+	} else {
+		err = 0;
 	}
+
 	bs2_dbg("iblock 0x%lx allocated_block 0x%llx\n", iblock, block);
 
 	*data_block = block;
-	err = 0;
 
 err:
 	return err;
@@ -112,14 +115,14 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 	sector_t block = 0;
 
 	ret = __bankshot2_get_block(bs2_dev, pi, pgoff, create, &block);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	*kmem = bankshot2_get_block(bs2_dev, block);
 	*pfn = bankshot2_get_pfn(bs2_dev, block);
 	bs2_dbg("xip_mem: mem %p, pfn %lu\n", *kmem, *pfn);
 
-	return 0;
+	return ret;
 }
 
 #if 0
@@ -211,7 +214,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 
 	ret = bankshot2_get_xip_mem(bs2_dev, pi, vmf->pgoff, 1,
 				&xip_mem, &xip_pfn);
-	if (unlikely(ret)) {
+	if (unlikely(ret < 0)) {
 		bs2_info("get_xip_mem failed\n");
 		ret = VM_FAULT_SIGBUS;
 		goto out;
@@ -303,12 +306,16 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
-		if (status)
+		if (status < 0)
 			break;
 
-		ret = bankshot2_copy_to_cache(bs2_dev, b_offset, bytes, xmem);
-		if (ret)
-			return ret;
+		/* status 1 means it's newly allocated. Copy to cache. */
+		if (status == 1) {
+			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
+							bytes, xmem);
+			if (ret)
+				return ret;
+		}
 
 		copied = bytes;
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
@@ -399,20 +406,24 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
-		if (status)
+		if (status < 0)
 			break;
 
 		/* Since we are mmaped to user space,
 		    need to copy data to cache first */
-		ret = bankshot2_copy_to_cache(bs2_dev, b_offset, bytes, xmem);
-		if (ret)
-			return ret;
+		/* If it's already in cache then don't copy */
+		if (status == 1) {
+			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
+							bytes, xmem);
+			if (ret)
+				return ret;
+		}
 
 //		buf1 = (char *)xmem;
 //		bs2_dbg("Before copy from user\n");
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
-				== index)) { // Same page
+					== index)) { // Same page
 			copy_user = min(req_len, bytes);
 			copied = bytes -
 				__copy_from_user_inatomic_nocache(xmem + offset,
