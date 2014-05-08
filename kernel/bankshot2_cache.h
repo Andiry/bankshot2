@@ -4,7 +4,7 @@
 #define WRITE_EXTENT	1
 
 /* get extent return value */
-#define	EOF_OR_HOLE	(-3)
+#define	EOF_OR_HOLE	3
 
 struct bankshot2_mmap_request {
 	void*	addr;

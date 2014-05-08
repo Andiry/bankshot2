@@ -321,6 +321,13 @@ out:
 //	data->extent_start_file_offset = data->mmap_offset;
 //	data->extent_length = actual_length + data->offset
 //				- data->extent_start_file_offset;
+	bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
+		"request len %lu, mmap offset 0x%llx, mmaped len %lu, "
+		"mmap_addr %lx, actual offset 0x%llx, actual length %lu\n",
+		data->file, data->offset, data->size,
+		data->mmap_offset, data->mmap_length,
+		data->mmap_addr, data->actual_offset, data->actual_length);
+
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	return ret;

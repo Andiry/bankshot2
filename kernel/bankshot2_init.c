@@ -13,7 +13,7 @@
 
 static unsigned long phys_addr;
 static unsigned long cache_size;
-char *backing_dev_name = "/dev/memuram0";
+char *backing_dev_name = "/dev/ram0";
 module_param(phys_addr, ulong, S_IRUGO);
 MODULE_PARM_DESC(phys_addr, "Start physical address");
 module_param(cache_size, ulong, S_IRUGO);
