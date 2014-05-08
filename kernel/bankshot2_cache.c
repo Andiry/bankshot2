@@ -245,8 +245,16 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 				- data->offset;
 
 	data->mmap_length = map_len;
-	data->size = request_len;
 
+	if (request_len == 0)
+		bs2_info("Request length is 0! file %d, offset 0x%llx, "
+			"size %lu, mmap offset 0x%llx, mmaped len %lu, "
+			"extent offset 0x%llx, extent length %lu\n",
+			data->file, data->offset, data->size,
+			data->mmap_offset, data->mmap_length,
+			data->extent_start_file_offset, data->extent_length);
+
+	data->size = request_len;
 	bs2_dbg("data map_len %lu, size %lu\n", map_len, request_len);
 	if (data->rnw == WRITE_EXTENT)
 		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
@@ -308,11 +316,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		bankshot2_add_extent(bs2_dev, pi, new);
 
 		bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
-			"request len %lu, mmap offset 0x%llx, mmaped len %lu, "
-			"mmap_addr %lx\n",
+			"size %lu, mmap offset 0x%llx, mmaped len %lu, "
+			"extent offset 0x%llx, extent length %lu\n",
 			data->file, data->offset, data->size,
 			data->mmap_offset, data->mmap_length,
-			data->mmap_addr);
+			data->extent_start_file_offset, data->extent_length);
 	}
 
 //	bankshot2_print_tree(bs2_dev, pi);
