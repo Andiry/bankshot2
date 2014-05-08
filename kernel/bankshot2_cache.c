@@ -88,7 +88,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		req_end = ALIGN_UP(req_end);
 		req_end = min(req_end, ALIGN_DOWN(data->file_length));
 		
-		bs2_info("Request offset 0x%llx, size %lu, "
+		bs2_dbg("Request offset 0x%llx, size %lu, "
 			"mmap offset 0x%llx, length %lu\n",
 			data->offset, data->size, data->mmap_offset,
 			data->file_length);
@@ -101,7 +101,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			data->mmap_offset,
 			data->file_length - data->mmap_offset);
 
-		bs2_info("Extent fiemap return %d extents, ret %d\n",
+		bs2_dbg("Extent fiemap return %d extents, ret %d\n",
 				fieinfo.fi_extents_mapped, ret);
 		if (fieinfo.fi_extents_mapped == 0) {
 			data->extent_start = -512;
@@ -112,6 +112,11 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		
 		ret = bankshot2_check_zero_length(bs2_dev, data);
 		if (ret == 1) {
+			memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
+			fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
+			fieinfo.fi_extents_max = 1;
+			fieinfo.fi_extents_start = &data->extent_start_file_offset;
+
 			bs2_info("Extent does not overlap with request "
 				"extent. Find the next extent.\n");
 			ret = inode->i_op->fiemap(inode, &fieinfo,
@@ -229,16 +234,17 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	size_t map_len;
 
 	data = &_data;
-	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 
-	ret = bankshot2_get_extent(bs2_dev, data, &inode);
+//	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
 		bs2_info("Get extent returned %d\n", ret);
 		if (ret == -3)
 			ret = EOF_OR_HOLE;
-		goto out;
+		return ret;
 	}
 
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 	// Update length for mmap and request
 	/* map_len: the length that will be mmaped to user space
 	   Aligned to 2MB, start from mmap_offset */
@@ -365,7 +371,7 @@ out:
 //	data->extent_start_file_offset = data->mmap_offset;
 //	data->extent_length = actual_length + data->offset
 //				- data->extent_start_file_offset;
-	bs2_info("bankshot2 cache data: file %d, offset 0x%llx, "
+	bs2_dbg("bankshot2 cache data: file %d, offset 0x%llx, "
 		"request len %lu, mmap offset 0x%llx, mmaped len %lu, "
 		"mmap_addr %lx, actual offset 0x%llx, actual length %lu\n",
 		data->file, data->offset, data->size,
