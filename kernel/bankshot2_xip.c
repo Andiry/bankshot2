@@ -217,7 +217,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	ret = bankshot2_get_xip_mem(bs2_dev, pi, vmf->pgoff, 1,
 				&xip_mem, &xip_pfn);
 	if (unlikely(ret < 0)) {
-		bs2_info("get_xip_mem failed\n");
+		bs2_info("get_xip_mem failed: %d\n", ret);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
@@ -309,7 +309,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
 		if (status < 0) {
-			bs2_info("get_xip_mem returned %d\n", status);
+			bs2_info("get_xip_mem returned %ld\n", status);
 			break;
 		}
 
@@ -411,7 +411,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
 		if (status < 0) {
-			bs2_info("get_xip_mem returned %d\n", status);
+			bs2_info("get_xip_mem returned %ld\n", status);
 			break;
 		}
 
