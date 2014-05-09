@@ -74,23 +74,17 @@ static void bankshot2_ioctl_munmap_request(struct bankshot2_device *bs2_dev,
 static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 					void *arg)
 {
-	struct extent_entry *data;
 	struct extent_entry_user *data1;
 	struct bankshot2_inode *pi;
 	int ret;
 
-	data = kmalloc(sizeof(struct extent_entry), GFP_KERNEL);
 	data1 = (struct extent_entry_user *)arg;
 	pi = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
 
-	data->offset = data1->offset;
-	data->length = data1->length;
-	data->dirty = data1->dirty;
-	data->mmap_addr = data1->mmap_addr;
+	ret = bankshot2_add_extent(bs2_dev, pi, data1->offset,
+			data1->length, data1->offset, NULL);
 
-	ret = bankshot2_add_extent(bs2_dev, pi, data);
-
-	if (data->dirty)
+	if (data1->dirty)
 		bankshot2_print_tree(bs2_dev, pi);
 	return ret;
 }

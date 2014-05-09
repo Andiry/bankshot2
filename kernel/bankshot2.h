@@ -132,6 +132,7 @@ struct extent_entry {
 	int dirty;
 	unsigned long b_offset; // Backing store physical offset
 	unsigned long mmap_addr; // Unused
+	struct address_space *mapping;
 };
 
 /* Test purpose only */
@@ -581,7 +582,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *data);
+		struct bankshot2_inode *pi, off_t offset, size_t length,
+		unsigned long b_offset, struct address_space *mapping);
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset);
 void bankshot2_print_tree(struct bankshot2_device *bs2_dev,

@@ -227,13 +227,13 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	struct bankshot2_inode *pi;
-	struct extent_entry *new;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
 	ssize_t actual_length = 0;
 	size_t request_len;
 	size_t map_len;
+	unsigned long b_offset;
 
 	data = &_data;
 
@@ -246,6 +246,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	}
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
 	// Update length for mmap and request
 	/* map_len: the length that will be mmaped to user space
 	   Aligned to 2MB, start from mmap_offset */
@@ -316,27 +317,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		goto out;
 	}
 
-//	data->map_length = actual_length;
 	data->actual_length = actual_length;
 
-	new = (struct extent_entry *)
-		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
-	if (!new) {
-		ret = -ENOMEM;
-		goto out;
-	}
-#if 0
-	new->offset = data->offset;
-	ret = bankshot2_find_extent(bs2_dev, pi, new);
-	if (ret) {
-		bs2_info("Find existing extent: offset %lu, length %lu, "
-				"mmap_addr %lx\n", new->offset,
-				new->length, new->mmap_addr);
-		data->mmap_addr = new->mmap_addr + data->offset - new->offset;
-		ret = 0;
-		goto out;
-	}
-#endif
 	if (data->mmap_length) {
 		data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
@@ -351,12 +333,14 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			goto out;
 		}
 
-		new->offset = data->mmap_offset;
-		new->length = data->mmap_length;
-		new->b_offset = data->extent_start + data->mmap_offset
+		b_offset = data->extent_start + data->mmap_offset
 				- data->extent_start_file_offset;
 		//FIXME: mapping information
-		bankshot2_add_extent(bs2_dev, pi, new);
+		ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
+			data->mmap_length, b_offset, inode->i_mapping);
+
+		if (ret)
+			bs2_info("bankshot2_add_extent failed: %d\n", ret);
 
 		bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
 			"size %lu, mmap offset 0x%llx, mmaped len %lu, "

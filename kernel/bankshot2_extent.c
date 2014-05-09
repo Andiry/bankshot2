@@ -85,46 +85,87 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *new)
+		struct bankshot2_inode *pi, off_t offset, size_t length,
+		unsigned long b_offset, struct address_space *mapping)
 {
-	struct extent_entry *curr, *prev, *next;
-	struct rb_node *pre_node, *next_node;
+	struct extent_entry *curr, *new;
 	struct rb_node **temp, *parent;
+	off_t extent_offset;
+	size_t extent_length;
+	unsigned long extent_b_offset;
+	int count, i;
 	int compVal;
 
-	new->dirty = 1; //FIXME: We need to assume all extents are dirty
+	bs2_dbg("Insert extent to pi %llu, extent offset %lx, "
+			"length %lu,  b_offset %lx\n",
+			pi->i_ino, offset, length, b_offset);
 
-	bs2_dbg("Insert extent to pi %llu, extent offset %lu, length %lu\n",
-			pi->i_ino, new->offset, new->length);
-
-	temp = &(pi->extent_tree.rb_node);
-	parent = NULL;
-
-	write_lock(&pi->extent_tree_lock);
-	while (*temp) {
-		curr = container_of(*temp, struct extent_entry, node);
-		compVal = bankshot2_rbtree_compare(curr, new);
-		parent = *temp;
-
-		if (compVal == -1) {
-			temp = &((*temp)->rb_left);
-		} else if (compVal == 1) {
-			temp = &((*temp)->rb_right);
-		} else {
-			bs2_info("want to insert extent but it already exists, "
-			"pi %llu, existing extent offset %lu, length %lu, "
-			"new extent offset %lu, length %lu\n",
-			pi->i_ino, curr->offset, curr->length, new->offset,
-			new->length);
-			write_unlock(&pi->extent_tree_lock);
-			kmem_cache_free(bs2_dev->bs2_extent_slab, new);
-			return 0;
-		}
+	/* Break the extent to 2MB chunks */
+	if (offset != ALIGN_DOWN(offset) || length != ALIGN_DOWN(length)) {
+		bs2_info("%s: inode %llu: offset or length not aligned to mmap "
+				"unit size! offset 0x%lx, length %lu\n",
+				__func__, pi->i_ino, offset, length);
+		return 0;
 	}
 
-	rb_link_node(&new->node, parent, temp);
-	rb_insert_color(&new->node, &pi->extent_tree);
-	
+	count = length / MMAP_UNIT;
+
+	write_lock(&pi->extent_tree_lock);
+	for (i = 0; i < count; i++) {
+		temp = &(pi->extent_tree.rb_node);
+		parent = NULL;
+
+		extent_offset = offset + i * MMAP_UNIT;
+		extent_b_offset = b_offset + i * MMAP_UNIT;
+		extent_length = MMAP_UNIT;
+
+		while (*temp) {
+			curr = container_of(*temp, struct extent_entry, node);
+			compVal = bankshot2_rbtree_compare_find(curr,
+					extent_offset);
+			parent = *temp;
+
+			if (compVal == -1) {
+				temp = &((*temp)->rb_left);
+			} else if (compVal == 1) {
+				temp = &((*temp)->rb_right);
+			} else {
+				if (curr->offset != extent_offset || curr->length != extent_length
+						|| curr->b_offset != extent_b_offset) {
+					bs2_info("Existing extent hit but unmatch! "
+					"existing extent offset 0x%lx, "
+					"length %lu, b_offset 0x%lx, "
+					"new extent offset 0x%lx, length %lu, "
+					"b_offset 0x%lx\n",
+					curr->offset, curr->length,
+					curr->b_offset, extent_offset,
+					extent_length, extent_b_offset);
+					continue;
+				}
+				bankshot2_insert_mapping(bs2_dev,
+					curr, mapping);
+				continue;
+			}
+		}
+
+		new = (struct extent_entry *)
+			kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
+		if (!new) {
+			write_unlock(&pi->extent_tree_lock);
+			return -ENOMEM;
+		}
+
+		new->offset = extent_offset;
+		new->length = extent_length;
+		new->b_offset = extent_b_offset;
+		new->dirty = 1; //FIXME: assume all extents are dirty
+		bankshot2_insert_mapping(bs2_dev, new, mapping);
+
+		rb_link_node(&new->node, parent, temp);
+		rb_insert_color(&new->node, &pi->extent_tree);
+	}
+
+#if 0
 	// Check the prev node see if it can merge
 	pre_node = rb_prev(&new->node);
 	if (pre_node) {
@@ -166,7 +207,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			break;
 		}
 	}
-
+#endif
 	write_unlock(&pi->extent_tree_lock);
 	return 0;
 }
