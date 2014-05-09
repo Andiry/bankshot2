@@ -87,6 +87,8 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		req_end = data->offset + data->size;
 		req_end = ALIGN_UP(req_end);
 		req_end = min(req_end, ALIGN_DOWN(data->file_length));
+
+		data->mmap_length = req_end - data->mmap_offset;
 		
 		bs2_dbg("Request offset 0x%llx, size %lu, "
 			"mmap offset 0x%llx, length %lu\n",
@@ -117,7 +119,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			fieinfo.fi_extents_max = 1;
 			fieinfo.fi_extents_start = &data->extent_start_file_offset;
 
-			bs2_info("Extent does not overlap with request "
+			bs2_dbg("Extent does not overlap with request "
 				"extent. Find the next extent.\n");
 			ret = inode->i_op->fiemap(inode, &fieinfo,
 					data->offset,
@@ -132,7 +134,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			ret = 1;
 		}
 
-		bs2_info("Extent: PhyStart: 0x%llx, len: 0x%lx,"
+		bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx,"
 			" LogStart: 0x%llx, offset 0x%llx, "
 			"mmap offset 0x%llx\n",
 			data->extent_start, data->extent_length,
@@ -280,7 +282,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			data->extent_start_file_offset, data->extent_length);
 
 	data->size = request_len;
-	bs2_info("data map_len %lu, size %lu\n", map_len, request_len);
+	bs2_dbg("data map_len %lu, size %lu\n", map_len, request_len);
 
 	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
 	if (ret) {
@@ -357,7 +359,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		//FIXME: mapping information
 		bankshot2_add_extent(bs2_dev, pi, new);
 
-		bs2_info("bankshot2 mmap: file %d, offset 0x%llx, "
+		bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
 			"size %lu, mmap offset 0x%llx, mmaped len %lu, "
 			"extent offset 0x%llx, extent length %lu\n",
 			data->file, data->offset, data->size,
