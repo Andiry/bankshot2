@@ -84,6 +84,57 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 	return;
 }
 
+/* Just use an array to store the mappings. Simple */
+static void bankshot2_insert_mapping(struct bankshot2_device *bs2_dev,
+		struct extent_entry *extent, struct address_space *mapping)
+{
+	int i, new_size;
+	struct address_space **temp;
+
+	bs2_dbg("%s: %d %d\n", __func__, extent->mapping_count,
+					extent->mapping_size);
+	for (i = 0; i < extent->mapping_count; i++) {
+		if (extent->mappings[i] == mapping)
+			return;
+	}
+
+	if (extent->mapping_count < extent->mapping_size) {
+		extent->mappings[i] = mapping;
+		extent->mapping_count++;
+		return;
+	}
+
+	new_size = extent->mapping_size * 2;
+	temp = kzalloc(new_size * sizeof(struct address_space *), GFP_ATOMIC);
+	BUG_ON(!temp);
+
+	for (i = 0; i < extent->mapping_count; i++)
+		temp[i] = extent->mappings[i];
+	temp[i] = mapping;
+
+	extent->mapping_size = new_size;
+	extent->mapping_count++;
+	kfree(extent->mappings);
+	extent->mappings = temp;	
+
+	return;
+}
+
+static void bankshot2_initialize_new_extent(struct bankshot2_device *bs2_dev,
+		struct extent_entry *new, off_t offset, size_t length,
+		unsigned long b_offset, struct address_space *mapping)
+{
+	new->offset = offset;
+	new->length = length;
+	new->b_offset = b_offset;
+	new->dirty = 1; //FIXME: assume all extents are dirty
+
+	new->mappings = kzalloc(2 * sizeof(struct address_space *), GFP_ATOMIC);
+	new->mapping_size = 2;
+	new->mapping_count = 0;
+	bankshot2_insert_mapping(bs2_dev, new, mapping);
+}
+
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
 		unsigned long b_offset, struct address_space *mapping)
@@ -95,6 +146,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	unsigned long extent_b_offset;
 	int count, i;
 	int compVal;
+	int no_new = 0;
 
 	bs2_dbg("Insert extent to pi %llu, extent offset %lx, "
 			"length %lu,  b_offset %lx\n",
@@ -140,12 +192,19 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 					curr->offset, curr->length,
 					curr->b_offset, extent_offset,
 					extent_length, extent_b_offset);
-					continue;
+					no_new = 1;
+					break;
 				}
 				bankshot2_insert_mapping(bs2_dev,
 					curr, mapping);
-				continue;
+				no_new = 1;
+				break;
 			}
+		}
+
+		if (no_new) {
+			no_new = 0;
+			continue;
 		}
 
 		new = (struct extent_entry *)
@@ -155,11 +214,8 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			return -ENOMEM;
 		}
 
-		new->offset = extent_offset;
-		new->length = extent_length;
-		new->b_offset = extent_b_offset;
-		new->dirty = 1; //FIXME: assume all extents are dirty
-		bankshot2_insert_mapping(bs2_dev, new, mapping);
+		bankshot2_initialize_new_extent(bs2_dev, new, extent_offset,
+			extent_length, extent_b_offset, mapping);
 
 		rb_link_node(&new->node, parent, temp);
 		rb_insert_color(&new->node, &pi->extent_tree);

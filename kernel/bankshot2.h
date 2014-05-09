@@ -132,7 +132,9 @@ struct extent_entry {
 	int dirty;
 	unsigned long b_offset; // Backing store physical offset
 	unsigned long mmap_addr; // Unused
-	struct address_space *mapping;
+	struct address_space **mappings;
+	int mapping_size; // How many mappings can it hold
+	int mapping_count; // How many mappings currently have 
 };
 
 /* Test purpose only */

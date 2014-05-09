@@ -239,7 +239,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
-		bs2_info("Get extent returned %d\n", ret);
+		bs2_dbg("Get extent returned %d\n", ret);
 		if (ret == -3)
 			ret = EOF_OR_HOLE;
 		return ret;
@@ -379,7 +379,7 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 
 	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
 	if (ret) {
-		bs2_info("Get extent returned %d\n", ret);
+		bs2_dbg("Get extent returned %d\n", ret);
 		return ret;
 	}
 
