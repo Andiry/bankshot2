@@ -14,6 +14,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 	int num_free;
 //	bankshot2_transaction_t *trans;
 
+	spin_lock(&pi->btree_lock);
 	block = bankshot2_find_data_block(bs2_dev, pi, iblock);
 
 	if (!block) {
@@ -91,6 +92,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 	*data_block = block;
 
 err:
+	spin_unlock(&pi->btree_lock);
 	return err;
 }
 
@@ -306,8 +308,10 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
-		if (status < 0)
+		if (status < 0) {
+			bs2_info("get_xip_mem returned %d\n", status);
 			break;
+		}
 
 		/* status 1 means it's newly allocated. Copy to cache. */
 		if (status == 1) {
@@ -406,8 +410,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
 				index, 1, &xmem, &xpfn);
-		if (status < 0)
+		if (status < 0) {
+			bs2_info("get_xip_mem returned %d\n", status);
 			break;
+		}
 
 		/* Since we are mmaped to user space,
 		    need to copy data to cache first */

@@ -101,6 +101,7 @@ struct bankshot2_inode {
 	rwlock_t extent_tree_lock;  /* Extent tree lock */
 	u8	    height;         /* height of data b-tree; max 3 for now */
 	u8	    i_blk_type;     /* data block size this inode uses */
+	spinlock_t btree_lock;	    /* B-tree lock */	
 	__le32	i_flags;            /* Inode flags */
 	__le64	root;               /* btree root. must be below qw w/ height */
 	__le64	i_size;             /* Size of data in bytes */

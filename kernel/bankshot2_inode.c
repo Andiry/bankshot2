@@ -269,6 +269,7 @@ retry:
 	pi->i_dtime = 0;
 	pi->extent_tree = RB_ROOT;
 	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
+	spin_lock_init(&pi->btree_lock);
 
 //	bankshot2_memlock_inode(sb, pi);
 

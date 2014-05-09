@@ -306,8 +306,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	if (ret) {
 		bs2_info("xip_file operation returned %d, "
-				"request len %lu, actual len %lu\n",
-				ret, data->size, actual_length);
+			"offset 0x%llx, request len %lu, actual len %lu\n",
+			ret, data->offset, data->size, actual_length);
 	}
 
 	if (actual_length <= 0) {
@@ -365,6 +365,7 @@ out:
 
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
+	bs2_dbg("%s: return %d\n", __func__, ret);
 	return ret;
 }
 
