@@ -91,7 +91,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		data->mmap_length = req_end - data->mmap_offset;
 		
 		bs2_dbg("Request offset 0x%llx, size %lu, "
-			"mmap offset 0x%llx, length %lu\n",
+			"mmap offset 0x%llx, length %llu\n",
 			data->offset, data->size, data->mmap_offset,
 			data->file_length);
 
@@ -237,7 +237,6 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data = &_data;
 
-//	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
 		bs2_info("Get extent returned %d\n", ret);
