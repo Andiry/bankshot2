@@ -42,8 +42,8 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 	struct rb_node *temp;
 	int compVal;
 
-	temp = pi->extent_tree.rb_node;
 	read_lock(&pi->extent_tree_lock);
+	temp = pi->extent_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
 		compVal = bankshot2_rbtree_compare_find(curr, extent->offset);
@@ -73,8 +73,8 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 	struct rb_node *temp;
 	int compVal;
 
-	temp = pi->extent_tree.rb_node;
 	write_lock(&pi->extent_tree_lock);
+	temp = pi->extent_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
 		compVal = bankshot2_rbtree_compare_find(curr, offset);
@@ -277,8 +277,8 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	temp = rb_first(&pi->extent_tree);
 	read_lock(&pi->extent_tree_lock);
+	temp = rb_first(&pi->extent_tree);
 	bs2_info("Print extent tree for pi %llu\n", pi->i_ino);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -297,8 +297,8 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	temp = rb_first(&pi->extent_tree);
 	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&pi->extent_tree);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
 //		bs2_info("pi %llu, extent offset %lu, length %lu, "
@@ -325,8 +325,8 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 //	bs2_info("Before free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
 
-	temp = rb_first(&pi->extent_tree);
 	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&pi->extent_tree);
 	while (temp && num_free > 0) {
 		curr = container_of(temp, struct extent_entry, node);
 		bs2_info("Free: pi %llu, extent offset %lu, length %lu\n",
@@ -371,8 +371,8 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 //	bs2_info("Before free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
 
-	temp = rb_first(&pi->extent_tree);
 	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&pi->extent_tree);
 
 	if (!temp) {
 		*num_free = 0;
@@ -401,6 +401,42 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 //	bs2_info("After free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
 	return ret;
+}
+
+static void
+bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
+		struct extent_entry *extent, struct mm_struct *mm)
+{
+	struct vma_list *delete, *next;
+
+	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
+		if (delete->vma->vm_mm == mm) {
+			list_del(&delete->list);
+			kfree(delete);
+		}
+	}
+}
+
+int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi)
+{
+	struct mm_struct *mm = current->mm;
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&pi->extent_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+//		bs2_info("pi %llu, extent offset %lu, length %lu, "
+//				"mmap addr %lx\n", pi->i_ino, curr->offset,
+//				curr->length, curr->mmap_addr);
+		bankshot2_remove_mapping_from_extent(bs2_dev, curr, mm);
+		temp = rb_next(temp);
+	}
+
+	write_unlock(&pi->extent_tree_lock);
+	return 0;
 }
 
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)

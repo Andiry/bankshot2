@@ -606,6 +606,8 @@ int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int *num_free);
+int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap(struct bankshot2_device *bs2_dev,
@@ -613,3 +615,5 @@ void bankshot2_munmap(struct bankshot2_device *bs2_dev,
 			 off_t offset, int num_pages);
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
+int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
+			void *arg);

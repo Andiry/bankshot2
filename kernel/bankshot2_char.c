@@ -153,6 +153,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 	case BANKSHOT2_IOCTL_MUNMAP_REQUEST:
 		bankshot2_ioctl_munmap_request(bs2_dev, (void *)arg);
 		break;
+	case BANKSHOT2_IOCTL_REMOVE_MAPPING:
+		ret = bankshot2_ioctl_remove_mappings(bs2_dev, (void *)arg);
+		break;
 	default:
 		break;
 	}

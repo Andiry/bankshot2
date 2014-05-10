@@ -121,3 +121,21 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		vm_munmap_page(mm, address, extent->length);
 	}
 }
+
+int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
+		void *arg)
+{
+	struct bankshot2_inode *pi;
+	u64 st_ino = *(u64 *)arg;
+	int ret;
+
+	pi = bankshot2_get_inode(bs2_dev, st_ino);
+	if (!pi) {
+		bs2_info("Failed to get inode to remove mappings\n");
+		return -EINVAL;
+	}
+
+	ret = bankshot2_remove_mapping_from_tree(bs2_dev, pi);
+
+	return ret;
+}
