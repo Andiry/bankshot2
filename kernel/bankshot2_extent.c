@@ -84,60 +84,63 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 	return;
 }
 
-/* Just use an array to store the mappings. Simple */
-static void bankshot2_insert_mapping(struct bankshot2_device *bs2_dev,
-		struct extent_entry *extent, struct address_space *mapping)
+/* Just use an array to store the vmas. Simple */
+static void bankshot2_insert_vma(struct bankshot2_device *bs2_dev,
+		struct extent_entry *extent, struct vm_area_struct *vma)
 {
 	int i, new_size;
-	struct address_space **temp;
+	struct vm_area_struct **temp;
 
-	bs2_dbg("%s: %d %d\n", __func__, extent->mapping_count,
-					extent->mapping_size);
-	for (i = 0; i < extent->mapping_count; i++) {
-		if (extent->mappings[i] == mapping)
+	bs2_dbg("%s: %d %d\n", __func__, extent->vmas_count,
+					extent->vmas_size);
+	for (i = 0; i < extent->vmas_count; i++) {
+		if (extent->vmas[i] == vma)
 			return;
 	}
 
-	if (extent->mapping_count < extent->mapping_size) {
-		extent->mappings[i] = mapping;
-		extent->mapping_count++;
+	if (extent->vmas_count < extent->vmas_size) {
+		extent->vmas[i] = vma;
+		extent->vmas_count++;
 		return;
 	}
 
-	new_size = extent->mapping_size * 2;
-	temp = kzalloc(new_size * sizeof(struct address_space *), GFP_ATOMIC);
+	new_size = extent->vmas_size * 2;
+	temp = kzalloc(new_size * sizeof(struct vm_area_struct *), GFP_ATOMIC);
 	BUG_ON(!temp);
 
-	for (i = 0; i < extent->mapping_count; i++)
-		temp[i] = extent->mappings[i];
-	temp[i] = mapping;
+	for (i = 0; i < extent->vmas_count; i++)
+		temp[i] = extent->vmas[i];
+	temp[i] = vma;
 
-	extent->mapping_size = new_size;
-	extent->mapping_count++;
-	kfree(extent->mappings);
-	extent->mappings = temp;	
+	extent->vmas_size = new_size;
+	extent->vmas_count++;
+	kfree(extent->vmas);
+	extent->vmas = temp;	
 
 	return;
 }
 
 static void bankshot2_initialize_new_extent(struct bankshot2_device *bs2_dev,
 		struct extent_entry *new, off_t offset, size_t length,
-		unsigned long b_offset, struct address_space *mapping)
+		unsigned long b_offset, struct address_space *mapping,
+		struct vm_area_struct *vma)
 {
 	new->offset = offset;
 	new->length = length;
 	new->b_offset = b_offset;
 	new->dirty = 1; //FIXME: assume all extents are dirty
+	new->mapping = mapping;
 
-	new->mappings = kzalloc(2 * sizeof(struct address_space *), GFP_ATOMIC);
-	new->mapping_size = 2;
-	new->mapping_count = 0;
-	bankshot2_insert_mapping(bs2_dev, new, mapping);
+	new->vmas = kzalloc(2 * sizeof(struct vm_area_struct *), GFP_ATOMIC);
+	new->vmas_size = 2;
+	new->vmas_count = 0;
+	bankshot2_insert_vma(bs2_dev, new, vma);
 }
 
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
-		unsigned long b_offset, struct address_space *mapping)
+		unsigned long b_offset, struct address_space *mapping,
+		struct vm_area_struct *vma)
 {
 	struct extent_entry *curr, *new;
 	struct rb_node **temp, *parent;
@@ -182,21 +185,26 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			} else if (compVal == 1) {
 				temp = &((*temp)->rb_right);
 			} else {
-				if (curr->offset != extent_offset || curr->length != extent_length
-						|| curr->b_offset != extent_b_offset) {
+				if (curr->offset != extent_offset
+						|| curr->length != extent_length
+						|| curr->b_offset != extent_b_offset
+						|| curr->mapping != mapping) {
 					bs2_info("Existing extent hit but unmatch! "
 					"existing extent offset 0x%lx, "
 					"length %lu, b_offset 0x%lx, "
+					"mapping %p, "
 					"new extent offset 0x%lx, length %lu, "
-					"b_offset 0x%lx\n",
+					"b_offset 0x%lx, mapping %p\n",
 					curr->offset, curr->length,
-					curr->b_offset, extent_offset,
-					extent_length, extent_b_offset);
+					curr->b_offset, curr->mapping,
+					extent_offset, extent_length,
+					extent_b_offset, mapping);
+
 					no_new = 1;
 					break;
 				}
-				bankshot2_insert_mapping(bs2_dev,
-					curr, mapping);
+				bankshot2_insert_vma(bs2_dev,
+					curr, vma);
 				no_new = 1;
 				break;
 			}
@@ -215,7 +223,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		}
 
 		bankshot2_initialize_new_extent(bs2_dev, new, extent_offset,
-			extent_length, extent_b_offset, mapping);
+			extent_length, extent_b_offset, mapping, vma);
 
 		rb_link_node(&new->node, parent, temp);
 		rb_insert_color(&new->node, &pi->extent_tree);

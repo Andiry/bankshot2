@@ -227,6 +227,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	struct bankshot2_inode *pi;
+	struct vm_area_struct *vma = NULL;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
@@ -323,7 +324,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
-			MAP_SHARED, data->file, data->mmap_offset / PAGE_SIZE);
+			MAP_SHARED, data->file, data->mmap_offset / PAGE_SIZE,
+			&vma);
 
 		if (data->mmap_addr >= (unsigned long)(-64)) {
 			// mmap failed
@@ -337,7 +339,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 				- data->extent_start_file_offset;
 		//FIXME: mapping information
 		ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
-			data->mmap_length, b_offset, inode->i_mapping);
+			data->mmap_length, b_offset, inode->i_mapping, vma);
 
 		if (ret)
 			bs2_info("bankshot2_add_extent failed: %d\n", ret);
@@ -348,6 +350,10 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			data->file, data->offset, data->size,
 			data->mmap_offset, data->mmap_length,
 			data->extent_start_file_offset, data->extent_length);
+		bs2_dbg("vma %p: start %lx, pgoff %lx, end %lx, "
+				"mm %p\n",
+				vma, vma->vm_start, vma->vm_pgoff,
+				vma->vm_end, vma->vm_mm);
 	}
 
 //	bankshot2_print_tree(bs2_dev, pi);

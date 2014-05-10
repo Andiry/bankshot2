@@ -133,9 +133,10 @@ struct extent_entry {
 	int dirty;
 	unsigned long b_offset; // Backing store physical offset
 	unsigned long mmap_addr; // Unused
-	struct address_space **mappings;
-	int mapping_size; // How many mappings can it hold
-	int mapping_count; // How many mappings currently have 
+	struct address_space *mapping;
+	struct vm_area_struct **vmas;
+	int vmas_size; // How many vmas can it hold
+	int vmas_count; // How many vmas currently have 
 };
 
 /* Test purpose only */
@@ -586,7 +587,8 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
-		unsigned long b_offset, struct address_space *mapping);
+		unsigned long b_offset, struct address_space *mapping,
+		struct vm_area_struct *vma);
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset);
 void bankshot2_print_tree(struct bankshot2_device *bs2_dev,

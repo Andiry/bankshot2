@@ -47,13 +47,15 @@ static void bankshot2_ioctl_mmap_request(struct bankshot2_device *bs2_dev,
 						void *arg)
 {
 	struct bankshot2_mmap_request *mmap_request;
+	struct vm_area_struct *vma;
 
 	mmap_request = (struct bankshot2_mmap_request *)arg;
 
 	mmap_request->mmap_addr = bankshot2_mmap(bs2_dev,
 		 (unsigned long)mmap_request->addr, mmap_request->length,
 				mmap_request->prot, mmap_request->flags,
-				mmap_request->fd,   mmap_request->offset);
+				mmap_request->fd,   mmap_request->offset,
+				&vma);
 }
 
 static void bankshot2_ioctl_munmap_request(struct bankshot2_device *bs2_dev,
@@ -82,7 +84,7 @@ static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 	pi = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
 
 	ret = bankshot2_add_extent(bs2_dev, pi, data1->offset,
-			data1->length, data1->offset, NULL);
+			data1->length, data1->offset, NULL, NULL);
 
 	if (data1->dirty)
 		bankshot2_print_tree(bs2_dev, pi);
