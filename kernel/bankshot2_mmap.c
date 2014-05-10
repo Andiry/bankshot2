@@ -91,17 +91,17 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
+	struct vma_list *vma_list;
 	unsigned long address;
 	unsigned long pgoff = 0;
-	int i;
 
 	bs2_info("%s: unmap offset 0x%lx, %lu pages\n", __func__,
 			extent->offset, extent->length / PAGE_SIZE);
 
 	pgoff = extent->offset >> PAGE_SHIFT;
 
-	for (i = 0; i < extent->vmas_count; i++) {
-		vma = extent->vmas[i];
+	list_for_each_entry(vma_list, &extent->vma_list, list) {
+		vma = vma_list->vma;
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);

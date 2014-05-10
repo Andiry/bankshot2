@@ -23,10 +23,16 @@ static inline int bankshot2_rbtree_compare_find(struct extent_entry *curr,
 }
 
 static inline void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
-		struct extent_entry *curr)
+		struct extent_entry *extent)
 {
-	kfree(curr->vmas);
-	kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+	struct vma_list *next, *delete;
+
+	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
+		list_del(&delete->list);
+		kfree(delete);
+	}
+
+	kmem_cache_free(bs2_dev->bs2_extent_slab, extent);
 }
 
 int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
@@ -95,34 +101,19 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 static void bankshot2_insert_vma(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent, struct vm_area_struct *vma)
 {
-	int i, new_size;
-	struct vm_area_struct **temp;
+	struct vma_list *inserted_vma, *new_vma;
 
-	bs2_dbg("%s: %d %d\n", __func__, extent->vmas_count,
-					extent->vmas_size);
-	for (i = 0; i < extent->vmas_count; i++) {
-		if (extent->vmas[i] == vma)
+	list_for_each_entry(inserted_vma, &extent->vma_list, list) {
+		if (inserted_vma->vma == vma)
 			return;
 	}
 
-	if (extent->vmas_count < extent->vmas_size) {
-		extent->vmas[i] = vma;
-		extent->vmas_count++;
-		return;
-	}
+	new_vma = kzalloc(sizeof(struct vma_list), GFP_ATOMIC);
+	BUG_ON(!new_vma);
 
-	new_size = extent->vmas_size * 2;
-	temp = kzalloc(new_size * sizeof(struct vm_area_struct *), GFP_ATOMIC);
-	BUG_ON(!temp);
-
-	for (i = 0; i < extent->vmas_count; i++)
-		temp[i] = extent->vmas[i];
-	temp[i] = vma;
-
-	extent->vmas_size = new_size;
-	extent->vmas_count++;
-	kfree(extent->vmas);
-	extent->vmas = temp;	
+	new_vma->vma = vma;
+	INIT_LIST_HEAD(&new_vma->list);
+	list_add_tail(&new_vma->list, &extent->vma_list);
 
 	return;
 }
@@ -138,10 +129,7 @@ static void bankshot2_initialize_new_extent(struct bankshot2_device *bs2_dev,
 	new->dirty = 1; //FIXME: assume all extents are dirty
 	new->mapping = mapping;
 
-	new->vmas = kzalloc(2 * sizeof(struct vm_area_struct *), GFP_ATOMIC);
-	BUG_ON(!new->vmas);
-	new->vmas_size = 2;
-	new->vmas_count = 0;
+	INIT_LIST_HEAD(&new->vma_list);
 	bankshot2_insert_vma(bs2_dev, new, vma);
 }
 
@@ -211,8 +199,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 					no_new = 1;
 					break;
 				}
-				bankshot2_insert_vma(bs2_dev,
-					curr, vma);
+				bankshot2_insert_vma(bs2_dev, curr, vma);
 				no_new = 1;
 				break;
 			}

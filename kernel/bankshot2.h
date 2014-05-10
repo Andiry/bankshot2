@@ -134,9 +134,12 @@ struct extent_entry {
 	unsigned long b_offset; // Backing store physical offset
 	unsigned long mmap_addr; // Unused
 	struct address_space *mapping;
-	struct vm_area_struct **vmas;
-	int vmas_size; // How many vmas can it hold
-	int vmas_count; // How many vmas currently have 
+	struct list_head vma_list; // list of mapping VMAs
+};
+
+struct vma_list {
+	struct vm_area_struct *vma;
+	struct list_head list;
 };
 
 /* Test purpose only */
