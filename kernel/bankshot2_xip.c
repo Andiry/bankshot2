@@ -30,12 +30,12 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 				"trying to reclaim some blocks\n",
 				__func__, __LINE__);
 
-			num_free = 2;
-			err = bankshot2_reclaim_num_blocks(bs2_dev, pi,
-				num_free);
-			if (err) {
-				bs2_info("Reclaim %d blocks failed!\n",
-					num_free);
+//			err = bankshot2_reclaim_num_blocks(bs2_dev, pi,
+//				num_free);
+			err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
+			if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
+				bs2_info("Evict extent failed! return %d, "
+					"%d freed\n", err, num_free);
 				goto err;
 			}
 		}

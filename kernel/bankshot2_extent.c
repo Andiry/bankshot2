@@ -22,6 +22,13 @@ static inline int bankshot2_rbtree_compare_find(struct extent_entry *curr,
 	return 0;
 }
 
+static inline void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
+		struct extent_entry *curr)
+{
+	kfree(curr->vmas);
+	kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+}
+
 int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent)
 {
@@ -75,7 +82,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 				"length %lu\n",
 				pi->i_ino, curr->offset, curr->length);
 			rb_erase(&curr->node, &pi->extent_tree);
-			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+			bankshot2_free_extent(bs2_dev, curr);
 			break;
 		}
 	}
@@ -132,6 +139,7 @@ static void bankshot2_initialize_new_extent(struct bankshot2_device *bs2_dev,
 	new->mapping = mapping;
 
 	new->vmas = kzalloc(2 * sizeof(struct vm_area_struct *), GFP_ATOMIC);
+	BUG_ON(!new->vmas);
 	new->vmas_size = 2;
 	new->vmas_count = 0;
 	bankshot2_insert_vma(bs2_dev, new, vma);
@@ -311,7 +319,7 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 //				curr->length, curr->mmap_addr);
 		temp = rb_next(temp);
 		rb_erase(&curr->node, &pi->extent_tree);
-		kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+		bankshot2_free_extent(bs2_dev, curr);
 	}
 
 	write_unlock(&pi->extent_tree_lock);
@@ -350,7 +358,7 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 			freed = num_pages;
 //			vm_munmap(curr->mmap_addr, curr->length);
 			rb_erase(&curr->node, &pi->extent_tree);
-			kmem_cache_free(bs2_dev->bs2_extent_slab, curr);
+			bankshot2_free_extent(bs2_dev, curr);
 		}
 
 		bankshot2_munmap(bs2_dev, pi, offset, freed);
@@ -364,6 +372,44 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 //	bs2_info("After free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
 	return total_freed;
+}
+
+int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int *num_free)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+//	bs2_info("Before free:\n");
+//	bankshot2_print_tree(bs2_dev, pi);
+
+	temp = rb_first(&pi->extent_tree);
+	write_lock(&pi->extent_tree_lock);
+
+	if (!temp) {
+		*num_free = 0;
+		write_unlock(&pi->extent_tree_lock);
+		return -ENOMEM;
+	}
+
+	curr = container_of(temp, struct extent_entry, node);
+
+	rb_erase(&curr->node, &pi->extent_tree);
+	write_unlock(&pi->extent_tree_lock);
+
+	bs2_info("Free: pi %llu, extent offset %lu, length %lu\n",
+			pi->i_ino, curr->offset, curr->length);
+
+	bankshot2_munmap_extent(bs2_dev, pi, curr);
+
+	*num_free = curr->length >> PAGE_SHIFT;
+	bankshot2_free_blocks(bs2_dev, pi, curr->offset, *num_free); 
+
+	bankshot2_free_extent(bs2_dev, curr);
+
+//	bs2_info("After free:\n");
+//	bankshot2_print_tree(bs2_dev, pi);
+	return 0;
 }
 
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)

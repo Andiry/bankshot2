@@ -599,8 +599,12 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
+int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int *num_free);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap(struct bankshot2_device *bs2_dev,
 			 struct bankshot2_inode *pi,
 			 off_t offset, int num_pages);
+void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent);
