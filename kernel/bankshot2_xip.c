@@ -22,7 +22,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 			err = -ENODATA;
 			goto err;
 		}
-
+retry:
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, iblock,
 						1, true);
 		if (err) {
@@ -38,6 +38,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 					"%d freed\n", err, num_free);
 				goto err;
 			}
+			goto retry;
 		}
 		
 # if 0
