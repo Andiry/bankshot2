@@ -472,6 +472,79 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	return status < 0 ? status : 0;
 }
 
+static int page_dirty(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long pgoff,
+		void *xmem)
+{
+	// FIXME: check PTE's dirty bit
+	return 1;
+}
+
+int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent)
+{
+	long status = 0;
+	size_t bytes;
+	u64 pos;
+	size_t count;
+	u64 b_offset;
+	unsigned long index;
+	size_t copied;
+	void *xmem;
+	unsigned long xpfn;
+	int ret;
+
+	pos = extent->offset;
+	b_offset = extent->b_offset;
+	count = extent->length;
+
+	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+			__func__, pi->i_ino, pos, count);
+
+	do {
+		index = pos >> bs2_dev->s_blocksize_bits;
+		bytes = PAGE_SIZE;
+		if (bytes > count)
+			bytes = count;
+
+		status = bankshot2_get_xip_mem(bs2_dev, pi,
+				index, 0, &xmem, &xpfn);
+		if (status < 0) {
+			bs2_info("get_xip_mem returned %ld\n", status);
+			break;
+		}
+
+		if (page_dirty(bs2_dev, pi, index, xmem)) {
+			ret = bankshot2_copy_from_cache(bs2_dev, b_offset,
+							bytes, xmem);
+			if (ret)
+				return ret;
+		}
+
+//		buf1 = (char *)xmem;
+//		bs2_dbg("Before copy from user\n");
+
+		copied = bytes;
+
+//		bs2_dbg("After copy from user\n");
+
+//		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
+
+		if (likely(copied > 0)) {
+			count -= copied;
+			pos += copied;
+			b_offset += copied;
+		}
+		if (unlikely(copied != bytes))
+			if (status >= 0)
+				status = -EFAULT;
+		if (status < 0)
+			break;
+	} while (count);
+
+	return 0;
+}
+
 static const struct vm_operations_struct bankshot2_xip_vm_ops = {
 	.fault	= bankshot2_xip_file_fault,
 };

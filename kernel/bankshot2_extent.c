@@ -379,6 +379,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
+	int ret = 0;
 
 //	bs2_info("Before free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
@@ -402,6 +403,9 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 
 	bankshot2_munmap_extent(bs2_dev, pi, curr);
 
+	if (curr->dirty)
+		ret = bankshot2_write_back_extent(bs2_dev, pi, curr);
+
 	*num_free = curr->length >> PAGE_SHIFT;
 	bankshot2_free_blocks(bs2_dev, pi, curr->offset, *num_free); 
 
@@ -409,7 +413,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 
 //	bs2_info("After free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
-	return 0;
+	return ret;
 }
 
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)

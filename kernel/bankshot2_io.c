@@ -530,8 +530,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 	return (result & ~(1 << JOB_DONE))?-1:0;
 }
 
-int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, void *xmem) 
+int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
+			uint64_t b_offset, size_t b_len, void *xmem) 
 {
 	/*
 	create bios and submit job_descritpors (we have to split and submit

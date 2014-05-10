@@ -527,8 +527,8 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				int where, JOB_TYPE type);
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 			size_t b_len, void *xmem); 
-int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, void *xmem); 
+int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
+			uint64_t b_offset, size_t b_len, void *xmem); 
 
 /* bankshot2_block.c */
 int bankshot2_init_block(struct bankshot2_device *);
@@ -581,6 +581,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		void *data, struct bankshot2_inode *pi, ssize_t *actual_length);
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		void *data, struct bankshot2_inode *pi, ssize_t *actual_length);
+int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent);
 
 /* bankshot2_extent.c */
 int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
