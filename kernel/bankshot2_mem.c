@@ -339,7 +339,7 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 	first_blocknr = file_blocknr >> blk_shift;
 	last_blocknr = (file_blocknr + num - 1) >> blk_shift;
 
-	bs2_dbg("alloc_blocks height %d file_blocknr %lx num %x, "
+	bs2_info("alloc_blocks height %d file_blocknr %lx num %x, "
 		   "first blocknr 0x%lx, last_blocknr 0x%lx\n",
 		   pi->height, file_blocknr, num, first_blocknr, last_blocknr);
 

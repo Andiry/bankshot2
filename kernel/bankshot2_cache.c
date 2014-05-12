@@ -235,6 +235,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	size_t request_len;
 	size_t map_len;
 	unsigned long b_offset;
+	u64 block;
+	unsigned long pfn;
 
 	data = &_data;
 
@@ -324,8 +326,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
-			MAP_SHARED, data->file, data->mmap_offset / PAGE_SIZE,
-			&vma);
+			MAP_SHARED | MAP_POPULATE, data->file,
+			data->mmap_offset / PAGE_SIZE, &vma);
 
 		if (data->mmap_addr >= (unsigned long)(-64)) {
 			// mmap failed
@@ -350,10 +352,13 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			data->file, data->offset, data->size,
 			data->mmap_offset, data->mmap_length,
 			data->extent_start_file_offset, data->extent_length);
-		bs2_dbg("vma %p: start %lx, pgoff %lx, end %lx, "
+		bs2_info("Insert vma %p: start %lx, pgoff %lx, end %lx, "
 				"mm %p\n",
 				vma, vma->vm_start, vma->vm_pgoff,
 				vma->vm_end, vma->vm_mm);
+		block = bankshot2_find_data_block(bs2_dev, pi, data->mmap_offset);
+		pfn =  bankshot2_get_pfn(bs2_dev, block);
+		bs2_info("Alloc pfn @ 0x%lx, file offset 0x%llx\n", pfn, data->mmap_offset);
 	}
 
 //	bankshot2_print_tree(bs2_dev, pi);

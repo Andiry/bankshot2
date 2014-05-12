@@ -27,8 +27,8 @@ static int __init bankshot2_init(void)
 {
 	int ret;
 
-	if (cache_size <= BANKSHOT2_RESERVE_SPACE * 2) {
-		bs2_info("Minimal Bankshot2 cache size 8MB.\n");
+	if (cache_size < BANKSHOT2_RESERVE_SPACE) {
+		bs2_info("Minimal Bankshot2 cache size 4MB.\n");
 		ret = -ENOMEM;
 		goto check_fail;
 	}

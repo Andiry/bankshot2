@@ -233,6 +233,7 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 			__func__, vma, xip_pfn, vmf->pgoff,
 			vmf->virtual_address, mapping);
 	if (ret == -ENOMEM) {
+		bs2_info("vm_insert_mixed failed: %d\n", ret);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}

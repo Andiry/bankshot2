@@ -95,7 +95,7 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 	unsigned long address;
 	unsigned long pgoff = 0;
 
-	bs2_info("%s: unmap offset 0x%lx, %lu pages\n", __func__,
+	bs2_dbg("%s: unmap offset 0x%lx, %lu pages\n", __func__,
 			extent->offset, extent->length / PAGE_SIZE);
 
 	pgoff = extent->offset >> PAGE_SHIFT;
@@ -106,7 +106,7 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 
-		bs2_info("vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
+		bs2_info("unmap vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
 				"last 0x%lx, mm %p, address 0x%lx\n",
 				vma, vma->vm_start, vma_start_pgoff(vma),
 				vma->vm_end, vma_last_pgoff(vma),

@@ -367,6 +367,8 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 	int ret = 0;
+	u64 block;
+	unsigned long pfn;
 
 //	bs2_info("Before free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
@@ -385,7 +387,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	rb_erase(&curr->node, &pi->extent_tree);
 	write_unlock(&pi->extent_tree_lock);
 
-	bs2_info("Free: pi %llu, extent offset %lu, length %lu\n",
+	bs2_dbg("Free: pi %llu, extent offset %lu, length %lu\n",
 			pi->i_ino, curr->offset, curr->length);
 
 	bankshot2_munmap_extent(bs2_dev, pi, curr);
@@ -395,6 +397,10 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 
 	*num_free = curr->length >> PAGE_SHIFT;
 	bankshot2_free_blocks(bs2_dev, pi, curr->offset, *num_free); 
+
+	block = bankshot2_find_data_block(bs2_dev, pi, curr->offset);
+	pfn =  bankshot2_get_pfn(bs2_dev, block);
+	bs2_info("Free pfn @ 0x%lx, file offset 0x%lx\n", pfn, curr->offset);
 
 	bankshot2_free_extent(bs2_dev, curr);
 
@@ -408,9 +414,31 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent, struct mm_struct *mm)
 {
 	struct vma_list *delete, *next;
+	struct vm_area_struct *vma;
+	unsigned long address;
+	unsigned long pgoff = 0;
+
+	pgoff = extent->offset >> PAGE_SHIFT;
 
 	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
 		if (delete->vma->vm_mm == mm) {
+			vma = delete->vma;
+			bs2_info("remove vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
+				"mm %p\n",
+				vma, vma->vm_start, vma->vm_pgoff,
+				vma->vm_end, vma->vm_mm);
+
+			address = vma->vm_start +
+				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+
+			if (address < vma->vm_start || address >= vma->vm_end) {
+				bs2_info("address not in vma area! "
+					"vma start 0x%lx, end 0x%lx, "
+					"address 0x%lx\n",
+					vma->vm_start, vma->vm_end, address);
+			}
+
+			vm_munmap_page(mm, address, extent->length);
 			list_del(&delete->list);
 			kfree(delete);
 		}
