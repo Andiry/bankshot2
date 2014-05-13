@@ -5,6 +5,50 @@
 #include "bankshot2.h"
 #include "bankshot2_cache.h"
 
+static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u64 offset, size_t length)
+{
+	unsigned long index;
+	unsigned long count;
+	int num_free;
+	int err;
+
+	index = offset >> bs2_dev->s_blocksize_bits;
+	count = length >> bs2_dev->s_blocksize_bits;
+
+	bs2_info("%s: %llu, %lu\n", __func__, offset, length);
+	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
+	bankshot2_print_tree(bs2_dev, pi);
+
+	spin_lock(&pi->btree_lock);
+retry:
+	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
+
+	if (err) {
+		bs2_info("[%s:%d] Alloc failed, "
+			"trying to reclaim some blocks\n",
+			__func__, __LINE__);
+
+//		err = bankshot2_reclaim_num_blocks(bs2_dev, pi,
+//			num_free);
+
+		err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
+
+		if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
+			bs2_info("Evict extent failed! return %d, "
+				"%d freed\n", err, num_free);
+			goto err;
+		}
+
+		goto retry;
+	}
+
+err:
+	spin_unlock(&pi->btree_lock);
+	bs2_info("After alloc: %lu free\n", bs2_dev->num_free_blocks);
+	return err;
+}
+
 static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, sector_t iblock,
 		sector_t *data_block, int create)
@@ -300,6 +344,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
+	/* Pre-allocate the blocks we need */
+	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -402,6 +448,9 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	data->actual_offset = pos;
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
+
+	/* Pre-allocate the blocks we need */
+	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
