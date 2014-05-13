@@ -9,17 +9,6 @@
 unsigned int blk_type_to_shift[3] = {12, 21, 30};
 uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
 
-static inline unsigned int
-bankshot2_inode_blk_shift (struct bankshot2_inode *pi)
-{
-	return blk_type_to_shift[pi->i_blk_type];
-}
-
-static inline uint32_t bankshot2_inode_blk_size (struct bankshot2_inode *pi)
-{
-	return blk_type_to_size[pi->i_blk_type];
-}
-
 static inline struct bankshot2_inode *
 bankshot2_get_inode_table(struct bankshot2_device *bs2_dev)
 {
@@ -472,7 +461,7 @@ unsigned int bankshot2_free_inode_subtree(struct bankshot2_device *bs2_dev,
 	return freed;
 }
 
-void bankshot2_evict_inode(struct bankshot2_deviceu*bs2_dev,
+void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi)
 {
 	__le64 root;

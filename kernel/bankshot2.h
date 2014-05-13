@@ -95,13 +95,8 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 struct bankshot2_inode {
 	/* first 48 bytes */
 	__le16	i_rsvd;         /* reserved. used to be checksum */
-	__le64	i_ino;		    /* Inode number in bankshot2 */
-	__le64	backup_ino;	    /* Inode number in backing store */
-	struct rb_root extent_tree; /* Extent tree root */
-	rwlock_t extent_tree_lock;  /* Extent tree lock */
-	u8	    height;         /* height of data b-tree; max 3 for now */
-	u8	    i_blk_type;     /* data block size this inode uses */
-	spinlock_t btree_lock;	    /* B-tree lock */	
+	u8	height;     	    /* height of data b-tree; max 3 for now */
+	u8	i_blk_type;	    /* data block size this inode uses */
 	__le32	i_flags;            /* Inode flags */
 	__le64	root;               /* btree root. must be below qw w/ height */
 	__le64	i_size;             /* Size of data in bytes */
@@ -118,7 +113,11 @@ struct bankshot2_inode {
 	__le32	i_gid;              /* Group Id */
 	__le32	i_generation;       /* File version (for NFS) */
 	__le32	i_atime;            /* Access time */
-
+	__le64	i_ino;		    /* Inode number in bankshot2 */
+	__le64	backup_ino;	    /* Inode number in backing store */
+	struct rb_root extent_tree; /* Extent tree root */
+	rwlock_t extent_tree_lock;  /* Extent tree lock */
+	spinlock_t btree_lock;	    /* B-tree lock */	
 
 	struct {
 		__le32 rdev;    /* major/minor # */
@@ -362,6 +361,20 @@ struct bankshot2_device {
 extern struct bankshot2_device *bs2_dev;
 
 /* ========================= Methods =================================== */
+
+extern unsigned int blk_type_to_shift[3];
+extern uint32_t blk_type_to_size[3];
+
+static inline unsigned int
+bankshot2_inode_blk_shift (struct bankshot2_inode *pi)
+{
+	return blk_type_to_shift[pi->i_blk_type];
+}
+
+static inline uint32_t bankshot2_inode_blk_size (struct bankshot2_inode *pi)
+{
+	return blk_type_to_size[pi->i_blk_type];
+}
 
 static inline struct bankshot2_super_block *
 bankshot2_get_super(struct bankshot2_device *bs2_dev)

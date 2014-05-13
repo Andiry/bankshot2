@@ -198,6 +198,49 @@ static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
 	return errval;
 }
 
+static void bankshot2_decrease_btree_height(struct bankshot2_device *bs2_dev,
+	struct bankshot2_inode *pi, unsigned long newsize, __le64 newroot)
+{
+	unsigned int height = pi->height, new_height = 0;
+	unsigned long blocknr, last_blocknr;
+	__le64 *root;
+	char b[8];
+
+	if (pi->i_blocks == 0 || newsize == 0) {
+		BUG_ON(newroot);
+		goto update_root_and_height;
+	}
+
+	last_blocknr = ((newsize + bankshot2_inode_blk_size(pi) - 1) >>
+			bankshot2_inode_blk_size(pi)) - 1;
+	while (last_blocknr > 0) {
+		last_blocknr = last_blocknr >> META_BLK_SHIFT;
+		new_height++;
+	}
+
+	if (height == new_height)
+		return;
+
+	bs2_dbg("Reduce tree height %u -> %u\n", height, new_height);
+	while (height > new_height) {
+		/* Free the meta block */
+		root = bankshot2_get_block(bs2_dev, le64_to_cpu(newroot));
+		blocknr = bankshot2_get_blocknr(le64_to_cpu(newroot));
+		newroot = root[0];
+		bankshot2_free_block(bs2_dev, blocknr,
+				BANKSHOT2_BLOCK_TYPE_4K);
+		height--;
+	}
+
+update_root_and_height:
+	/* Update pi->height and pi->root atomically. */
+	*(u64 *)b = *(u64 *)pi;
+	/* pi->height at offset 2 from pi */
+	b[2] = (u8)new_height;
+	cmpxchg_double_local((u64 *)pi, &pi->root, *(u64 *)pi, pi->root,
+		*(u64 *)b, newroot);
+}
+
 /*
  * allocate a data block for inode and return it's absolute blocknr.
  * Zeroes out the block if zero set. Increments inode->i_blocks.
@@ -660,7 +703,7 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 	__le64 root;
 	unsigned int freed = 0;
 	unsigned int data_bits = blk_type_to_shift[pi->i_blk_type];
-	unsigned int meta_bits = META_BLK_SHIFT;
+//	unsigned int meta_bits = META_BLK_SHIFT;
 	bool mpty;
 
 	if (!pi->root)
