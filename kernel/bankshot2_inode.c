@@ -525,6 +525,7 @@ unsigned int bankshot2_free_inode_num_blocks(struct bankshot2_device *bs2_dev,
 }
 #endif
 
+/* FIXME: Deprecated */
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free)
 {
@@ -536,7 +537,8 @@ int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		return -ENOSPC;
 	}
 
-	num_freed = bankshot2_free_num_blocks(bs2_dev, pi, num_free);
+//	num_freed = bankshot2_free_num_blocks(bs2_dev, pi, num_free);
+	num_freed = 0;
 
 	bs2_info("pi %llu freed %d blocks, requires %d blocks\n",
 				pi->i_ino, num_freed, num_free);

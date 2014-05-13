@@ -588,6 +588,7 @@ void bankshot2_free_block(struct bankshot2_device *bs2_dev,
 	mutex_unlock(&bs2_dev->s_lock);
 }
 
+#if 0
 /* Free num_free blocks, start from offset */
 void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, int num_free)
@@ -609,8 +610,10 @@ void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
 		num_free--;
 	}
 }
+#endif
 
-/* recursive_truncate_blocks: recursively deallocate a range of blocks from
+/*
+ * recursive_truncate_blocks: recursively deallocate a range of blocks from
  * the first_blocknr to last_blocknr in the inode's btree.
  * Input:
  * block: points to the root of the b-tree where the blocks need to be allocated

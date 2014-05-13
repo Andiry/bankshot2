@@ -572,8 +572,8 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 		unsigned long *blocknr, unsigned short btype, int zero);
 void bankshot2_free_block(struct bankshot2_device *bs2_dev,
 		unsigned long blocknr, unsigned short btype);
-void bankshot2_free_blocks(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, off_t offset, int num_free);
+void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t start, off_t end);
 int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
 		u32 height, u32 btype, unsigned long first_blocknr,
 		unsigned long last_blocknr, bool *meta_empty);
@@ -621,8 +621,6 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
 void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
-int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int num_free);
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,

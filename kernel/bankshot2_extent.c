@@ -313,6 +313,7 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	return;
 }
 
+#if 0
 int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free)
 {
@@ -360,6 +361,7 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 //	bankshot2_print_tree(bs2_dev, pi);
 	return total_freed;
 }
+#endif
 
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int *num_free)
@@ -396,7 +398,8 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		ret = bankshot2_write_back_extent(bs2_dev, pi, curr);
 
 	*num_free = curr->length >> PAGE_SHIFT;
-	bankshot2_free_blocks(bs2_dev, pi, curr->offset, *num_free); 
+	bankshot2_truncate_blocks(bs2_dev, pi, curr->offset,
+					curr->offset + curr->length);
 
 	block = bankshot2_find_data_block(bs2_dev, pi, curr->offset);
 	pfn =  bankshot2_get_pfn(bs2_dev, block);
