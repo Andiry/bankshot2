@@ -472,15 +472,7 @@ unsigned int bankshot2_free_inode_subtree(struct bankshot2_device *bs2_dev,
 	return freed;
 }
 
-static inline unsigned long bankshot2_sparse_last_blocknr(unsigned int height,
-		unsigned long last_blocknr)
-{
-	if (last_blocknr >= (1UL << (height * META_BLK_SHIFT)))
-		last_blocknr = (1UL << (height * META_BLK_SHIFT)) - 1;
-	return last_blocknr;
-}
-
-void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
+void bankshot2_evict_inode(struct bankshot2_deviceu*bs2_dev,
 				struct bankshot2_inode *pi)
 {
 	__le64 root;

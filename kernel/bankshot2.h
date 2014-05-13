@@ -462,6 +462,14 @@ static inline void bankshot2_update_isize(struct bankshot2_inode *pi,
 //	pmfs_memlock_inode(inode->i_sb, pi);
 }
 
+static inline unsigned long bankshot2_sparse_last_blocknr(unsigned int height,
+		unsigned long last_blocknr)
+{
+	if (last_blocknr >= (1UL << (height * META_BLK_SHIFT)))
+		last_blocknr = (1UL << (height * META_BLK_SHIFT)) - 1;
+	return last_blocknr;
+}
+
 /* assumes the length to be 4-byte aligned */
 static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 {
