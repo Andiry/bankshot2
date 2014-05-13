@@ -17,11 +17,15 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	count = length >> bs2_dev->s_blocksize_bits;
 
 	bs2_info("%s: %llu, %lu\n", __func__, offset, length);
-	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	bankshot2_print_tree(bs2_dev, pi);
 
 	spin_lock(&pi->btree_lock);
+
+	if (bs2_dev->num_free_blocks < count)
+		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+
 retry:
+	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
 
 	if (err) {

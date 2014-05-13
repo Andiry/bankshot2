@@ -206,10 +206,8 @@ static void bankshot2_decrease_btree_height(struct bankshot2_device *bs2_dev,
 	__le64 *root;
 	char b[8];
 
-	if (pi->i_blocks == 0 || newsize == 0) {
-		BUG_ON(newroot);
+	if (pi->i_blocks == 0 || newsize == 0)
 		goto update_root_and_height;
-	}
 
 	last_blocknr = ((newsize + bankshot2_inode_blk_size(pi) - 1) >>
 			bankshot2_inode_blk_size(pi)) - 1;
@@ -712,7 +710,7 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 	if (!pi->root)
 		goto end_truncate_blocks;
 
-	bs2_dbg("truncate: pi %p iblocks %llx, start %lx end %lx, "
+	bs2_info("truncate: pi %p iblocks %llx, start %lx end %lx, "
 		"height %x, size %llx\n",
 		pi, pi->i_blocks, start, end, pi->height, pi->i_size);
 
@@ -742,7 +740,11 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 		}
 	}
 
-	bankshot2_decrease_btree_height(bs2_dev, pi, start, root);
+	if (end >= pi->i_size) {
+		bs2_info("Decrease btree height: pi %p start 0x%lx, "
+			"root 0x%llx\n", pi, start, root);
+		bankshot2_decrease_btree_height(bs2_dev, pi, start, root);
+	}
 
 end_truncate_blocks:
 	bankshot2_flush_buffer(pi, 1, false);
