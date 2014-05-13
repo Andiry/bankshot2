@@ -653,6 +653,56 @@ int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
 	return freed;
 }
 
+void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t start, off_t end)
+{
+	unsigned long first_blocknr, last_blocknr;
+	__le64 root;
+	unsigned int freed = 0;
+	unsigned int data_bits = blk_type_to_shift[pi->i_blk_type];
+	unsigned int meta_bits = META_BLK_SHIFT;
+	bool mpty;
+
+	if (!pi->root)
+		goto end_truncate_blocks;
+
+	bs2_dbg("truncate: pi %p iblocks %llx, start %lx end %lx, "
+		"height %x, size %llx\n",
+		pi, pi->i_blocks, start, end, pi->height, pi->i_size);
+
+	first_blocknr = start >> data_bits;
+	last_blocknr = (end - 1) >> data_bits;
+	last_blocknr = bankshot2_sparse_last_blocknr(pi->height, last_blocknr);
+
+	if (first_blocknr > last_blocknr)
+		goto end_truncate_blocks;
+
+	root = pi->root;
+
+	if (pi->height == 0) {
+		first_blocknr = bankshot2_get_blocknr(le64_to_cpu(root));
+		bankshot2_free_block(bs2_dev, first_blocknr, pi->i_blk_type);
+		root = 0;
+		freed = 1;
+	} else {
+		freed = recursive_truncate_blocks(bs2_dev, root, pi->height,
+			pi->i_blk_type, first_blocknr, last_blocknr, &mpty);
+		if (mpty) {
+			first_blocknr =
+				bankshot2_get_blocknr(le64_to_cpu(root));
+			bankshot2_free_block(bs2_dev, first_blocknr,
+				BANKSHOT2_BLOCK_TYPE_4K);
+			root = 0;
+		}
+	}
+
+	bankshot2_decrease_btree_height(bs2_dev, pi, start, root);
+
+end_truncate_blocks:
+	bankshot2_flush_buffer(pi, 1, false);
+	return;
+}
+
 int bankshot2_init_blockmap(struct bankshot2_device *bs2_dev,
 				unsigned long init_used_size)
 {
