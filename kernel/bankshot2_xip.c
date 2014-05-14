@@ -486,7 +486,9 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
 			copy_user = min(req_len, bytes);
-	bs2_info("copy %p to index %lu, pfn 0x%lx, offset 0x%llx\n", xmem, index, xpfn, pos);
+
+			bs2_dbg("copy %p to index %lu, pfn 0x%lx, "
+				"offset 0x%llx\n", xmem, index, xpfn, pos);
 			copied = bytes -
 				__copy_from_user_inatomic_nocache(xmem + offset,
 								buf, copy_user);
@@ -569,9 +571,9 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		}
 
 		xmem = bankshot2_get_block(bs2_dev, block);
-	bs2_info("copy index %lu to block %llx, %p, offset 0x%llx\n", index, block / 4096, xmem, pos);
-	if (!xmem)
-		bs2_info("ERROR: xmem is NULL\n");
+		if (!xmem)
+			bs2_info("ERROR: xmem is NULL\n");
+
 		if (page_dirty(bs2_dev, pi, index, xmem)) {
 			ret = bankshot2_copy_from_cache(bs2_dev, b_offset,
 							bytes, xmem);

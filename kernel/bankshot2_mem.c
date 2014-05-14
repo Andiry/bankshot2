@@ -321,6 +321,7 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 				/* allocate the meta block */
 				errval = bankshot2_new_block(bs2_dev, &blocknr,
 						BANKSHOT2_BLOCK_TYPE_4K, 1);
+				bs2_info("Allocating meta block 0x%lx\n", blocknr);
 				if (errval) {
 					bs2_dbg("alloc meta blk failed\n");
 					goto fail;
@@ -645,7 +646,7 @@ int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
 				continue;
 			/* Freeing the data block */
 			blocknr = bankshot2_get_blocknr(le64_to_cpu(node[i]));
-			bs2_info("Freeing data block 0x%lx\n", blocknr);
+//			bs2_info("Freeing data block 0x%lx\n", blocknr);
 			__bankshot2_free_block(bs2_dev, blocknr, btype,
 						&start_hint);
 			freed++;
