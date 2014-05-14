@@ -450,7 +450,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	}
 
 	data->actual_offset = pos;
-	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+	bs2_info("%s, inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
 	/* Pre-allocate the blocks we need */
@@ -486,6 +486,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
 			copy_user = min(req_len, bytes);
+	bs2_info("copy %p to index %lu\n", xmem, index);
 			copied = bytes -
 				__copy_from_user_inatomic_nocache(xmem + offset,
 								buf, copy_user);
@@ -550,7 +551,7 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 	b_offset = extent->b_offset;
 	count = extent->length;
 
-	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+	bs2_info("%s: inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
 	do {
@@ -568,6 +569,9 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		}
 
 		xmem = bankshot2_get_block(bs2_dev, block);
+	bs2_info("copy index %lu to %p\n", index, xmem);
+	if (!xmem)
+		bs2_info("ERROR: xmem is NULL\n");
 		if (page_dirty(bs2_dev, pi, index, xmem)) {
 			ret = bankshot2_copy_from_cache(bs2_dev, b_offset,
 							bytes, xmem);

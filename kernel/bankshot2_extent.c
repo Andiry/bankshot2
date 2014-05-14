@@ -381,6 +381,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	if (!temp) {
 		*num_free = 0;
 		write_unlock(&pi->extent_tree_lock);
+		bs2_info("No extent to evict for pi %llu!\n", pi->i_ino);
 		return -ENOMEM;
 	}
 
@@ -389,8 +390,8 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	rb_erase(&curr->node, &pi->extent_tree);
 	write_unlock(&pi->extent_tree_lock);
 
-	bs2_dbg("Free: pi %llu, extent offset %lu, length %lu\n",
-			pi->i_ino, curr->offset, curr->length);
+	bs2_info("%s: pi %llu, extent offset %lu, length %lu\n",
+		__func__, pi->i_ino, curr->offset, curr->length);
 
 	bankshot2_munmap_extent(bs2_dev, pi, curr);
 
