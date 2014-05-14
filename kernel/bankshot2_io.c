@@ -251,6 +251,8 @@ size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 		done++;
 	}
 
+	if (done != nr_pages)
+		bs2_info("ERROR: %s failed\n", __func__);
 	return done;
 }
 
@@ -288,6 +290,7 @@ int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct bio *bio,
 
 	bio_for_each_segment(bvec, bio, i) {
 		buf = kmap_atomic(bvec->bv_page);
+		bs2_info("%p %p\n", xmem, buf);
 		if (read)
 			memcpy(xmem, buf + bvec->bv_offset, bvec->bv_len);
 		else
