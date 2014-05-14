@@ -518,12 +518,12 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 //		jd->moneta_cmd = BBD_CMD_CACHE_CLEAN_WRITE; 
 //		jd->moneta_cmd = BBD_CMD_WRITE; 
 		jd->disk_cmd = READ;
+		jd->xmem = xmem;
 		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
 		
 		nr_pages -= done;
 		b_offset += (done << PAGE_SHIFT);
 //		c_offset += (done << PAGE_SHIFT);
-		jd->xmem = xmem;
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 	result = do_cache_fill(bs2_dev, &jd_head, NULL);	
@@ -582,12 +582,12 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 //		jd->moneta_cmd = BBD_CMD_CACHE_CLEAN_WRITE; 
 //		jd->moneta_cmd = BBD_CMD_WRITE; 
 		jd->disk_cmd = WRITE;
+		jd->xmem = xmem;
 		bankshot2_add_to_cache_list(bs2_dev, jd, 0);
 		
 		nr_pages -= done;
 		b_offset += (done << PAGE_SHIFT);
 //		c_offset += (done << PAGE_SHIFT);
-		jd->xmem = xmem;
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 	do_disk_fill(bs2_dev, &jd_head, NULL);	
