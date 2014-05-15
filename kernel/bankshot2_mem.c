@@ -767,11 +767,9 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 	pi->i_blocks -= (freed * (1 << (data_bits -
 			bs2_dev->s_blocksize_bits)));
 
-	if (end >= pi->i_size) {
-		bs2_info("Decrease btree height: pi %p start 0x%lx, "
+	bs2_info("Decrease btree height: pi %p start 0x%lx, "
 			"root 0x%llx\n", pi, start, root);
-		bankshot2_decrease_btree_height(bs2_dev, pi, start, root);
-	}
+	bankshot2_decrease_btree_height(bs2_dev, pi, start, root);
 
 end_truncate_blocks:
 	bankshot2_flush_buffer(pi, 1, false);
