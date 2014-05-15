@@ -356,7 +356,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 				"mm %p\n",
 				vma, vma->vm_start, vma->vm_pgoff,
 				vma->vm_end, vma->vm_mm);
-		block = bankshot2_find_data_block(bs2_dev, pi, data->mmap_offset);
+		block = bankshot2_find_data_block(bs2_dev, pi, data->mmap_offset >> PAGE_SHIFT);
 		pfn =  bankshot2_get_pfn(bs2_dev, block);
 		bs2_info("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n", pfn, block, data->mmap_offset);
 	}

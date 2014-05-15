@@ -399,7 +399,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		ret = bankshot2_write_back_extent(bs2_dev, pi, curr);
 
 	*num_free = curr->length >> PAGE_SHIFT;
-	block = bankshot2_find_data_block(bs2_dev, pi, curr->offset);
+	block = bankshot2_find_data_block(bs2_dev, pi, curr->offset >> PAGE_SHIFT);
 	pfn =  bankshot2_get_pfn(bs2_dev, block);
 	bs2_info("Free pfn @ 0x%lx, file offset 0x%lx\n", pfn, curr->offset);
 
