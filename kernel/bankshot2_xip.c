@@ -17,7 +17,8 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	count = length >> bs2_dev->s_blocksize_bits;
 
 	bs2_info("%s: %llu, %lu\n", __func__, offset, length);
-	bankshot2_print_tree(bs2_dev, pi);
+//	bankshot2_print_tree(bs2_dev, pi);
+	bs2_info("pi root @ 0x%llx, height %u", pi->root, pi->height);
 
 	spin_lock(&pi->btree_lock);
 
@@ -567,6 +568,8 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		block = bankshot2_find_data_block(bs2_dev, pi, index);
 		if (!block) {
 			bs2_info("find_data_block failed!\n");
+			block = bankshot2_find_data_block_verbose(bs2_dev,
+					pi, index);
 			break;
 		}
 

@@ -462,6 +462,33 @@ static inline u64 __bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 	return bp;
 }
 
+static inline u64 __bankshot2_find_data_block_verbose(
+		struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long blocknr)
+{
+	__le64 *level_ptr;
+	u64 bp = 0;
+	u32 height, bit_shift;
+	unsigned int idx;
+
+	height = pi->height;
+	bp = le64_to_cpu(pi->root);
+
+	bs2_info("height %u, root @ 0x%llx\n", height, bp);
+	while (height > 0) {
+		level_ptr = bankshot2_get_block(bs2_dev, bp);
+		bit_shift = (height - 1) * META_BLK_SHIFT;
+		idx = blocknr >> bit_shift;
+		bp = le64_to_cpu(level_ptr[idx]);
+		bs2_info("idx %u, bp 0x%llx\n", idx, bp);
+		if (bp == 0)
+			return 0;
+		blocknr = blocknr & ((1 << bit_shift) - 1);
+		height--;
+	}
+	return bp;
+}
+
 static inline unsigned long bankshot2_get_blocknr(u64 block)
 {
 	return block >> PAGE_SHIFT;
@@ -583,6 +610,8 @@ int bankshot2_init_inode_table(struct bankshot2_device *);
 struct bankshot2_inode *bankshot2_get_inode(struct bankshot2_device *bs2_dev,
 						u64 ino);
 u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, unsigned long file_blocknr);
+u64 bankshot2_find_data_block_verbose(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		void *data, struct inode *inode, u64 *st_ino);
