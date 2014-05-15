@@ -165,14 +165,16 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 }
 
 static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, u32 new_height)
+		struct bankshot2_inode *pi, u32 new_height,
+		unsigned long first_blocknr)
 {
 	u32 height = pi->height;
 	__le64 *root, prev_root = pi->root;
 	unsigned long blocknr;
 	int errval = 0;
+	unsigned int idx;
 
-	bs2_dbg("increasing tree height %x:%x\n", height, new_height);
+	bs2_info("increasing tree height %x:%x\n", height, new_height);
 	while (height < new_height) {
 		/* allocate the meta block */
 		errval = bankshot2_new_block(bs2_dev, &blocknr,
@@ -185,7 +187,12 @@ static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
 						BANKSHOT2_BLOCK_TYPE_4K);
 		root = bankshot2_get_block(bs2_dev, blocknr);
 //		bankshot2_memunlock_block(bs2_dev, root);
-		root[0] = prev_root;
+		if (height == 0)
+			idx = 0;
+		else
+			idx = first_blocknr >> (height * META_BLK_SHIFT);
+	bs2_info("New root allocated @ 0x%lx, idx %lu, %p\n", blocknr, idx, prev_root);
+		root[idx] = prev_root;
 //		bankshot2_memlock_block(bs2_dev, root);
 		bankshot2_flush_buffer(root, sizeof(*root), false);
 		prev_root = cpu_to_le64(blocknr);
@@ -206,24 +213,32 @@ static void bankshot2_decrease_btree_height(struct bankshot2_device *bs2_dev,
 	__le64 *root;
 	char b[8];
 
+	bs2_info("pi blocks %lu\n", pi->i_blocks);
 	if (pi->i_blocks == 0 || newsize == 0)
 		goto update_root_and_height;
 
 	last_blocknr = ((newsize + bankshot2_inode_blk_size(pi) - 1) >>
-			bankshot2_inode_blk_size(pi)) - 1;
+			bankshot2_inode_blk_shift(pi)) - 1;
 	while (last_blocknr > 0) {
 		last_blocknr = last_blocknr >> META_BLK_SHIFT;
 		new_height++;
 	}
 
-	if (height == new_height)
+	if (height == new_height) {
 		return;
+	} else if (height < new_height) {
+		bs2_info("ERROR: Reduce tree height %u -> %u\n",
+				height, new_height);
+		BUG();
+	}
 
-	bs2_dbg("Reduce tree height %u -> %u\n", height, new_height);
+	bs2_info("Reduce tree height %u -> %u\n", height, new_height);
 	while (height > new_height) {
 		/* Free the meta block */
 		root = bankshot2_get_block(bs2_dev, le64_to_cpu(newroot));
 		blocknr = bankshot2_get_blocknr(le64_to_cpu(newroot));
+		bs2_info("Free meta block @ 0x%lx\n", blocknr);
+
 		newroot = root[0];
 		bankshot2_free_block(bs2_dev, blocknr,
 				BANKSHOT2_BLOCK_TYPE_4K);
@@ -294,6 +309,7 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 			if (node[i] == 0) {
 				errval = bankshot2_new_data_block(bs2_dev, pi, &blocknr,
 							zero);
+				bs2_info("Allocating data block 0x%lx\n", blocknr);
 				if (errval) {
 					bs2_dbg("alloc data blk failed %d\n", errval);
 					/* For later recovery in truncate... */
@@ -410,6 +426,7 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 		if (height == 0) {
 			__le64 root;
 			errval = bankshot2_new_data_block(bs2_dev, pi, &blocknr, zero);
+				bs2_info("Allocating root @ 0x%lx\n", blocknr);
 			if (errval) {
 				bs2_dbg("[%s:%d] failed: alloc data"
 					" block\n", __func__, __LINE__);
@@ -422,7 +439,8 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 			pi->height = height;
 //			bankshot2_memlock_inode(bs2_dev, pi);
 		} else {
-			errval = bankshot2_increase_btree_height(bs2_dev, pi, height);
+			errval = bankshot2_increase_btree_height(bs2_dev, pi, height,
+								first_blocknr);
 			if (errval) {
 				bs2_dbg("[%s:%d] failed: inc btree"
 					" height\n", __func__, __LINE__);
@@ -439,7 +457,8 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 			return 0;
 
 		if (height > pi->height) {
-			errval = bankshot2_increase_btree_height(bs2_dev, pi, height);
+			errval = bankshot2_increase_btree_height(bs2_dev, pi,
+						height, first_blocknr);
 			if (errval) {
 				bs2_dbg("Err: inc height %x:%x tot %lx"
 					"\n", pi->height, height, total_blocks);
@@ -646,7 +665,7 @@ int recursive_truncate_blocks(struct bankshot2_device *bs2_dev, __le64 block,
 				continue;
 			/* Freeing the data block */
 			blocknr = bankshot2_get_blocknr(le64_to_cpu(node[i]));
-//			bs2_info("Freeing data block 0x%lx\n", blocknr);
+			bs2_info("Freeing data block 0x%lx\n", blocknr);
 			__bankshot2_free_block(bs2_dev, blocknr, btype,
 						&start_hint);
 			freed++;
@@ -728,6 +747,7 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 
 	if (pi->height == 0) {
 		first_blocknr = bankshot2_get_blocknr(le64_to_cpu(root));
+		bs2_info("Freeing root @ 0x%lx\n", first_blocknr);
 		bankshot2_free_block(bs2_dev, first_blocknr, pi->i_blk_type);
 		root = 0;
 		freed = 1;
@@ -737,11 +757,15 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 		if (mpty) {
 			first_blocknr =
 				bankshot2_get_blocknr(le64_to_cpu(root));
+		bs2_info("Freeing root @ 0x%lx\n", first_blocknr);
 			bankshot2_free_block(bs2_dev, first_blocknr,
 				BANKSHOT2_BLOCK_TYPE_4K);
 			root = 0;
 		}
 	}
+
+	pi->i_blocks -= (freed * (1 << (data_bits -
+			bs2_dev->s_blocksize_bits)));
 
 	if (end >= pi->i_size) {
 		bs2_info("Decrease btree height: pi %p start 0x%lx, "

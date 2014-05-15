@@ -168,8 +168,8 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	bankshot2_flush_buffer(root_i, sizeof(*root_i), false);
 
 	bs2_info("Bankshot2 super block initialized, cache start at %ld, "
-			"size %ld, remap @%p, block start %ld, "
-			"block end %ld, free blocks %ld\n",
+			"size %ld, remap @%p, block start 0x%lx, "
+			"block end 0x%lx, free blocks %ld\n",
 			bs2_dev->phys_addr, bs2_dev->size, bs2_dev->virt_addr,
 			bs2_dev->block_start, bs2_dev->block_end,
 			bs2_dev->num_free_blocks);
