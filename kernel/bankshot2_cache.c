@@ -227,16 +227,12 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 {
 	struct bankshot2_cache_data _data, *data;
 	struct bankshot2_inode *pi;
-	struct vm_area_struct *vma = NULL;
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
 	ssize_t actual_length = 0;
 	size_t request_len;
 	size_t map_len;
-	unsigned long b_offset;
-	u64 block;
-	unsigned long pfn;
 
 	data = &_data;
 
@@ -322,44 +318,9 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->actual_length = actual_length;
 
-	if (data->mmap_length) {
-		data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
-			data->mmap_length,
-			data->write ? PROT_WRITE : PROT_READ,
-			MAP_SHARED | MAP_POPULATE, data->file,
-			data->mmap_offset / PAGE_SIZE, &vma);
-
-		if (data->mmap_addr >= (unsigned long)(-64)) {
-			// mmap failed
-			bs2_info("Mmap failed, returned %d\n",
-				(int)(data->mmap_addr));
-			ret = (int)(data->mmap_addr);
-			goto out;
-		}
-
-		b_offset = data->extent_start + data->mmap_offset
-				- data->extent_start_file_offset;
-		//FIXME: mapping information
-		ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
-			data->mmap_length, b_offset, inode->i_mapping, vma);
-
-		if (ret)
-			bs2_info("bankshot2_add_extent failed: %d\n", ret);
-
-		bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
-			"size %lu, mmap offset 0x%llx, mmaped len %lu, "
-			"extent offset 0x%llx, extent length %lu\n",
-			data->file, data->offset, data->size,
-			data->mmap_offset, data->mmap_length,
-			data->extent_start_file_offset, data->extent_length);
-		bs2_info("Insert vma %p: start %lx, pgoff %lx, end %lx, "
-				"mm %p\n",
-				vma, vma->vm_start, vma->vm_pgoff,
-				vma->vm_end, vma->vm_mm);
-		block = bankshot2_find_data_block(bs2_dev, pi, data->mmap_offset >> PAGE_SHIFT);
-		pfn =  bankshot2_get_pfn(bs2_dev, block);
-		bs2_info("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n", pfn, block, data->mmap_offset);
-	}
+	ret = bankshot2_mmap_extent(bs2_dev, pi, inode, data);
+	if (ret)
+		bs2_info("bankshot2_mmap_extent failed: %d\n", ret);
 
 //	bankshot2_print_tree(bs2_dev, pi);
 out:

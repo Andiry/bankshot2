@@ -4,6 +4,7 @@
  */
 
 #include "bankshot2.h"
+#include "bankshot2_cache.h"
 
 static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
 {
@@ -138,4 +139,64 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 	ret = bankshot2_remove_mapping_from_tree(bs2_dev, pi);
 
 	return ret;
+}
+
+int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct inode *inode, void *arg)
+{
+	struct bankshot2_cache_data *data;
+	struct vm_area_struct *vma = NULL;
+	unsigned long b_offset;
+	u64 block;
+	unsigned long pfn;
+	int ret;
+
+	data = (struct bankshot2_cache_data *)arg;
+
+	if (data->mmap_length == 0) {
+		bs2_info("mmap length is 0. return.\n");
+		return 0;
+	}
+
+	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
+			data->mmap_length,
+			data->write ? PROT_WRITE : PROT_READ,
+			MAP_SHARED | MAP_POPULATE, data->file,
+			data->mmap_offset / PAGE_SIZE, &vma);
+
+	if (data->mmap_addr >= (unsigned long)(-64)) {
+			// mmap failed
+		bs2_info("Mmap failed, returned %d\n",
+				(int)(data->mmap_addr));
+		ret = (int)(data->mmap_addr);
+		return ret;
+	}
+
+	b_offset = data->extent_start + data->mmap_offset
+				- data->extent_start_file_offset;
+
+	ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
+			data->mmap_length, b_offset, inode->i_mapping, vma);
+
+	if (ret) {
+		bs2_info("bankshot2_add_extent failed: %d\n", ret);
+		return ret;
+	}
+
+	bs2_dbg("bankshot2 mmap: file %d, offset 0x%llx, "
+		"size %lu, mmap offset 0x%llx, mmaped len %lu, "
+		"extent offset 0x%llx, extent length %lu\n",
+		data->file, data->offset, data->size,
+		data->mmap_offset, data->mmap_length,
+		data->extent_start_file_offset, data->extent_length);
+	bs2_info("Insert vma %p: start %lx, pgoff %lx, end %lx, mm %p\n",
+		vma, vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
+
+	block = bankshot2_find_data_block(bs2_dev, pi,
+				data->mmap_offset >> PAGE_SHIFT);
+	pfn =  bankshot2_get_pfn(bs2_dev, block);
+	bs2_info("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
+			pfn, block, data->mmap_offset);
+
+	return 0;
 }

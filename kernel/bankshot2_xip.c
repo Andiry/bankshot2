@@ -61,9 +61,6 @@ retry:
 			"trying to reclaim some blocks\n",
 			__func__, __LINE__);
 
-//		err = bankshot2_reclaim_num_blocks(bs2_dev, pi,
-//			num_free);
-
 		err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
 
 		if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
@@ -106,8 +103,6 @@ retry:
 				"trying to reclaim some blocks\n",
 				__func__, __LINE__);
 
-//			err = bankshot2_reclaim_num_blocks(bs2_dev, pi,
-//				num_free);
 			err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
 			if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
 				bs2_info("Evict extent failed! return %d, "
@@ -117,41 +112,6 @@ retry:
 			goto retry;
 		}
 		
-# if 0
-		trans = bankshot2_current_transaction();
-		if (trans) {
-			err = bankshot2_alloc_blocks(trans, inode, iblock, 1, true);
-			if (err) {
-				bankshot2_dbg_verbose("[%s:%d] Alloc failed!\n",
-					__func__, __LINE__);
-				goto err;
-			}
-		} else {
-			/* 1 lentry for inode, 1 lentry for inode's b-tree */
-			trans = bankshot2_new_transaction(sb, MAX_INODE_LENTRIES);
-			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
-				goto err;
-			}
-
-			rcu_read_unlock();
-			mutex_lock(&inode->i_mutex);
-
-			bankshot2_add_logentry(sb, trans, pi, MAX_DATA_PER_LENTRY,
-				LE_DATA);
-			err = bankshot2_alloc_blocks(trans, inode, iblock, 1, true);
-
-			bankshot2_commit_transaction(sb, trans);
-
-			mutex_unlock(&inode->i_mutex);
-			rcu_read_lock();
-			if (err) {
-				bankshot2_dbg_verbose("[%s:%d] Alloc failed!\n",
-					__func__, __LINE__);
-				goto err;
-			}
-		}
-#endif
 		block = bankshot2_find_data_block(bs2_dev, pi, iblock);
 		if (!block) {
 			bs2_dbg("[%s:%d] But alloc didn't fail!\n",
@@ -210,7 +170,6 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
 	struct bankshot2_inode *pi;
-//	struct page *page;
 	pgoff_t size;
 	void *xip_mem;
 	unsigned long xip_pfn;
@@ -243,9 +202,6 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
-//	page = pfn_to_page(xip_pfn);
-//	page->mapping = mapping;
-//	atomic_inc(&page->_mapcount);
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 				xip_pfn);
@@ -258,8 +214,6 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
-
-//	bankshot2_insert_vma(mapping, vma);
 
 	ret = VM_FAULT_NOPAGE;
 out:
