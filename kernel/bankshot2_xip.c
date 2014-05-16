@@ -52,15 +52,13 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	if (bs2_dev->num_free_blocks < count)
 		bankshot2_evict_extent(bs2_dev, pi, &num_free);
 
-retry:
 	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
 
 	if (err) {
-		bs2_info("[%s:%d] Alloc failed, "
-			"trying to reclaim some blocks\n",
-			__func__, __LINE__);
+		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
 
+#if 0
 		err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
 
 		if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
@@ -70,9 +68,9 @@ retry:
 		}
 
 		goto retry;
+#endif
 	}
 
-err:
 	spin_unlock(&pi->btree_lock);
 	bs2_info("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 	return err;
@@ -266,7 +264,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			bytes = count;
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
-				index, 1, &xmem, &xpfn);
+				index, 0, &xmem, &xpfn);
 		if (status < 0) {
 			bs2_info("get_xip_mem returned %ld\n", status);
 			break;
@@ -351,7 +349,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 			bytes = count;
 
 		status = bankshot2_get_xip_mem(bs2_dev, pi,
-				index, 1, &xmem, &xpfn);
+				index, 0, &xmem, &xpfn);
 		if (status < 0) {
 			bs2_info("get_xip_mem returned %ld\n", status);
 			break;
