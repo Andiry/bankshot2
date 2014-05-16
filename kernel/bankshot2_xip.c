@@ -5,6 +5,33 @@
 #include "bankshot2.h"
 #include "bankshot2_cache.h"
 
+static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 *pos, size_t *count, u64 *b_offset)
+{
+	/* If mmap length > 0, we need to copy start from mmap offset;
+	   otherwise we will just copy start from offset. */
+	/* Must ensure that the required extent is covered by fiemap extent */
+	if (data->mmap_length) {
+		*pos = data->mmap_offset;
+		*count = data->mmap_offset + data->mmap_length
+					> data->offset + data->size ?
+				data->mmap_length :
+				data->offset + data->size - data->mmap_offset;
+		*b_offset = data->extent_start + data->mmap_offset
+				- data->extent_start_file_offset;
+	} else {
+		*pos = data->offset;
+		*count = data->size;
+		*b_offset = data->extent_start + data->offset
+				- data->extent_start_file_offset;
+	}
+
+	data->actual_offset = *pos;
+	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
+			__func__, pi->i_ino, *pos, *count);
+}
+
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 offset, size_t length)
 {
@@ -177,61 +204,6 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 	return ret;
 }
 
-#if 0
-static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
-{
-	return v->vm_pgoff;
-}
-
-static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
-{
-	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
-}
-
-static void bankshot2_insert_vma(struct address_space *mapping,
-				struct vm_area_struct *vma)
-{
-	struct rb_root *root = &mapping->i_mmap; 
-	struct rb_node **link = &root->rb_node, *rb_parent = NULL;
-	unsigned long last = vma_last_pgoff(vma);
-	struct vm_area_struct *parent;
-
-	mutex_lock(&mapping->i_mmap_mutex);
-
-	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
-		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
-	} else {
-//		vma_interval_tree_insert(vma, &mapping->i_mmap);
-		bs2_info("insert vma %p: start %lx, pgoff %lx, end %lx, last %lx, mm %p\n",
-				vma, vma->vm_start, vma_start_pgoff(vma),
-				vma->vm_end, vma_last_pgoff(vma),
-				vma->vm_mm);
-#if 0
-		while (*link) {
-			rb_parent = *link;
-			parent = rb_entry(rb_parent, vm_area_struct,
-						shared.linear.rb);
-			if (parent->vm_mm != vma->vm_mm) {
-				if (parent->vm_mm < vma->vm_mm)
-					link = &parent->shared.linear.rb.rb_left;
-				else
-					link = &parent->shared.linear.rb.rb_right;
-				continue;
-			}
-			if (parent->shared.linear.rb_subtree_last < last)
-				parent->shared.linear.rb_subtree_last = last;
-			if (start < vma_start_pgoff)
-				link = &parent->shared.linear.rb.rb_left;
-			else
-				link = &parent->shared.linear.rb.rb_right;
-		}
-#endif
-	}
-
-	mutex_unlock(&mapping->i_mmap_mutex);
-}
-#endif
-
 static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 					struct vm_fault *vmf)
 {
@@ -327,27 +299,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	unsigned long xpfn;
 	int ret;
 
-	/* If mmap length > 0, we need to copy start from mmap offset;
-	   otherwise we will just copy start from offset. */
-	/* Must ensure that the required extent is covered by fiemap extent */
-	if (data->mmap_length) {
-		pos = data->mmap_offset;
-		count = data->mmap_offset + data->mmap_length
-					> data->offset + data->size ?
-				data->mmap_length :
-				data->offset + data->size - data->mmap_offset;
-		b_offset = data->extent_start + data->mmap_offset
-				- data->extent_start_file_offset;
-	} else {
-		pos = data->offset;
-		count = data->size;
-		b_offset = data->extent_start + data->offset
-				- data->extent_start_file_offset;
-	}
-
-	data->actual_offset = pos;
-	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
-			__func__, pi->i_ino, pos, count);
+	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
 	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
@@ -432,27 +384,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	int ret;
 //	char *buf1;
 
-	/* If mmap length > 0, we need to copy start from mmap offset;
-	   otherwise we will just copy start from offset. */
-	/* Must ensure that the required extent is covered by fiemap extent */
-	if (data->mmap_length) {
-		pos = data->mmap_offset;
-		count = data->mmap_offset + data->mmap_length
-					> data->offset + data->size ?
-				data->mmap_length :
-				data->offset + data->size - data->mmap_offset;
-		b_offset = data->extent_start + data->mmap_offset
-				- data->extent_start_file_offset;
-	} else {
-		pos = data->offset;
-		count = data->size;
-		b_offset = data->extent_start + data->offset
-				- data->extent_start_file_offset;
-	}
-
-	data->actual_offset = pos;
-	bs2_info("%s, inode %llu, offset %llu, length %lu\n",
-			__func__, pi->i_ino, pos, count);
+	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
 	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
