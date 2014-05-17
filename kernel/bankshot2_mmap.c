@@ -142,16 +142,18 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct inode *inode, void *arg)
+			struct bankshot2_inode *pi, void *arg)
 {
 	struct bankshot2_cache_data *data;
 	struct vm_area_struct *vma = NULL;
+	struct inode *inode;
 	unsigned long b_offset;
 	u64 block;
 	unsigned long pfn;
 	int ret;
 
 	data = (struct bankshot2_cache_data *)arg;
+	inode = data->inode;
 
 	if (data->mmap_length == 0) {
 		bs2_info("mmap length is 0. return.\n");

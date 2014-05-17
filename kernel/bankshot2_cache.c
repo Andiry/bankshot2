@@ -262,6 +262,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		map_len = 0;
 	}
 
+	data->inode = inode;
 	/* Request len: the length that user space required
 	   Start from offset, unaligned */
 	request_len = (data->extent_start_file_offset + data->extent_length)
@@ -283,7 +284,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	data->size = request_len;
 	bs2_dbg("data map_len %lu, size %lu\n", map_len, request_len);
 
-	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
+	ret = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
 	if (ret) {
 		bs2_info("No cache inode found, returned %d\n", ret);
 		goto out;
@@ -318,7 +319,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->actual_length = actual_length;
 
-	ret = bankshot2_mmap_extent(bs2_dev, pi, inode, data);
+	ret = bankshot2_mmap_extent(bs2_dev, pi, data);
 	if (ret)
 		bs2_info("bankshot2_mmap_extent failed: %d\n", ret);
 
@@ -360,7 +361,8 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 
 	//FIXME: need a lock here
 
-	ret = bankshot2_find_cache_inode(bs2_dev, data, inode, &st_ino);
+	data->inode = inode;
+	ret = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
 	if (ret) {
 		bs2_info("No cache inode found, returned %d\n", ret);
 		return ret;

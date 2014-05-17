@@ -614,7 +614,7 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 u64 bankshot2_find_data_block_verbose(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
-		void *data, struct inode *inode, u64 *st_ino);
+		void *data, u64 *st_ino);
 int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
@@ -666,4 +666,4 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct inode *inode, void *arg);
+		struct bankshot2_inode *pi, void *arg);

@@ -354,14 +354,16 @@ int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
-		void *data1, struct inode *inode, u64 *st_ino)
+				void *data1, u64 *st_ino)
 {
 	struct bankshot2_cache_data *data;
 	struct bankshot2_inode *pi;
+	struct inode *inode;
 	u64 ino;
 	int ret;
 
 	data = (struct bankshot2_cache_data *)data1;
+	inode = data->inode;
 
 	if (data->cache_ino) {
 		ino = data->cache_ino;

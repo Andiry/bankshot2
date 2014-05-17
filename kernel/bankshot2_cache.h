@@ -28,6 +28,7 @@ struct bankshot2_cache_data{
 	size_t cache_file_size;
 	uint8_t rnw;
 	char *buf;
+	struct inode *inode;
 	//return values
 	size_t chunk_len;
 	uint64_t file_length; //total file length in bytes
