@@ -33,8 +33,10 @@ static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
 }
 
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, u64 offset, size_t length)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 offset, size_t length)
 {
+	struct extent_entry *evict = NULL;
 	unsigned long index;
 	unsigned long count;
 	int num_free;
@@ -50,7 +52,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	spin_lock(&pi->btree_lock);
 
 	if (bs2_dev->num_free_blocks < count)
-		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+		bankshot2_evict_extent(bs2_dev, pi, &evict, &num_free);
 
 	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
@@ -71,7 +73,17 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 #endif
 	}
 
+	/* First add the new mapping, then remove the old mapping */
 	spin_unlock(&pi->btree_lock);
+	err = bankshot2_mmap_extent(bs2_dev, pi, data);
+	if (err)
+		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
+
+	if (evict) {
+		bankshot2_munmap_extent(bs2_dev, pi, evict);
+		bankshot2_free_extent(bs2_dev, evict);
+	}
+
 	bs2_info("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 	return err;
 }
@@ -80,6 +92,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, sector_t iblock,
 		sector_t *data_block, int create)
 {
+	struct extent_entry *evict;
 	int err = -EIO;
 	u64 block;
 	int num_free;
@@ -101,7 +114,8 @@ retry:
 				"trying to reclaim some blocks\n",
 				__func__, __LINE__);
 
-			err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
+			err = bankshot2_evict_extent(bs2_dev, pi, &evict,
+					&num_free);
 			if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
 				bs2_info("Evict extent failed! return %d, "
 					"%d freed\n", err, num_free);
@@ -254,7 +268,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
+	bankshot2_prealloc_blocks(bs2_dev, pi, data, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -339,7 +353,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	bankshot2_prealloc_blocks(bs2_dev, pi, pos, count);
+	bankshot2_prealloc_blocks(bs2_dev, pi, data, pos, count);
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */

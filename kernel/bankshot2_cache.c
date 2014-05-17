@@ -319,10 +319,6 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->actual_length = actual_length;
 
-	ret = bankshot2_mmap_extent(bs2_dev, pi, data);
-	if (ret)
-		bs2_info("bankshot2_mmap_extent failed: %d\n", ret);
-
 //	bankshot2_print_tree(bs2_dev, pi);
 out:
 	// Align extent_start_file_offset and extent_length to PAGE_SIZE

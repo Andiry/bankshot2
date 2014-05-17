@@ -22,7 +22,7 @@ static inline int bankshot2_rbtree_compare_find(struct extent_entry *curr,
 	return 0;
 }
 
-static inline void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
+void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent)
 {
 	struct vma_list *next, *delete;
@@ -364,7 +364,8 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 #endif
 
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int *num_free)
+		struct bankshot2_inode *pi, struct extent_entry **evict,
+		int *num_free)
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
@@ -393,7 +394,10 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	bs2_info("%s: pi %llu, extent offset %lu, length %lu\n",
 		__func__, pi->i_ino, curr->offset, curr->length);
 
-	bankshot2_munmap_extent(bs2_dev, pi, curr);
+	/* We cannot unmap the extent before make the new mapping,
+	 * otherwise kernel will reuse the same vma */
+//	bankshot2_munmap_extent(bs2_dev, pi, curr);
+	*evict = curr;
 
 	if (curr->dirty)
 		ret = bankshot2_write_back_extent(bs2_dev, pi, curr);
@@ -406,7 +410,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	bankshot2_truncate_blocks(bs2_dev, pi, curr->offset,
 					curr->offset + curr->length);
 
-	bankshot2_free_extent(bs2_dev, curr);
+//	bankshot2_free_extent(bs2_dev, curr);
 
 //	bs2_info("After free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
