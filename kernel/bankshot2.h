@@ -666,7 +666,8 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent);
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry *extent);
 int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,

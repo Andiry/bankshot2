@@ -89,7 +89,8 @@ update:
 #endif
 
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry *extent)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
@@ -121,6 +122,13 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		}
 
 		vm_munmap_page(mm, address, extent->length);
+
+		/* Return evicted extent to library so that
+		 * it can be removed from tree */
+		if (mm == current->mm) {
+			data->evict_offset = extent->offset;
+			data->evict_length = extent->length;
+		}
 	}
 }
 

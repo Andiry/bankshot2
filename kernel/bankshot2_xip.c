@@ -82,7 +82,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
 
 	if (evict) {
-		bankshot2_munmap_extent(bs2_dev, pi, evict);
+		bankshot2_munmap_extent(bs2_dev, pi, data, evict);
 		bankshot2_free_extent(bs2_dev, evict);
 	}
 
