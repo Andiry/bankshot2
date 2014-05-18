@@ -4,7 +4,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 static inline int bankshot2_check_zero_length(struct bankshot2_device *bs2_dev,
 				struct bankshot2_cache_data *data)

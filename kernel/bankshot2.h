@@ -27,6 +27,8 @@
 
 #include <asm/uaccess.h>
 
+#include "bankshot2_cache.h"
+
 #define bs2_dbg(s, args ...)	pr_debug(s, ## args)
 #define bs2_info(s, args ...)	pr_info(s, ## args)
 
@@ -614,7 +616,7 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 u64 bankshot2_find_data_block_verbose(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
-		void *data, u64 *st_ino);
+		struct bankshot2_cache_data *data, u64 *st_ino);
 int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
@@ -631,9 +633,11 @@ int bankshot2_get_xip_mem(struct bankshot2_device *bs2_dev,
 			void **kmem, unsigned long *pfn);
 void bankshot2_init_mmap(struct bankshot2_device *bs2_dev);
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
-		void *data, struct bankshot2_inode *pi, ssize_t *actual_length);
+		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
+		ssize_t *actual_length);
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
-		void *data, struct bankshot2_inode *pi, ssize_t *actual_length);
+		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
+		ssize_t *actual_length);
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
 
@@ -661,12 +665,9 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi);
 
 /* bankshot2_mmap.c */
-void bankshot2_munmap(struct bankshot2_device *bs2_dev,
-			 struct bankshot2_inode *pi,
-			 off_t offset, int num_pages);
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
 int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, void *arg);
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data);

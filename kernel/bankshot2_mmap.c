@@ -4,7 +4,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
 {
@@ -16,6 +15,7 @@ static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
 	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
 }
 
+#if 0
 static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 {
 	struct vm_area_struct *vma;
@@ -86,6 +86,7 @@ update:
 		num_pages--;
 	}
 }
+#endif
 
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent)
@@ -107,9 +108,9 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 
-		bs2_info("unmap vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
+		bs2_info("unmap vma: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
 				"last 0x%lx, mm %p, address 0x%lx\n",
-				vma, vma->vm_start, vma_start_pgoff(vma),
+				vma->vm_start, vma_start_pgoff(vma),
 				vma->vm_end, vma_last_pgoff(vma),
 				vma->vm_mm, address);
 
@@ -144,9 +145,8 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-			struct bankshot2_inode *pi, void *arg)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
 {
-	struct bankshot2_cache_data *data;
 	struct vm_area_struct *vma = NULL;
 	struct inode *inode;
 	unsigned long b_offset;
@@ -154,7 +154,6 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	unsigned long pfn;
 	int ret;
 
-	data = (struct bankshot2_cache_data *)arg;
 	inode = data->inode;
 
 	if (data->mmap_length == 0) {
@@ -193,8 +192,8 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		data->file, data->offset, data->size,
 		data->mmap_offset, data->mmap_length,
 		data->extent_start_file_offset, data->extent_length);
-	bs2_info("Insert vma %p: start %lx, pgoff %lx, end %lx, mm %p\n",
-		vma, vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
+	bs2_info("Insert vma: start %lx, pgoff %lx, end %lx, mm %p\n",
+		vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
 
 	block = bankshot2_find_data_block(bs2_dev, pi,
 				data->mmap_offset >> PAGE_SHIFT);

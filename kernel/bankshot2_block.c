@@ -5,7 +5,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 int bankshot2_block_open(struct block_device *bd, fmode_t mode)
 {

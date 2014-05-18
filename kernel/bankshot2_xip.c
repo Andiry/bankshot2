@@ -3,7 +3,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
@@ -252,11 +251,9 @@ static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
 }
 
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
-		void *data1, struct bankshot2_inode *pi,
+		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
 {
-	struct bankshot2_cache_data *data =
-		(struct bankshot2_cache_data *)data1;
 	long status = 0;
 	size_t bytes;
 	ssize_t read = 0;
@@ -336,11 +333,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
-		void *data1, struct bankshot2_inode *pi,
+		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
 {
-	struct bankshot2_cache_data *data =
-		(struct bankshot2_cache_data *)data1;
 	long status = 0;
 	size_t bytes;
 	ssize_t written = 0;

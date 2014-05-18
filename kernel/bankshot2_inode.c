@@ -4,7 +4,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 unsigned int blk_type_to_shift[3] = {12, 21, 30};
 uint32_t blk_type_to_size[3] = {0x1000, 0x200000, 0x40000000};
@@ -354,15 +353,13 @@ int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
-				void *data1, u64 *st_ino)
+			struct bankshot2_cache_data *data, u64 *st_ino)
 {
-	struct bankshot2_cache_data *data;
 	struct bankshot2_inode *pi;
 	struct inode *inode;
 	u64 ino;
 	int ret;
 
-	data = (struct bankshot2_cache_data *)data1;
 	inode = data->inode;
 
 	if (data->cache_ino) {

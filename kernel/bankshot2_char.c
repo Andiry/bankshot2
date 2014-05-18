@@ -4,7 +4,6 @@
  */
 
 #include "bankshot2.h"
-#include "bankshot2_cache.h"
 
 static struct class *bankshot2_chardev_class;
 
@@ -69,8 +68,8 @@ static void bankshot2_ioctl_munmap_request(struct bankshot2_device *bs2_dev,
 	mmap_request = (struct bankshot2_mmap_request *)arg;
 
 //	vm_munmap((unsigned long)mmap_request->addr, mmap_request->length);
-	bankshot2_munmap(bs2_dev, pi, mmap_request->offset,
-				mmap_request->length / PAGE_SIZE);
+//	bankshot2_munmap(bs2_dev, pi, mmap_request->offset,
+//				mmap_request->length / PAGE_SIZE);
 }
 
 static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
