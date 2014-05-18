@@ -161,7 +161,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 
 	count = length / MMAP_UNIT;
 
-	write_lock(&pi->extent_tree_lock);
+//	write_lock(&pi->extent_tree_lock);
 	for (i = 0; i < count; i++) {
 		temp = &(pi->extent_tree.rb_node);
 		parent = NULL;
@@ -213,7 +213,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		new = (struct extent_entry *)
 			kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
 		if (!new) {
-			write_unlock(&pi->extent_tree_lock);
+//			write_unlock(&pi->extent_tree_lock);
 			return -ENOMEM;
 		}
 
@@ -267,7 +267,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		}
 	}
 #endif
-	write_unlock(&pi->extent_tree_lock);
+//	write_unlock(&pi->extent_tree_lock);
 	return 0;
 }
 
@@ -376,12 +376,12 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 //	bs2_info("Before free:\n");
 //	bankshot2_print_tree(bs2_dev, pi);
 
-	write_lock(&pi->extent_tree_lock);
+//	write_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
 
 	if (!temp) {
 		*num_free = 0;
-		write_unlock(&pi->extent_tree_lock);
+//		write_unlock(&pi->extent_tree_lock);
 		bs2_info("No extent to evict for pi %llu!\n", pi->i_ino);
 		return -ENOMEM;
 	}
@@ -389,7 +389,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	curr = container_of(temp, struct extent_entry, node);
 
 	rb_erase(&curr->node, &pi->extent_tree);
-	write_unlock(&pi->extent_tree_lock);
+//	write_unlock(&pi->extent_tree_lock);
 
 	bs2_info("%s: pi %llu, extent offset %lu, length %lu\n",
 		__func__, pi->i_ino, curr->offset, curr->length);
@@ -460,7 +460,7 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	write_lock(&pi->extent_tree_lock);
+//	write_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -471,7 +471,7 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 		temp = rb_next(temp);
 	}
 
-	write_unlock(&pi->extent_tree_lock);
+//	write_unlock(&pi->extent_tree_lock);
 	return 0;
 }
 
