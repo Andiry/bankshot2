@@ -78,7 +78,6 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	}
 
 	/* First add the new mapping, then remove the old mapping */
-	spin_unlock(&pi->btree_lock);
 	err = bankshot2_mmap_extent(bs2_dev, pi, data);
 	if (err)
 		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
@@ -88,6 +87,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bankshot2_free_extent(bs2_dev, evict);
 	}
 
+	spin_unlock(&pi->btree_lock);
 	bs2_info("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 	return err;
 }
@@ -186,8 +186,9 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
 	struct bankshot2_inode *pi;
+	u64 block;
 	pgoff_t size;
-	void *xip_mem;
+//	void *xip_mem;
 	unsigned long xip_pfn;
 	int ret = 0;
 	u64 ino;
@@ -211,13 +212,16 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 		goto out;
 	}
 
-	ret = bankshot2_get_xip_mem(bs2_dev, pi, vmf->pgoff, 1,
-				&xip_mem, &xip_pfn);
-	if (unlikely(ret < 0)) {
-		bs2_info("get_xip_mem failed: %d\n", ret);
+//	ret = bankshot2_get_xip_mem(bs2_dev, pi, vmf->pgoff, 1,
+//				&xip_mem, &xip_pfn);
+	block = bankshot2_find_data_block(bs2_dev, pi, vmf->pgoff);
+	if (!block) {
+		bs2_info("get block failed: %d\n", -ENODATA);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
+
+	xip_pfn = bankshot2_get_pfn(bs2_dev, block);
 
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 				xip_pfn);
