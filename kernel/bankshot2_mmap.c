@@ -23,7 +23,7 @@ static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 	unsigned long address;
 	struct rb_node *temp, *remove;
 
-	bs2_info("%s:\n", __func__);
+	bs2_dbg("%s:\n", __func__);
 	temp = rb_first(&mapping->i_mmap);
 	while (temp) {
 //	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
@@ -31,7 +31,7 @@ static void unmap_page(struct address_space *mapping, unsigned long pgoff)
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-		bs2_info("vma %p: start %lx, pgoff %lx, end %lx, last %lx, "
+		bs2_dbg("vma %p: start %lx, pgoff %lx, end %lx, last %lx, "
 				"mm %p, address %lx\n",
 				vma, vma->vm_start, vma_start_pgoff(vma),
 				vma->vm_end, vma_last_pgoff(vma),
@@ -199,7 +199,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	block = bankshot2_find_data_block(bs2_dev, pi,
 				data->mmap_offset >> PAGE_SHIFT);
 	pfn =  bankshot2_get_pfn(bs2_dev, block);
-	bs2_info("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
+	bs2_dbg("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
 			pfn, block, data->mmap_offset);
 
 	return 0;

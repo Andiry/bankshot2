@@ -49,16 +49,16 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
 
-	bs2_info("%s: %llu, %lu\n", __func__, offset, length);
+	bs2_dbg("%s: %llu, %lu\n", __func__, offset, length);
 //	bankshot2_print_tree(bs2_dev, pi);
-	bs2_info("pi root @ 0x%llx, height %u", pi->root, pi->height);
+	bs2_dbg("pi root @ 0x%llx, height %u", pi->root, pi->height);
 
 	spin_lock(&pi->btree_lock);
 
 	if (bs2_dev->num_free_blocks < count)
 		bankshot2_evict_extent(bs2_dev, pi, &evict, &num_free);
 
-	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
+	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
 
 	if (err) {
@@ -88,7 +88,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	}
 
 	spin_unlock(&pi->btree_lock);
-	bs2_info("After alloc: %lu free\n", bs2_dev->num_free_blocks);
+	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 	return err;
 }
 
@@ -460,7 +460,7 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 	b_offset = extent->b_offset;
 	count = extent->length;
 
-	bs2_info("%s: inode %llu, offset %llu, length %lu\n",
+	bs2_dbg("%s: inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
 	do {
