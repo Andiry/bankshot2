@@ -114,7 +114,13 @@ static void bankshot2_insert_vma(struct bankshot2_device *bs2_dev,
 	new_vma->vma = vma;
 	INIT_LIST_HEAD(&new_vma->list);
 	list_add_tail(&new_vma->list, &extent->vma_list);
-
+#if 0
+	bs2_info("Extent offset 0x%lx, length 0x%lx VMAs:\n", extent->offset, extent->length);
+	list_for_each_entry(temp, &extent->vma_list, list) {
+		bs2_info("Vma: start %lx, pgoff %lx, end %lx, mm %p\n",
+		temp->vma->vm_start, temp->vma->vm_pgoff, temp->vma->vm_end, temp->vma->vm_mm);
+	}
+#endif
 	return;
 }
 

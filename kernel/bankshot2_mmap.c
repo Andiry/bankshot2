@@ -119,6 +119,7 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 			bs2_info("address not in vma area! "
 				"vma start 0x%lx, end 0x%lx, address 0x%lx\n",
 				vma->vm_start, vma->vm_end, address);
+			continue;
 		}
 
 		vm_munmap_page(mm, address, extent->length);
