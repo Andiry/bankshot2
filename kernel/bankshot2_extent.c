@@ -369,12 +369,32 @@ int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
 }
 #endif
 
+static struct extent_entry* bankshot2_get_victim_extent(
+		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi)
+{
+	struct extent_entry *victim;
+	struct rb_node *temp;
+
+	temp = rb_first(&pi->extent_tree);
+
+	if (!temp) {
+//		write_unlock(&pi->extent_tree_lock);
+		bs2_info("No extent to evict for pi %llu!\n", pi->i_ino);
+		return NULL;
+	}
+
+	victim = container_of(temp, struct extent_entry, node);
+
+	rb_erase(&victim->node, &pi->extent_tree);
+
+	return victim;
+}
+
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry **evict,
 		int *num_free)
 {
-	struct extent_entry *curr;
-	struct rb_node *temp;
+	struct extent_entry *victim;
 	int ret = 0;
 	u64 block;
 	unsigned long pfn;
@@ -383,38 +403,31 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 //	bankshot2_print_tree(bs2_dev, pi);
 
 //	write_lock(&pi->extent_tree_lock);
-	temp = rb_first(&pi->extent_tree);
-
-	if (!temp) {
-		*num_free = 0;
-//		write_unlock(&pi->extent_tree_lock);
-		bs2_info("No extent to evict for pi %llu!\n", pi->i_ino);
-		return -ENOMEM;
-	}
-
-	curr = container_of(temp, struct extent_entry, node);
-
-	rb_erase(&curr->node, &pi->extent_tree);
+	victim = bankshot2_get_victim_extent(bs2_dev, pi);
 //	write_unlock(&pi->extent_tree_lock);
 
+	if (!victim)
+		return -ENOMEM;
+
 	bs2_info("%s: pi %llu, extent offset %lu, length %lu\n",
-		__func__, pi->i_ino, curr->offset, curr->length);
+		__func__, pi->i_ino, victim->offset, victim->length);
 
 	/* We cannot unmap the extent before make the new mapping,
 	 * otherwise kernel will reuse the same vma */
 //	bankshot2_munmap_extent(bs2_dev, pi, curr);
-	*evict = curr;
+	*evict = victim;
 
-	if (curr->dirty)
-		ret = bankshot2_write_back_extent(bs2_dev, pi, curr);
+	if (victim->dirty)
+		ret = bankshot2_write_back_extent(bs2_dev, pi, victim);
 
-	*num_free = curr->length >> PAGE_SHIFT;
-	block = bankshot2_find_data_block(bs2_dev, pi, curr->offset >> PAGE_SHIFT);
+	*num_free = victim->length >> PAGE_SHIFT;
+	block = bankshot2_find_data_block(bs2_dev, pi,
+					victim->offset >> PAGE_SHIFT);
 	pfn =  bankshot2_get_pfn(bs2_dev, block);
-	bs2_dbg("Free pfn @ 0x%lx, file offset 0x%lx\n", pfn, curr->offset);
+	bs2_dbg("Free pfn @ 0x%lx, file offset 0x%lx\n", pfn, victim->offset);
 
-	bankshot2_truncate_blocks(bs2_dev, pi, curr->offset,
-					curr->offset + curr->length);
+	bankshot2_truncate_blocks(bs2_dev, pi, victim->offset,
+					victim->offset + victim->length);
 
 //	bankshot2_free_extent(bs2_dev, curr);
 
