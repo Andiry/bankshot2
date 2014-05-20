@@ -28,7 +28,7 @@ static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
 
 	/* Limit request length to 2MB */
 	if (*count > MMAP_UNIT)
-		*count = MMAP_UNIT;
+		*count = MMAP_UNIT - (*pos & (MMAP_UNIT - 1));
 
 	if (data->mmap_length > MMAP_UNIT)
 		data->mmap_length = MMAP_UNIT;
@@ -244,7 +244,8 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 //				&xip_mem, &xip_pfn);
 	block = bankshot2_find_data_block(bs2_dev, pi, vmf->pgoff);
 	if (!block) {
-		bs2_info("get block failed: %d\n", -ENODATA);
+		bs2_info("%s: pgoff 0x%lx get block failed: %d\n", __func__,
+				vmf->pgoff, -ENODATA);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
@@ -358,6 +359,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	*actual_length = read;
 	kfree(void_array);
+	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 
 	return 0;
 }
@@ -470,6 +472,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	*actual_length = written;
 	kfree(void_array);
+	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 
 	return status < 0 ? status : 0;
 }

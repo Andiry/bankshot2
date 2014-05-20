@@ -132,6 +132,7 @@ struct extent_entry {
 	off_t offset; // file offset
 	size_t length;
 	int dirty;
+	atomic_t access; // Whether we'll access the extent later
 	unsigned long b_offset; // Backing store physical offset
 	unsigned long mmap_addr; // Unused
 	struct address_space *mapping;
@@ -644,6 +645,8 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 /* bankshot2_extent.c */
 int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
+void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long index);
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
 		unsigned long b_offset, struct address_space *mapping,

@@ -66,6 +66,39 @@ int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, unsigned long index)
+{
+	struct extent_entry *curr;
+	off_t offset;
+	struct rb_node *temp;
+	int compVal;
+
+	offset = index << bs2_dev->s_blocksize_bits;
+
+	read_lock(&pi->extent_tree_lock);
+	temp = pi->extent_tree.rb_node;
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr, offset);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			bs2_dbg("Clear pi %llu, extent offset 0x%lx access\n",
+				pi->i_ino, curr->offset);
+			atomic_set(&curr->access, 0);
+			read_unlock(&pi->extent_tree_lock);
+			return;
+		}
+	}
+
+	read_unlock(&pi->extent_tree_lock);
+	return;
+}
+
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, off_t offset)
 {
@@ -212,6 +245,9 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		}
 
 		if (no_new) {
+			bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
+				pi->i_ino, curr->offset);
+			atomic_set(&curr->access, 1);
 			no_new = 0;
 			continue;
 		}
@@ -226,6 +262,9 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		bankshot2_initialize_new_extent(bs2_dev, new, extent_offset,
 			extent_length, extent_b_offset, mapping, vma);
 
+		atomic_set(&new->access, 1);
+		bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
+				pi->i_ino, new->offset);
 		rb_link_node(&new->node, parent, temp);
 		rb_insert_color(&new->node, &pi->extent_tree);
 	}
@@ -377,14 +416,19 @@ static struct extent_entry* bankshot2_get_victim_extent(
 
 	temp = rb_first(&pi->extent_tree);
 
-	if (!temp) {
-//		write_unlock(&pi->extent_tree_lock);
-		bs2_info("No extent to evict for pi %llu!\n", pi->i_ino);
-		return NULL;
+	while (temp) {
+		victim = container_of(temp, struct extent_entry, node);
+//		bs2_info("pi %llu, extent offset %lu, length %lu, "
+//				"mmap addr %lx\n", pi->i_ino, curr->offset,
+//				curr->length, curr->mmap_addr);
+		if (atomic_read(&victim->access) == 0)
+			goto found;		
+		temp = rb_next(temp);
 	}
 
-	victim = container_of(temp, struct extent_entry, node);
+	return NULL;
 
+found:
 	rb_erase(&victim->node, &pi->extent_tree);
 
 	return victim;
@@ -409,7 +453,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	if (!victim)
 		return -ENOMEM;
 
-	bs2_info("%s: pi %llu, extent offset %lu, length %lu\n",
+	bs2_info("%s: pi %llu, extent offset 0x%lx, length 0x%lx\n",
 		__func__, pi->i_ino, victim->offset, victim->length);
 
 	/* We cannot unmap the extent before make the new mapping,
