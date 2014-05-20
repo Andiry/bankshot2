@@ -38,18 +38,26 @@ static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
 			__func__, pi->i_ino, *pos, *count);
 }
 
+/* Pre allocate the blocks we need.
+ * Return 1 means we evicted a extent. */
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		u64 offset, size_t length)
+		char **void_array, u64 offset, size_t length)
 {
 	struct extent_entry *evict = NULL;
 	unsigned long index;
 	unsigned long count;
-	int num_free;
-	int err;
+	unsigned long required = 0;
+	u64 block;
+	char *array;
+	int num_free, i;
+	int err = 0;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
+
+	array = kzalloc(count, GFP_KERNEL);
+	BUG_ON(!array);
 
 	bs2_dbg("%s: %llu, %lu\n", __func__, offset, length);
 //	bankshot2_print_tree(bs2_dev, pi);
@@ -57,11 +65,21 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	spin_lock(&pi->btree_lock);
 
-	if (bs2_dev->num_free_blocks < count)
+	for (i = 0; i < count; i++) {
+		block = bankshot2_find_data_block(bs2_dev, pi, index + i);
+		if (!block) {
+			required++;
+			array[i] = 0x1;
+		}
+	}
+
+	if (bs2_dev->num_free_blocks < required)
 		bankshot2_evict_extent(bs2_dev, pi, &evict, &num_free);
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
-	err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index, count, true);
+	if (required)
+		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
+						count, true);
 
 	if (err) {
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
@@ -89,9 +107,17 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bankshot2_free_extent(bs2_dev, evict);
 	}
 
+	*void_array = array;
+
 	spin_unlock(&pi->btree_lock);
 	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
-	return err;
+
+	if (err) {
+		kfree(array);
+		return err;
+	} else {
+		return evict ? 1 : 0;
+	}
 }
 
 static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
@@ -257,50 +283,57 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
 {
-	long status = 0;
 	size_t bytes;
 	ssize_t read = 0;
-	u64 pos;
+	u64 pos, block;
 	u64 user_offset = data->offset;
 	size_t count;
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
-	unsigned long index;
+	unsigned long index, start_index, i;
 	unsigned long offset;
-	size_t copied, copy_user;
+	size_t copy_user;
 	void *xmem;
-	unsigned long xpfn;
-	int ret;
+	char *void_array;
+	int ret, evict;
 
 	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	bankshot2_prealloc_blocks(bs2_dev, pi, data, pos, count);
+	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
+					pos, count);
+	if (evict < 0)
+		return evict;
+
+	start_index = pos >> bs2_dev->s_blocksize_bits;
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;
 		bytes = bs2_dev->blocksize - offset;
+		i = index - start_index;
+
 		if (bytes > count)
 			bytes = count;
 
-		status = bankshot2_get_xip_mem(bs2_dev, pi,
-				index, 0, &xmem, &xpfn);
-		if (status < 0) {
-			bs2_info("get_xip_mem returned %ld\n", status);
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("%s: get block failed\n", __func__);
 			break;
 		}
+		xmem = bankshot2_get_block(bs2_dev, block);
 
-		/* status 1 means it's newly allocated. Copy to cache. */
-		if (status == 1) {
+		/* void_array 1 means it's newly allocated. Copy to cache. */
+		if (evict || void_array[i] == 0x1) {
 			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
 							bytes, xmem);
-			if (ret)
+			if (ret) {
+				kfree(void_array);
 				return ret;
+			}
 		}
 
-		copied = bytes;
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 				== index)) { // Same page
 			copy_user = min(req_len, bytes);
@@ -310,21 +343,13 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			user_offset += copy_user;
 		}
 
-		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
+		bankshot2_flush_edge_cachelines(pos, bytes, xmem + offset);
 
-		if (likely(copied > 0)) {
-			status = copied;
-
-			if (status >= 0) {
-				read += status;
-				count -= status;
-				pos += status;
-				b_offset += status;
-//				buf += status;
-			}
-		}
-		if (status < 0)
-			break;
+		read += bytes;
+		count -= bytes;
+		pos += bytes;
+		b_offset += bytes;
+//		buf += status;
 	} while (count);
 
 	if (pos > pi->i_size) {
@@ -332,7 +357,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = read;
-	return status < 0 ? status : 0;
+	kfree(void_array);
+
+	return 0;
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
@@ -343,46 +370,57 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	size_t bytes;
 	ssize_t written = 0;
 	u64 pos;
+	u64 block;
 	u64 user_offset = data->offset;
 	size_t count;
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
-	unsigned long index;
+	unsigned long index, start_index, i;
 	unsigned long offset;
 	size_t copied, copy_user;
 	void *xmem;
-	unsigned long xpfn;
-	int ret;
+	char *void_array;
+	int ret, evict;
 //	char *buf1;
 
 	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	bankshot2_prealloc_blocks(bs2_dev, pi, data, pos, count);
+	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
+					pos, count);
+	if (evict < 0)
+		return evict;
+
+	start_index = pos >> bs2_dev->s_blocksize_bits;
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;
 		bytes = bs2_dev->blocksize - offset;
+		i = index - start_index;
+
 		if (bytes > count)
 			bytes = count;
 
-		status = bankshot2_get_xip_mem(bs2_dev, pi,
-				index, 0, &xmem, &xpfn);
-		if (status < 0) {
-			bs2_info("get_xip_mem returned %ld\n", status);
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("%s: get block failed %ld\n",
+					__func__, status);
 			break;
 		}
+		xmem = bankshot2_get_block(bs2_dev, block);
 
-		/* Since we are mmaped to user space,
-		    need to copy data to cache first */
-		/* If it's already in cache then don't copy */
-		if (status == 1) {
+		/* If it's not fully write to whole page,
+		 * copy data to cache first */
+		if (bytes != bs2_dev->blocksize &&
+				(evict || void_array[i] == 0x1)) {
 			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
 							bytes, xmem);
-			if (ret)
+			if (ret) {
+				kfree(void_array);
 				return ret;
+			}
 		}
 
 //		buf1 = (char *)xmem;
@@ -392,8 +430,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 					== index)) { // Same page
 			copy_user = min(req_len, bytes);
 
-			bs2_dbg("copy %p to index %lu, pfn 0x%lx, "
-				"offset 0x%llx\n", xmem, index, xpfn, pos);
+			bs2_dbg("copy %p to index %lu, offset 0x%llx\n",
+					xmem, index, pos);
 			copied = bytes -
 				__copy_from_user_inatomic_nocache(xmem + offset,
 								buf, copy_user);
@@ -431,6 +469,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = written;
+	kfree(void_array);
+
 	return status < 0 ? status : 0;
 }
 
