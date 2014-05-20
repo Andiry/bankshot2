@@ -55,7 +55,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
-	if (length % bs2_dev->s_blocksize_bits)
+	if (length % bs2_dev->blocksize)
 		count++;
 
 	array = kzalloc(count, GFP_KERNEL);
