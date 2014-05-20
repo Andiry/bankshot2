@@ -55,6 +55,8 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
+	if (length % bs2_dev->s_blocksize_bits)
+		count++;
 
 	array = kzalloc(count, GFP_KERNEL);
 	BUG_ON(!array);
@@ -320,7 +322,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		block = bankshot2_find_data_block(bs2_dev, pi, index);
 		if (!block) {
-			bs2_info("%s: get block failed\n", __func__);
+			bs2_info("%s: get block failed, index 0x%lx\n",
+					__func__, index);
 			break;
 		}
 		xmem = bankshot2_get_block(bs2_dev, block);
@@ -407,8 +410,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		block = bankshot2_find_data_block(bs2_dev, pi, index);
 		if (!block) {
-			bs2_info("%s: get block failed %ld\n",
-					__func__, status);
+			bs2_info("%s: get block failed, index 0x%lx\n",
+					__func__, index);
 			break;
 		}
 		xmem = bankshot2_get_block(bs2_dev, block);

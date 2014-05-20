@@ -272,7 +272,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->mmap_length = map_len;
 
-	if (request_len == 0)
+	if (request_len == 0 || map_len == 0)
 		bs2_info("Request length is 0! file %d, offset 0x%llx, "
 			"size %lu, mmap offset 0x%llx, mmaped len %lu, "
 			"extent offset 0x%llx, extent length %lu\n",
