@@ -494,7 +494,7 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
 		if (delete->vma->vm_mm == mm) {
 			vma = delete->vma;
-			bs2_info("remove vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
+			bs2_dbg("remove vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
 				"mm %p\n",
 				vma, vma->vm_start, vma->vm_pgoff,
 				vma->vm_end, vma->vm_mm);

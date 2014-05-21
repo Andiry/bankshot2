@@ -166,7 +166,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	inode = data->inode;
 
 	if (data->mmap_length == 0) {
-		bs2_info("mmap length is 0. return.\n");
+		bs2_dbg("mmap length is 0. return.\n");
 		return 0;
 	}
 
@@ -201,7 +201,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		data->file, data->offset, data->size,
 		data->mmap_offset, data->mmap_length,
 		data->extent_start_file_offset, data->extent_length);
-	bs2_info("Insert vma: start %lx, pgoff %lx, end %lx, mm %p\n",
+	bs2_dbg("Insert vma: start %lx, pgoff %lx, end %lx, mm %p\n",
 		vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
 
 	block = bankshot2_find_data_block(bs2_dev, pi,
