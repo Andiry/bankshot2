@@ -1,7 +1,7 @@
 From fb6e0f45bb91acc504c98d462f51df07718625b5 Mon Sep 17 00:00:00 2001
 From: Andiry Xu <jix024@cs.ucsd.edu>
 Date: Tue, 25 Mar 2014 21:31:19 -0700
-Subject: [PATCH 2/4] Replace struct bankshot2_device by void pointer, so as
+Subject: [PATCH 2/8] Replace struct bankshot2_device by void pointer, so as
  not to pollute kernel space.
 
 

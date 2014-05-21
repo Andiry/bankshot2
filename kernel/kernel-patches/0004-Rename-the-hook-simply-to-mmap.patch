@@ -1,7 +1,7 @@
 From 1ff7da6d15ca8546f8a97fea734f450ed30797e1 Mon Sep 17 00:00:00 2001
 From: Andiry Xu <jix024@cs.ucsd.edu>
 Date: Tue, 25 Mar 2014 22:11:06 -0700
-Subject: [PATCH 4/4] Rename the hook simply to mmap.
+Subject: [PATCH 4/8] Rename the hook simply to mmap.
 
 
 Signed-off-by: Andiry Xu <jix024@cs.ucsd.edu>

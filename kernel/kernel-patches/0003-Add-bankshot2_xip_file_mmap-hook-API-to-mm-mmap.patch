@@ -1,7 +1,7 @@
 From 2b17fb1cd50ce551cec65a5e60ba2dd5a0feb249 Mon Sep 17 00:00:00 2001
 From: Andiry Xu <jix024@cs.ucsd.edu>
 Date: Tue, 25 Mar 2014 22:08:12 -0700
-Subject: [PATCH 3/4] Add bankshot2_xip_file_mmap hook API to mm/mmap.
+Subject: [PATCH 3/8] Add bankshot2_xip_file_mmap hook API to mm/mmap.
 
 
 Signed-off-by: Andiry Xu <jix024@cs.ucsd.edu>
