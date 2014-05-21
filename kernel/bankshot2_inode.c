@@ -285,6 +285,7 @@ retry:
 	pi->extent_tree = RB_ROOT;
 	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	spin_lock_init(&pi->btree_lock);
+	pi->num_extents = 0;
 
 //	bankshot2_memlock_inode(sb, pi);
 
@@ -341,7 +342,8 @@ int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 	int i;
 	struct bankshot2_inode *pi;
 
-	for (i = 1; i <= 1024; i++) {
+	for (i = BANKSHOT2_FREE_INODE_HINT_START;
+			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
 		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
 			*st_ino = i;

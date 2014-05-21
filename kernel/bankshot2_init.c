@@ -124,12 +124,12 @@ check_fail:
 static void __exit bankshot2_exit(void)
 {
 	bs2_info("Exit Bankshot2.\n");
+	bankshot2_destroy_extents(bs2_dev);
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	bankshot2_destroy_block(bs2_dev);
 	bankshot2_destroy_super(bs2_dev);
 	bankshot2_destroy_char(bs2_dev);
-	bankshot2_destroy_extents(bs2_dev);
 	bankshot2_destroy_kmem(bs2_dev);
 	kfree(bs2_dev);
 }

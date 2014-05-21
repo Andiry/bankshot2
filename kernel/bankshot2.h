@@ -120,6 +120,7 @@ struct bankshot2_inode {
 	struct rb_root extent_tree; /* Extent tree root */
 	rwlock_t extent_tree_lock;  /* Extent tree lock */
 	spinlock_t btree_lock;	    /* B-tree lock */	
+	unsigned int num_extents;   /* Num of extents in tree */	
 
 	struct {
 		__le32 rdev;    /* major/minor # */

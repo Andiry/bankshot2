@@ -121,6 +121,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 				"length %lu\n",
 				pi->i_ino, curr->offset, curr->length);
 			rb_erase(&curr->node, &pi->extent_tree);
+			pi->num_extents--;
 			bankshot2_free_extent(bs2_dev, curr);
 			break;
 		}
@@ -267,6 +268,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 				pi->i_ino, new->offset);
 		rb_link_node(&new->node, parent, temp);
 		rb_insert_color(&new->node, &pi->extent_tree);
+		pi->num_extents++;
 	}
 
 #if 0
@@ -355,6 +357,7 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	}
 
 	write_unlock(&pi->extent_tree_lock);
+	pi->num_extents = 0;
 	return;
 }
 
@@ -430,6 +433,7 @@ static struct extent_entry* bankshot2_get_victim_extent(
 
 found:
 	rb_erase(&victim->node, &pi->extent_tree);
+	pi->num_extents--;
 
 	return victim;
 }
@@ -551,6 +555,19 @@ int bankshot2_init_extents(struct bankshot2_device *bs2_dev)
 
 void bankshot2_destroy_extents(struct bankshot2_device *bs2_dev)
 {
+	int i;
+	struct bankshot2_inode *pi;
+
+	for (i = BANKSHOT2_FREE_INODE_HINT_START;
+			i < bs2_dev->s_inodes_count; i++) {
+		pi = bankshot2_get_inode(bs2_dev, i);
+		if (pi && pi->num_extents) {
+			bs2_dbg("pi %llu: %u extents\n",
+					pi->i_ino, pi->num_extents);
+			bankshot2_delete_tree(bs2_dev, pi);
+		}
+	}
+
 	kmem_cache_destroy(bs2_dev->bs2_extent_slab);
 }
 
