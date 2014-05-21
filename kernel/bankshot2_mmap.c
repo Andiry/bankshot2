@@ -117,8 +117,11 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 
 		if (address < vma->vm_start || address >= vma->vm_end) {
 			bs2_info("address not in vma area! "
-				"vma start 0x%lx, end 0x%lx, address 0x%lx\n",
-				vma->vm_start, vma->vm_end, address);
+				"vma start 0x%lx, end 0x%lx, "
+				"pgoff 0x%lx, extent pgoff 0x%lx, "
+				"address 0x%lx\n",
+				vma->vm_start, vma->vm_end,
+				vma->vm_pgoff, pgoff, address);
 			continue;
 		}
 

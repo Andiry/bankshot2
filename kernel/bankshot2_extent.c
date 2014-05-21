@@ -498,8 +498,8 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
 		if (delete->vma->vm_mm == mm) {
 			vma = delete->vma;
-			bs2_dbg("remove vma %p: start 0x%lx, pgoff 0x%lx, end 0x%lx, "
-				"mm %p\n",
+			bs2_dbg("remove vma %p: start 0x%lx, pgoff 0x%lx, "
+				"end 0x%lx, mm %p\n",
 				vma, vma->vm_start, vma->vm_pgoff,
 				vma->vm_end, vma->vm_mm);
 
@@ -507,13 +507,16 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 				((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 
 			if (address < vma->vm_start || address >= vma->vm_end) {
-				bs2_info("address not in vma area! "
+				bs2_info("%s: address not in vma area! "
 					"vma start 0x%lx, end 0x%lx, "
-					"address 0x%lx\n",
-					vma->vm_start, vma->vm_end, address);
+					"pgoff 0x%lx, extent pgoff 0x%lx, "
+					"address 0x%lx\n", __func__,
+					vma->vm_start, vma->vm_end,
+					vma->vm_pgoff, pgoff, address);
+			} else {
+				vm_munmap_page(mm, address, extent->length);
 			}
 
-			vm_munmap_page(mm, address, extent->length);
 			list_del(&delete->list);
 			kfree(delete);
 		}
@@ -531,9 +534,9 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 	temp = rb_first(&pi->extent_tree);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
-//		bs2_info("pi %llu, extent offset %lu, length %lu, "
-//				"mmap addr %lx\n", pi->i_ino, curr->offset,
-//				curr->length, curr->mmap_addr);
+		bs2_dbg("pi %llu, extent offset %lu, length %lu, "
+				"mmap addr %lx\n", pi->i_ino, curr->offset,
+				curr->length, curr->mmap_addr);
 		bankshot2_remove_mapping_from_extent(bs2_dev, curr, mm);
 		temp = rb_next(temp);
 	}
