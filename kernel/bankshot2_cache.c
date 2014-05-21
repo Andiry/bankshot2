@@ -141,8 +141,21 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			data->offset, data->mmap_offset);
 	} else {
 		bs2_dbg("Raw device.\n");
-		ret = -1;
-		//FIXME
+		if (data->offset < bs2_dev->bs_sects * 512) {
+			data->extent_start = data->offset;
+			data->extent_length = bs2_dev->bs_sects * 512
+						- data->offset;
+			data->extent_start_file_offset = data->offset;
+			data->file_length = bs2_dev->bs_sects * 512;
+			data->mmap_offset = ALIGN_DOWN(data->offset);
+			req_end = data->offset + data->size;
+			req_end = ALIGN_UP(req_end);
+			req_end = min(req_end, ALIGN_DOWN(data->file_length));
+
+			data->mmap_length = req_end - data->mmap_offset;
+		} else {
+			ret = -1;
+		}
 	}
 
 	//we should invalidate the inode's buffer-cache mappings as well, so we don't get invalid data later
