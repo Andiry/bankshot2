@@ -160,6 +160,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
 {
 	struct vm_area_struct *vma = NULL;
+	struct file *file = fget(data->file);
 	struct inode *inode;
 	unsigned long b_offset;
 	u64 block;
@@ -173,6 +174,14 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		return 0;
 	}
 
+	if (!(file->f_mode & FMODE_READ)) {
+		bs2_dbg("File not readable.\n");
+		fput(file);
+		data->mmap_length = 0;
+		return 0;
+	}
+	fput(file);
+
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
@@ -183,8 +192,10 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 			// mmap failed
 		bs2_info("Mmap failed, returned %d\n",
 				(int)(data->mmap_addr));
-		ret = (int)(data->mmap_addr);
-		return ret;
+//		ret = (int)(data->mmap_addr);
+		data->mmap_length = 0;
+		data->mmap_addr = 0;
+		return 0;
 	}
 
 	b_offset = data->extent_start + data->mmap_offset
