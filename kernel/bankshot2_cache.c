@@ -346,7 +346,8 @@ out:
 
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
-	bs2_dbg("%s: return %d\n", __func__, ret);
+	if (ret)
+		bs2_info("%s: return %d\n", __func__, ret);
 	return ret;
 }
 

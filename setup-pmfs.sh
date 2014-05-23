@@ -1,12 +1,12 @@
 #!/bin/sh
 
 umount /mnt/ramdisk
-#rmmod pmfs
-#modprobe pmfs
+rmmod pmfs
+modprobe pmfs
 
 sleep 1
 
-mount -t pmfs -o physaddr=0x100000000,init=2G,backing_dev=/dev/ram0 none /mnt/ramdisk
+mount -t pmfs -o physaddr=0x100000000,init=2G none /mnt/ramdisk
 
 sleep 1
 #cp test1 /mnt/ramdisk/
