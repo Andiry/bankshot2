@@ -623,6 +623,8 @@ int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
+void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,
