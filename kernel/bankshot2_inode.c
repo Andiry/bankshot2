@@ -386,7 +386,7 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 
 	ret = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
 	if (!ret) {
-		bs2_dbg("Found existing match inode %llu\n", ino);
+		bs2_info("Found existing match inode %llu\n", ino);
 		goto found;
 	}
 
@@ -396,7 +396,7 @@ int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		return ret;
 	}
 
-	bs2_dbg("Allocated new inode %llu\n", ino);
+	bs2_info("Allocated new inode %llu\n", ino);
 	data->cache_file_size = 0;
 found:
 	*st_ino = ino;
