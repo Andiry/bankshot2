@@ -83,16 +83,16 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 
 		/* Align offset and request length to MMAP_UNIT */
 		data->mmap_offset = ALIGN_DOWN(data->offset);
-		req_end = data->offset + data->size;
-		req_end = ALIGN_UP(req_end);
-		req_end = min(req_end, ALIGN_DOWN(data->file_length));
+		data->mmap_length = ALIGN_DOWN(data->file_length)
+					- data->mmap_offset;
 
-		data->mmap_length = req_end - data->mmap_offset;
+		if (data->mmap_length > MAX_MMAP_SIZE)
+			data->mmap_length = MAX_MMAP_SIZE;
 		
 		bs2_dbg("Request offset 0x%llx, size %lu, "
-			"mmap offset 0x%llx, length %llu\n",
+			"mmap offset 0x%llx, length %lu, file length %llu\n",
 			data->offset, data->size, data->mmap_offset,
-			data->file_length);
+			data->mmap_length, data->file_length);
 
 		filemap_write_and_wait(inode->i_mapping);
 

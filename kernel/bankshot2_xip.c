@@ -27,11 +27,8 @@ static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
 	}
 
 	/* Limit request length to 2MB */
-	if (*count > MMAP_UNIT)
-		*count = MMAP_UNIT - (*pos & (MMAP_UNIT - 1));
-
-	if (data->mmap_length > MMAP_UNIT)
-		data->mmap_length = MMAP_UNIT;
+	if (*count > MAX_MMAP_SIZE)
+		*count = MAX_MMAP_SIZE - (*pos & (MAX_MMAP_SIZE - 1));
 
 	data->actual_offset = *pos;
 	bs2_dbg("%s, inode %llu, offset %llu, length %lu\n",
