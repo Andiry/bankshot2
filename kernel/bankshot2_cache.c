@@ -81,7 +81,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			goto out;
 		}
 
-		/* Align offset and request length to 2MB */
+		/* Align offset and request length to MMAP_UNIT */
 		data->mmap_offset = ALIGN_DOWN(data->offset);
 		req_end = data->offset + data->size;
 		req_end = ALIGN_UP(req_end);
@@ -230,8 +230,8 @@ static int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
  * size: request length, not aligned
  *
  * output:
- * mmap_offset: mmap offset, aligned to 2MB
- * mmap_length: mmap length, aligned ot 2MB
+ * mmap_offset: mmap offset, aligned to MMAP_UNIT
+ * mmap_length: mmap length, aligned ot MMAP_UNIT
  * mmap_addr:   mmap address
  * file_length: File length
  */
@@ -270,6 +270,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 					- data->mmap_offset;
 
 		map_len = ALIGN_DOWN(map_len);
+		if (map_len > MAX_MMAP_SIZE)
+			map_len = MAX_MMAP_SIZE;
 	} else {
 		map_len = 0;
 	}

@@ -191,7 +191,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			"length %lu,  b_offset %lx\n",
 			pi->i_ino, offset, length, b_offset);
 
-	/* Break the extent to 2MB chunks */
+	/* Break the extent to PAGE_SIZE chunks */
 	if (offset != ALIGN_DOWN(offset) || length != ALIGN_DOWN(length)) {
 		bs2_info("%s: inode %llu: offset or length not aligned to mmap "
 				"unit size! offset 0x%lx, length %lu\n",
