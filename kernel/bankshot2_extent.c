@@ -35,35 +35,36 @@ void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
 	kmem_cache_free(bs2_dev->bs2_extent_slab, extent);
 }
 
-int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent)
+struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset)
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
 	int compVal;
 
-	read_lock(&pi->extent_tree_lock);
+//	read_lock(&pi->extent_tree_lock);
 	temp = pi->extent_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
-		compVal = bankshot2_rbtree_compare_find(curr, extent->offset);
+		compVal = bankshot2_rbtree_compare_find(curr, offset);
 
 		if (compVal == -1) {
 			temp = temp->rb_left;
 		} else if (compVal == 1) {
 			temp = temp->rb_right;
 		} else {
-			extent->offset = curr->offset;
-			extent->length = curr->length;
-			extent->dirty = curr->dirty;
+//			extent->offset = curr->offset;
+//			extent->length = curr->length;
+//			extent->dirty = curr->dirty;
 //			extent->mmap_addr = curr->mmap_addr;
-			read_unlock(&pi->extent_tree_lock);
-			return 1;
+//			read_unlock(&pi->extent_tree_lock);
+
+			return curr;
 		}
 	}
 
-	read_unlock(&pi->extent_tree_lock);
-	return 0;
+//	read_unlock(&pi->extent_tree_lock);
+	return NULL;
 }
 
 void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
@@ -131,7 +132,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 	return;
 }
 
-/* Just use an array to store the vmas. Simple */
+/* Use an list to store the vmas */
 static void bankshot2_insert_vma(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent, struct vm_area_struct *vma)
 {
@@ -178,12 +179,11 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		unsigned long b_offset, struct address_space *mapping,
 		struct vm_area_struct *vma)
 {
-	struct extent_entry *curr, *new;
-	struct rb_node **temp, *parent;
+	struct extent_entry *curr, *new, *next;
+	struct rb_node **temp, *parent, *next_node;
 	off_t extent_offset;
 	size_t extent_length;
 	unsigned long extent_b_offset;
-	int count, i;
 	int compVal;
 	int no_new = 0;
 
@@ -199,33 +199,30 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		return 0;
 	}
 
-	count = length / MMAP_UNIT;
-
 //	write_lock(&pi->extent_tree_lock);
-	for (i = 0; i < count; i++) {
-		temp = &(pi->extent_tree.rb_node);
-		parent = NULL;
+	temp = &(pi->extent_tree.rb_node);
+	parent = NULL;
 
-		extent_offset = offset + i * MMAP_UNIT;
-		extent_b_offset = b_offset + i * MMAP_UNIT;
-		extent_length = MMAP_UNIT;
+	extent_offset = offset;
+	extent_b_offset = b_offset;
+	extent_length = length;
 
-		while (*temp) {
-			curr = container_of(*temp, struct extent_entry, node);
-			compVal = bankshot2_rbtree_compare_find(curr,
+	while (*temp) {
+		curr = container_of(*temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr,
 					extent_offset);
-			parent = *temp;
+		parent = *temp;
 
-			if (compVal == -1) {
-				temp = &((*temp)->rb_left);
-			} else if (compVal == 1) {
-				temp = &((*temp)->rb_right);
-			} else {
-				if (curr->offset != extent_offset
-						|| curr->length != extent_length
-						|| curr->b_offset != extent_b_offset
-						|| curr->mapping != mapping) {
-					bs2_info("Existing extent hit but unmatch! "
+		if (compVal == -1) {
+			temp = &((*temp)->rb_left);
+		} else if (compVal == 1) {
+			temp = &((*temp)->rb_right);
+		} else {
+			if (curr->offset != extent_offset
+					|| curr->length != extent_length
+					|| curr->b_offset != extent_b_offset
+					|| curr->mapping != mapping) {
+				bs2_info("Existing extent hit but unmatch! "
 					"existing extent offset 0x%lx, "
 					"length %lu, b_offset 0x%lx, "
 					"mapping %p, "
@@ -236,40 +233,47 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 					extent_offset, extent_length,
 					extent_b_offset, mapping);
 
-					no_new = 1;
-					break;
-				}
-				bankshot2_insert_vma(bs2_dev, curr, vma);
 				no_new = 1;
 				break;
 			}
+			bankshot2_insert_vma(bs2_dev, curr, vma);
+			no_new = 1;
+			break;
 		}
-
-		if (no_new) {
-			bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
-				pi->i_ino, curr->offset);
-			atomic_set(&curr->access, 1);
-			no_new = 0;
-			continue;
-		}
-
-		new = (struct extent_entry *)
-			kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
-		if (!new) {
-//			write_unlock(&pi->extent_tree_lock);
-			return -ENOMEM;
-		}
-
-		bankshot2_initialize_new_extent(bs2_dev, new, extent_offset,
-			extent_length, extent_b_offset, mapping, vma);
-
-		atomic_set(&new->access, 1);
-		bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
-				pi->i_ino, new->offset);
-		rb_link_node(&new->node, parent, temp);
-		rb_insert_color(&new->node, &pi->extent_tree);
-		pi->num_extents++;
 	}
+
+	if (no_new) {
+		bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
+			pi->i_ino, curr->offset);
+		atomic_set(&curr->access, 1);
+		return 0;
+	}
+
+	new = (struct extent_entry *)
+		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
+	if (!new) {
+//		write_unlock(&pi->extent_tree_lock);
+		return -ENOMEM;
+	}
+
+	bankshot2_initialize_new_extent(bs2_dev, new, extent_offset,
+		extent_length, extent_b_offset, mapping, vma);
+
+	atomic_set(&new->access, 1);
+	bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
+			pi->i_ino, new->offset);
+	rb_link_node(&new->node, parent, temp);
+	rb_insert_color(&new->node, &pi->extent_tree);
+	pi->num_extents++;
+
+	// Check the next node see if it overlaps
+	next_node = rb_next(&new->node);
+	if (!next_node)
+		return 0;
+
+	next = container_of(next_node, struct extent_entry, node);
+	if (new->offset + new->length > next->offset)
+		new->length = next->offset - new->offset;
 
 #if 0
 	// Check the prev node see if it can merge

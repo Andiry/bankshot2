@@ -646,8 +646,8 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent);
 
 /* bankshot2_extent.c */
-int bankshot2_find_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent);
+struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t offset);
 void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, unsigned long index);
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,

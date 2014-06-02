@@ -156,6 +156,57 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 	return ret;
 }
 
+/*
+ * Find out if the request mmap region is already mmaped.
+ * Extent not exists: return 0
+ * Extent exists but no mapping for curent mm: return 1
+ * Extent exists and mmaped for current mm: return 2
+ *	and update data with mmap_addr
+ */
+static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
+{
+	struct extent_entry *extent;
+	struct vma_list *temp;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	unsigned long pgoff = data->mmap_offset >> PAGE_SHIFT;
+
+	extent = bankshot2_find_extent(bs2_dev, pi, data->mmap_offset);
+	if (!extent)
+		return 0;
+
+	mm = current->mm;
+	list_for_each_entry(temp, &extent->vma_list, list) {
+		vma = temp->vma;
+		if (vma->vm_mm == mm) {
+			/* Mmaped for current process. Update mmap_addr */
+			if (pgoff < vma_start_pgoff(vma) ||
+					pgoff > vma_last_pgoff(vma)) {
+				bs2_info("ERROR: Found mmap extent but "
+					"not match: Request pgoff 0x%lx, "
+					"vma start pgoff 0x%lx, "
+					"last pgoff 0x%lx\n", pgoff,
+					vma_start_pgoff(vma),
+					vma_last_pgoff(vma));
+				goto not_mmaped;
+			}
+			data->mmap_addr = vma->vm_start;
+			data->mmap_offset = extent->offset;
+			data->mmap_length = extent->length;
+			return 2;
+		}
+	}
+
+	/* The extent exists but is not mmaped for current mm.
+	 * Return the extent for mmap. */
+not_mmaped:
+	data->mmap_offset = extent->offset;
+	data->mmap_length = extent->length;
+
+	return 1;
+}
+
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
 {
@@ -181,6 +232,16 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		return 0;
 	}
 	fput(file);
+
+	/* Maybe some other guy has already done the mapping.
+	 * Check before doing mmap */
+
+	ret = bankshot2_check_existing_mmap(bs2_dev, pi, data);
+
+	if (ret == 2) {
+		/* It's already mmaped */
+		return 0;
+	}
 
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
