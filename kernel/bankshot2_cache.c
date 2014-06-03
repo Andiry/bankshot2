@@ -86,9 +86,6 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		data->mmap_length = ALIGN_DOWN(data->file_length)
 					- data->mmap_offset;
 
-		if (data->mmap_length > MAX_MMAP_SIZE)
-			data->mmap_length = MAX_MMAP_SIZE;
-		
 		bs2_dbg("Request offset 0x%llx, size %lu, "
 			"mmap offset 0x%llx, length %lu, file length %llu\n",
 			data->offset, data->size, data->mmap_offset,
@@ -257,6 +254,10 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	}
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	bs2_dbg("Request: file %d, length %llu, offset 0x%llx, "
+		"request len %lu\n", data->file, data->file_length,
+		data->offset, data->size);
 
 	// Update length for mmap and request
 	/* map_len: the length that will be mmaped to user space
