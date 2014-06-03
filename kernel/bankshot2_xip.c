@@ -4,13 +4,40 @@
 
 #include "bankshot2.h"
 
-static void bankshot2_update_offset(struct bankshot2_device *bs2_dev,
+static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		u64 *pos, size_t *count, u64 *b_offset)
 {
 	/* If mmap length > 0, we need to copy start from mmap offset;
 	   otherwise we will just copy start from offset. */
 	/* Must ensure that the required extent is covered by fiemap extent */
+
+	if (data->extent_start_file_offset <= ALIGN_DOWN_2MB(data->offset)) {
+		data->mmap_offset = ALIGN_DOWN_2MB(data->offset);
+		data->mmap_length = ALIGN_DOWN(data->extent_start_file_offset +
+				data->extent_length - data->mmap_offset);
+		if (data->mmap_length > MAX_MMAP_SIZE)
+			data->mmap_length = MAX_MMAP_SIZE;
+	} else {
+		data->mmap_offset = ALIGN_DOWN(data->extent_start_file_offset);
+		data->mmap_length = ALIGN_UP_2MB(data->extent_start_file_offset
+				+ data->extent_length) - data->mmap_offset;
+		if (data->mmap_length % MAX_MMAP_SIZE)
+			data->mmap_length = data->mmap_length % MAX_MMAP_SIZE;
+		if (data->mmap_length > MAX_MMAP_SIZE)
+			data->mmap_length = MAX_MMAP_SIZE;
+	}
+
+#if 0
+	if (data->extent_start_file_offset + data->extent_length
+			<= data->mmap_offset)
+		bs2_info("ERROR: mmap length will be less than zero! "
+			"start file offset 0x%llx, extent length %lu, "
+			"mmap offset 0x%llx\n",
+			data->extent_start_file_offset, data->extent_length,
+			data->mmap_offset);
+#endif
+
 	if (data->mmap_length) {
 		*pos = data->mmap_offset;
 		*count = data->mmap_offset + data->mmap_length
@@ -298,7 +325,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	char *void_array;
 	int ret, evict;
 
-	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
+	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
 	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
@@ -386,7 +413,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	int ret, evict;
 //	char *buf1;
 
-	bankshot2_update_offset(bs2_dev, pi, data, &pos, &count, &b_offset);
+	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
 	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
