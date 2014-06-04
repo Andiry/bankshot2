@@ -205,8 +205,8 @@ static void bankshot2_update_inode(struct inode *inode,
 	pi->i_generation = cpu_to_le32(inode->i_generation);
 	bankshot2_get_inode_flags(inode, pi);
 
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		pi->dev.rdev = cpu_to_le32(inode->i_rdev);
+//	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+//		pi->dev.rdev = cpu_to_le32(inode->i_rdev);
 
 //	bankshot2_memlock_inode(inode->i_sb, pi);
 }
@@ -286,6 +286,8 @@ retry:
 	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	spin_lock_init(&pi->btree_lock);
 	pi->num_extents = 0;
+	INIT_LIST_HEAD(&pi->lru_list);
+	list_add_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
 
 //	bankshot2_memlock_inode(sb, pi);
 
@@ -456,6 +458,8 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 	bs2_dbg("After free_inode: free_nodes %x total_nodes %x hint %x\n",
 		   bs2_dev->s_free_inodes_count, bs2_dev->s_inodes_count,
 		   bs2_dev->s_free_inode_hint);
+
+	list_del(&pi->lru_list);
 //out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;

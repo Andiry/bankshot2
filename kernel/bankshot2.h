@@ -124,11 +124,12 @@ struct bankshot2_inode {
 	rwlock_t extent_tree_lock;  /* Extent tree lock */
 	spinlock_t btree_lock;	    /* B-tree lock */	
 	unsigned int num_extents;   /* Num of extents in tree */	
+	struct list_head lru_list;  /* LRU list for eviction */	
 
-	struct {
-		__le32 rdev;    /* major/minor # */
-	} dev;              /* device inode */
-	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
+//	struct {
+//		__le32 rdev;    /* major/minor # */
+//	} dev;              /* device inode */
+//	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
 };
 
 struct extent_entry {
@@ -362,7 +363,7 @@ struct bankshot2_device {
 	 */
 //	spinlock_t		brd_lock;
 //	struct radix_tree_root	brd_pages;
-//	struct brd_cache_info *cache_info;
+	struct list_head pi_lru_list;
 };
 
 extern struct bankshot2_device *bs2_dev;

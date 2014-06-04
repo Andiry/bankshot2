@@ -258,6 +258,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		goto out;
 	}
 
+	/* Move the pi to the tail of pi_lru_list */
+	mutex_lock(&bs2_dev->inode_table_mutex);
+	list_move_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+
 	if (data->rnw == WRITE_EXTENT)
 		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
 						&actual_length);

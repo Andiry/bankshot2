@@ -52,6 +52,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	bs2_dev->phys_addr = phys_addr;
 
 	INIT_LIST_HEAD(&bs2_dev->block_inuse_head);
+	INIT_LIST_HEAD(&bs2_dev->pi_lru_list);
 	bs2_dev->mode = (S_IRUGO | S_IXUGO | S_IWUSR);
 	bs2_dev->uid = current_fsuid();
 	bs2_dev->gid = current_fsgid();
@@ -163,6 +164,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	root_i->extent_tree = RB_ROOT;
 	root_i->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	spin_lock_init(&root_i->btree_lock);
+	INIT_LIST_HEAD(&root_i->lru_list);
 
 	/* bankshot2_sync_inode(root_i); */
 	bankshot2_flush_buffer(root_i, sizeof(*root_i), false);
