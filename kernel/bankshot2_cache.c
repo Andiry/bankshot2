@@ -56,9 +56,6 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 
 	if (S_ISREG(inode->i_mode)) {
 		struct fiemap_extent_info fieinfo = {0,};
-		fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
-		fieinfo.fi_extents_max = 1;
-		fieinfo.fi_extents_start = &data->extent_start_file_offset;
 
 		bs2_dbg("Detected normal file, try fiemap\n");
 		if (!inode->i_op->fiemap) {
@@ -84,21 +81,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		/* Test if we can start mmap from 2MB boundary */
 		test_offset = ALIGN_DOWN_2MB(data->offset);
 
-		ret = inode->i_op->fiemap(inode, &fieinfo,
-			test_offset,
-			data->file_length - test_offset);
-
-		bs2_dbg("Extent fiemap return %d extents, ret %d\n",
-				fieinfo.fi_extents_mapped, ret);
-		if (fieinfo.fi_extents_mapped == 0) {
-			data->extent_start = -512;
-			data->extent_length = -512;
-			data->extent_start_file_offset = -512;
-			goto out;
-		}
-
-		ret = bankshot2_check_zero_length(bs2_dev, data);
-		if (ret == 1) {
+		do {
 			memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
 			fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
 			fieinfo.fi_extents_max = 1;
@@ -108,8 +91,8 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			bs2_dbg("Extent does not overlap with request extent. "
 				"Find the next extent.\n");
 			ret = inode->i_op->fiemap(inode, &fieinfo,
-					data->offset,
-					data->file_length - data->offset);
+					test_offset,
+					data->file_length - test_offset);
 
 			if (fieinfo.fi_extents_mapped == 0) {
 				data->extent_start = -512;
@@ -118,7 +101,9 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 				goto out;
 			}
 			ret = 1;
-		}
+			test_offset = data->extent_start_file_offset +
+					data->extent_length; 
+		} while(bankshot2_check_zero_length(bs2_dev, data));
 
 		bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx,"
 			" LogStart: 0x%llx, offset 0x%llx\n",
