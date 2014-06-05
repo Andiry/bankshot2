@@ -233,7 +233,7 @@ int bankshot2_new_inode(struct bankshot2_device *bs2_dev, struct inode *inode,
 		bs2_dev->s_free_inodes_count, bs2_dev->s_inodes_count,
 		bs2_dev->s_free_inode_hint);
 
-	mutex_lock(&bs2_dev->inode_table_mutex);
+//	mutex_lock(&bs2_dev->inode_table_mutex);
 
 	/* find the oldest unused bankshot2 inode */
 	i = (bs2_dev->s_free_inode_hint);
@@ -283,8 +283,9 @@ retry:
 	pi->root = 0;
 	pi->i_dtime = 0;
 	pi->extent_tree = RB_ROOT;
-	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
-	spin_lock_init(&pi->btree_lock);
+//	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
+	pi->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
+	mutex_init(pi->btree_lock);
 	pi->num_extents = 0;
 	INIT_LIST_HEAD(&pi->lru_list);
 	list_add_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
@@ -298,7 +299,7 @@ retry:
 	else
 		bs2_dev->s_free_inode_hint = (BANKSHOT2_FREE_INODE_HINT_START);
 
-	mutex_unlock(&bs2_dev->inode_table_mutex);
+//	mutex_unlock(&bs2_dev->inode_table_mutex);
 
 	bankshot2_update_inode(inode, pi);
 
@@ -460,6 +461,7 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 		   bs2_dev->s_free_inode_hint);
 
 	list_del(&pi->lru_list);
+	kfree(pi->btree_lock);
 //out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;

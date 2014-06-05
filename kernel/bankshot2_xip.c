@@ -89,7 +89,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 //	bankshot2_print_tree(bs2_dev, pi);
 	bs2_dbg("pi root @ 0x%llx, height %u", pi->root, pi->height);
 
-	spin_lock(&pi->btree_lock);
+	mutex_lock(pi->btree_lock);
 
 	for (i = 0; i < count; i++) {
 		block = bankshot2_find_data_block(bs2_dev, pi, index + i);
@@ -135,7 +135,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	*void_array = array;
 
-	spin_unlock(&pi->btree_lock);
+	mutex_unlock(pi->btree_lock);
 	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 
 	if (err) {
@@ -156,7 +156,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 	int num_free;
 //	bankshot2_transaction_t *trans;
 
-	spin_lock(&pi->btree_lock);
+	mutex_lock(pi->btree_lock);
 	block = bankshot2_find_data_block(bs2_dev, pi, iblock);
 
 	if (!block) {
@@ -199,7 +199,7 @@ retry:
 	*data_block = block;
 
 err:
-	spin_unlock(&pi->btree_lock);
+	mutex_unlock(pi->btree_lock);
 	return err;
 }
 

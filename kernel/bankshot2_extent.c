@@ -77,7 +77,7 @@ void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
 
 	offset = index << bs2_dev->s_blocksize_bits;
 
-	read_lock(&pi->extent_tree_lock);
+//	read_lock(&pi->extent_tree_lock);
 	temp = pi->extent_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -91,12 +91,12 @@ void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
 			bs2_dbg("Clear pi %llu, extent offset 0x%lx access\n",
 				pi->i_ino, curr->offset);
 			atomic_set(&curr->access, 0);
-			read_unlock(&pi->extent_tree_lock);
+//			read_unlock(&pi->extent_tree_lock);
 			return;
 		}
 	}
 
-	read_unlock(&pi->extent_tree_lock);
+//	read_unlock(&pi->extent_tree_lock);
 	return;
 }
 
@@ -107,7 +107,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 	struct rb_node *temp;
 	int compVal;
 
-	write_lock(&pi->extent_tree_lock);
+//	write_lock(&pi->extent_tree_lock);
 	temp = pi->extent_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -128,7 +128,7 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		}
 	}
 
-	write_unlock(&pi->extent_tree_lock);
+//	write_unlock(&pi->extent_tree_lock);
 	return;
 }
 
@@ -328,7 +328,7 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	read_lock(&pi->extent_tree_lock);
+//	read_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
 	bs2_info("Print extent tree for pi %llu\n", pi->i_ino);
 	while (temp) {
@@ -338,7 +338,7 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 		temp = rb_next(temp);
 	}
 
-	read_unlock(&pi->extent_tree_lock);
+//	read_unlock(&pi->extent_tree_lock);
 	return;
 }
 
@@ -348,7 +348,7 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	write_lock(&pi->extent_tree_lock);
+//	write_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -360,7 +360,7 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 		bankshot2_free_extent(bs2_dev, curr);
 	}
 
-	write_unlock(&pi->extent_tree_lock);
+//	write_unlock(&pi->extent_tree_lock);
 	pi->num_extents = 0;
 	return;
 }

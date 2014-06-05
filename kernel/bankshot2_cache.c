@@ -245,9 +245,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 
 	data->size = request_len;
 
+	mutex_lock(&bs2_dev->inode_table_mutex);
 	ret = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
 	if (ret) {
 		bs2_info("No cache inode found, returned %d\n", ret);
+		mutex_unlock(&bs2_dev->inode_table_mutex);
 		goto out;
 	}
 
@@ -255,11 +257,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	if (!pi) {
 		bs2_info("Failed to get cache inode\n");
 		ret = -EINVAL;
+		mutex_unlock(&bs2_dev->inode_table_mutex);
 		goto out;
 	}
 
 	/* Move the pi to the tail of pi_lru_list */
-	mutex_lock(&bs2_dev->inode_table_mutex);
 	list_move_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 

@@ -121,8 +121,9 @@ struct bankshot2_inode {
 	__le64	i_ino;		    /* Inode number in bankshot2 */
 	__le64	backup_ino;	    /* Inode number in backing store */
 	struct rb_root extent_tree; /* Extent tree root */
-	rwlock_t extent_tree_lock;  /* Extent tree lock */
-	spinlock_t btree_lock;	    /* B-tree lock */	
+//	rwlock_t extent_tree_lock;  /* Extent tree lock */
+//	spinlock_t btree_lock;	    /* B-tree lock */	
+	struct mutex *btree_lock;   /* Inode mutex */
 	unsigned int num_extents;   /* Num of extents in tree */	
 	struct list_head lru_list;  /* LRU list for eviction */	
 
