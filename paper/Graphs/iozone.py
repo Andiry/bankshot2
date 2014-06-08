@@ -26,7 +26,7 @@ for line in f:
 	else:
 		traces.append(parts[0])
 		for j in range(2,len(parts)):
-			data[j - 2].append(float(parts[j]))
+			data[j - 2].append(float(parts[j]) / 1000)
 	round += 1
 
 file.close(f)
@@ -52,11 +52,11 @@ for j in range(2):
     rects[j] = ax.bar(ind + width * (j + 1), data[j], width, color=color_pattern[j], hatch = hatch_pattern[j % len(hatch_pattern)])
 
 # add some
-ax.set_ylabel('Bandwidth (MB/s)', fontsize = '40')
+ax.set_ylabel('Bandwidth (GB/s)', fontsize = '40')
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width*2)
 ax.set_xticklabels(traces, rotation=45)
-ax.set_ylim([0, 10000])
+ax.set_ylim([0, 10])
 ax.set_xlim([0, 9])
 plt.xticks(fontsize = '35')
 plt.yticks(fontsize = '40')
