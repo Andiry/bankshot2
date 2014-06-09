@@ -140,7 +140,6 @@ struct extent_entry {
 	int dirty;
 	atomic_t access; // Whether we'll access the extent later
 	unsigned long b_offset; // Backing store physical offset
-	unsigned long mmap_addr; // Unused
 	struct address_space *mapping;
 	struct list_head vma_list; // list of mapping VMAs
 };
@@ -670,15 +669,13 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry **evict,
-		int *num_free);
+		struct bankshot2_inode *pi, int *num_free);
 int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		struct extent_entry *extent);
+		struct bankshot2_inode *pi, struct extent_entry *extent);
 int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,

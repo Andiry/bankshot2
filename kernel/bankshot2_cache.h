@@ -35,8 +35,6 @@ struct bankshot2_cache_data{
 	int read;
 	int write;
 	unsigned long mmap_addr; // returned mmap address
-	uint64_t evict_offset; // The evicted extent offset
-	size_t evict_length; // The evicted extent length
 	/* -=-=-= These Entries Must Match struct fiemap_extent -=-=-=- */
 	uint64_t extent_start_file_offset; //file offset at which this extent starts (in bytes)
 	uint64_t extent_start; //starting byte address of this extent

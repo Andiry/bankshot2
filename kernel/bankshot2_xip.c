@@ -68,13 +68,13 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		char **void_array, u64 offset, size_t length)
 {
-	struct extent_entry *evict = NULL;
 	unsigned long index;
 	unsigned long count;
 	unsigned long required = 0;
 	u64 block;
 	char *array;
 	int num_free, i;
+	int evict = 0;
 	int err = 0;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
@@ -99,39 +99,25 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		}
 	}
 
-	if (bs2_dev->num_free_blocks < required)
-		bankshot2_evict_extent(bs2_dev, pi, &evict, &num_free);
+	while (bs2_dev->num_free_blocks < required) {
+		bs2_dbg("Need eviction: %lu free, %lu required\n",
+				bs2_dev->num_free_blocks, required);
+		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+		evict = 1;
+	}
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	if (required)
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
 						count, true);
 
-	if (err) {
+	if (err)
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
-
-#if 0
-		err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
-
-		if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
-			bs2_info("Evict extent failed! return %d, "
-				"%d freed\n", err, num_free);
-			goto err;
-		}
-
-		goto retry;
-#endif
-	}
 
 	/* First add the new mapping, then remove the old mapping */
 	err = bankshot2_mmap_extent(bs2_dev, pi, data);
 	if (err)
 		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
-
-	if (evict) {
-		bankshot2_munmap_extent(bs2_dev, pi, data, evict);
-		bankshot2_free_extent(bs2_dev, evict);
-	}
 
 	*void_array = array;
 
@@ -150,7 +136,6 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, sector_t iblock,
 		sector_t *data_block, int create)
 {
-	struct extent_entry *evict;
 	int err = -EIO;
 	u64 block;
 	int num_free;
@@ -172,8 +157,7 @@ retry:
 				"trying to reclaim some blocks\n",
 				__func__, __LINE__);
 
-			err = bankshot2_evict_extent(bs2_dev, pi, &evict,
-					&num_free);
+			err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
 			if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
 				bs2_info("Evict extent failed! return %d, "
 					"%d freed\n", err, num_free);
