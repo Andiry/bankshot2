@@ -122,10 +122,12 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	mutex_unlock(pi->btree_lock);
 	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 
-	if (err)
+	if (err) {
 		kfree(array);
+		return err;
+	}
 
-	return err;
+	return required;
 }
 
 static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
@@ -304,14 +306,17 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	void *xmem;
 	char *void_array;
 	int ret;
+	unsigned long required;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count);
-	if (ret)
+	if (ret < 0)
 		return ret;
+
+	required = ret;
 
 	start_index = pos >> bs2_dev->s_blocksize_bits;
 
@@ -391,6 +396,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	void *xmem;
 	char *void_array;
 	int ret;
+	unsigned long required;
 //	char *buf1;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
@@ -398,8 +404,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count);
-	if (ret)
+	if (ret < 0)
 		return ret;
+
+	required = ret;
 
 	start_index = pos >> bs2_dev->s_blocksize_bits;
 

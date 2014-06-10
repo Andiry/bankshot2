@@ -524,7 +524,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 		b_offset += (done << PAGE_SHIFT);
 //		c_offset += (done << PAGE_SHIFT);
 	}
-	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
+	/* Wait on the jobs to complete, submit the transfer to cache and, free memory for completed jobs*/
 	result = do_cache_fill(bs2_dev, &jd_head, NULL);	
 	free_jobs_in_list(bs2_dev, &jd_head, NULL);
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
