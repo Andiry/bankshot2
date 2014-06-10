@@ -74,7 +74,6 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	u64 block;
 	char *array;
 	int num_free, i;
-	int evict = 0;
 	int err = 0;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
@@ -103,7 +102,6 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bs2_dbg("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, required);
 		bankshot2_evict_extent(bs2_dev, pi, &num_free);
-		evict = 1;
 	}
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
@@ -124,12 +122,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	mutex_unlock(pi->btree_lock);
 	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 
-	if (err) {
+	if (err)
 		kfree(array);
-		return err;
-	} else {
-		return evict ? 1 : 0;
-	}
+
+	return err;
 }
 
 static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
@@ -307,15 +303,15 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	size_t copy_user;
 	void *xmem;
 	char *void_array;
-	int ret, evict;
+	int ret;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
+	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count);
-	if (evict < 0)
-		return evict;
+	if (ret)
+		return ret;
 
 	start_index = pos >> bs2_dev->s_blocksize_bits;
 
@@ -337,7 +333,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		xmem = bankshot2_get_block(bs2_dev, block);
 
 		/* void_array 1 means it's newly allocated. Copy to cache. */
-		if (evict || void_array[i] == 0x1) {
+		if (void_array[i] == 0x1) {
 			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
 							bytes, xmem);
 			if (ret) {
@@ -394,16 +390,16 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	size_t copied, copy_user;
 	void *xmem;
 	char *void_array;
-	int ret, evict;
+	int ret;
 //	char *buf1;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-	evict = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
+	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count);
-	if (evict < 0)
-		return evict;
+	if (ret)
+		return ret;
 
 	start_index = pos >> bs2_dev->s_blocksize_bits;
 
@@ -426,8 +422,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		/* If it's not fully write to whole page,
 		 * copy data to cache first */
-		if (bytes != bs2_dev->blocksize &&
-				(evict || void_array[i] == 0x1)) {
+		if (bytes != bs2_dev->blocksize && void_array[i] == 0x1) {
 			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
 							bytes, xmem);
 			if (ret) {
