@@ -233,22 +233,28 @@ size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 			struct bio *bio, size_t nr_pages)
 {
 	struct page *page;
-	size_t done = 0;
+	size_t done = 0, required;
+	int order;
 
 	while (done < nr_pages){
-//		BBD_START_TIMING(BBD, memory_alloc, timing); 	
-		page = alloc_page(GFP_KERNEL);
+//		BBD_START_TIMING(BBD, memory_alloc, timing);
+		required = nr_pages - done;
+		order = get_order(required * PAGE_SIZE);
+		if (unlikely(order >= MAX_ORDER))
+			bs2_info("ERROR: %s failed\n", __func__);
+		page = alloc_pages(GFP_KERNEL, order);
 //		page = pfn_to_page(xpfn);
 //		BBD_END_TIMING(BBD, memory_alloc, timing); 	
 		if(!page)
 			break;
 
-		if(bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE)
+		if(bio_add_page(bio, page, PAGE_SIZE * (1 << order), 0)
+				!= PAGE_SIZE * (1 << order))
 		{
-			__free_page(page);
+			__free_pages(page, order);
 			break;
 		}
-		done++;
+		done += (1 << order);
 	}
 
 	if (done != nr_pages)
@@ -281,12 +287,14 @@ void bankshot2_add_to_disk_list(struct bankshot2_device *bs2_dev,
 	submit_bio(jd->disk_cmd, jd->bio);	
 }
 
-int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct bio *bio,
-				bool end, int read, void *xmem)
+int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct job_descriptor *jd,
+				bool end, int read, size_t transferred, char* void_array)
 {
+	struct bio *bio = jd->bio;
 	struct bio_vec *bvec;
 	unsigned int i;
 	char *buf;
+	unsigned long index;
 
 	bio_for_each_segment(bvec, bio, i) {
 		buf = kmap_atomic(bvec->bv_page);
@@ -304,18 +312,21 @@ int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct bio *bio,
 }
 
 static void bankshot2_add_to_cache_list(struct bankshot2_device *bs2_dev,
-			struct job_descriptor *jd, int read)
+			struct job_descriptor *jd, int read,
+			size_t transferred,, char* void_array)
 {
 //	set_job_status(jd, STATUS(JOB_QUEUED_TO_CACHE));
 	/* Moneta IO Is always blocking and not possible to have event driven operation */
 	set_job_status(jd, STATUS(JOB_ISSUED_TO_CACHE));
 //	if(jd->bio->bi_sector > jd->bs2_dev->sector_count)
 //		BEE3_INFO("Bio too big for cache %lu %u %x", jd->bio->bi_sector, jd->bio->bi_size, jd->moneta_cmd);
-	bankshot2_submit_to_cache(jd->bs2_dev, jd->bio, 1, read, jd->xmem);
+	bankshot2_submit_to_cache(jd->bs2_dev, jd, 1, read, transferred,
+					void_array);
 }
 
 uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
-			struct job_descriptor *head, spinlock_t *lock)
+			struct job_descriptor *head, spinlock_t *lock,
+			size_t transferred, char *void_array)
 {
 	struct job_descriptor *jd;
 	uint8_t result = 0;
@@ -354,7 +365,8 @@ uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
 //		reset_job_bio(jd, jd->c_offset >> 9, bs2_dev->self_bdev, WRITE);
 		clear_job_status(jd);
 		jd->type = DO_COMPLETION;			
-		bankshot2_add_to_cache_list(bs2_dev, jd, 1);
+		bankshot2_add_to_cache_list(bs2_dev, jd, 1, transferred,
+						void_array);
 	}
 	return result;
 }
@@ -468,8 +480,9 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 
 /*To keep up with the iops capabilities of moneta, we have the io kernel
   issuing multiple request simultaneously */
-int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, void *xmem) 
+int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, u64 pos, size_t count,
+			u64 b_offset, char *void_array, unsigned long required) 
 {
 	/*
 	create bios and submit job_descritpors (we have to split and submit
@@ -478,17 +491,25 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 	we then wait on completion of all job descriptors in sequential order
 	*/
 	struct bio *bio;
-	size_t nr_pages, bio_pages, max_pages, done;
+	size_t nr_pages, bio_pages, max_pages, done, transferred = 0;
 	struct request_queue *q = bs2_dev->backing_store_rqueue;
 	struct job_descriptor jd_head, *jd;
 	uint8_t result;
+	u64 job_offset;
 	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
-	nr_pages = align_offset_and_len(&b_offset, &b_len);
-	if(nr_pages == 0)
+//	nr_pages = align_offset_and_len(&b_offset, &b_len);
+//	nr_pages = align_offset_and_len(&b_offset, &b_len);
+	align_offset_and_len(&b_offset, &count);
+	pos = job_offset = ALIGN_DOWN(pos);
+
+	nr_pages = count >> bs2_dev->s_blocksize_bits;
+
+	if(nr_pages == 0 || nr_pages < required)
 	{
-		bs2_info("Copy to cache Len is too small %lu\n", b_len);
+		bs2_info("Copy to cache Len is incorrect: %lu, required %lu\n",
+				nr_pages, required);
 		return -EINVAL;
 	}
 
@@ -510,22 +531,22 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
 		bio->bi_rw = READ;
 
 		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages);
-		if(!done) 
+		if (done <= 0) 
 			break;
 		/* Setup the bio fields before submit */
 		init_job_descriptor(jd, WAKEUP_ON_COMPLETION, done << PAGE_SHIFT, b_offset);
-//		jd->moneta_cmd = BBD_CMD_CACHE_CLEAN_WRITE; 
-//		jd->moneta_cmd = BBD_CMD_WRITE; 
 		jd->disk_cmd = READ;
-		jd->xmem = xmem;
+		jd->job_offset = start_offset;
+		jd->start_offset = pos;
 		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
 		
 		nr_pages -= done;
+		transferred += done;
 		b_offset += (done << PAGE_SHIFT);
-//		c_offset += (done << PAGE_SHIFT);
+		job_offset += (done << PAGE_SHIFT);
 	}
 	/* Wait on the jobs to complete, submit the transfer to cache and, free memory for completed jobs*/
-	result = do_cache_fill(bs2_dev, &jd_head, NULL);	
+	result = do_cache_fill(bs2_dev, &jd_head, NULL, transferred, void_array);	
 	free_jobs_in_list(bs2_dev, &jd_head, NULL);
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
 	bs2_dbg("%s result: %d\n", __func__, result);

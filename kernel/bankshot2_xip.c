@@ -320,6 +320,14 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	start_index = pos >> bs2_dev->s_blocksize_bits;
 
+	/* Copy to cache first if it's not in cache */
+	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
+					void_array, required);
+	if (ret) {
+		kfree(void_array);
+		return ret;
+	}
+
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;
@@ -337,6 +345,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		}
 		xmem = bankshot2_get_block(bs2_dev, block);
 
+#if 0
 		/* void_array 1 means it's newly allocated. Copy to cache. */
 		if (void_array[i] == 0x1) {
 			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
@@ -346,6 +355,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				return ret;
 			}
 		}
+#endif
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 				== index)) { // Same page
