@@ -298,7 +298,6 @@ struct job_descriptor{
 	JOB_TYPE type; 
 	struct bio *bio;	
 	struct bio *sys_bio;
-	void *xmem;
 };
 
 struct bankshot2_device {
