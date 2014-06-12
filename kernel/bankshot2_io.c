@@ -234,27 +234,22 @@ size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 {
 	struct page *page;
 	size_t done = 0, required;
-	int order;
 
 	while (done < nr_pages){
 //		BBD_START_TIMING(BBD, memory_alloc, timing);
 		required = nr_pages - done;
-		order = get_order(required * PAGE_SIZE);
-		if (unlikely(order >= MAX_ORDER))
-			bs2_info("ERROR: %s failed\n", __func__);
-		page = alloc_pages(GFP_KERNEL, order);
+		page = alloc_page(GFP_KERNEL);
 //		page = pfn_to_page(xpfn);
 //		BBD_END_TIMING(BBD, memory_alloc, timing); 	
 		if(!page)
 			break;
 
-		if(bio_add_page(bio, page, PAGE_SIZE * (1 << order), 0)
-				!= PAGE_SIZE * (1 << order))
+		if(bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE)
 		{
-			__free_pages(page, order);
+			__free_page(page);
 			break;
 		}
-		done += (1 << order);
+		done++;
 	}
 
 	if (done != nr_pages)
