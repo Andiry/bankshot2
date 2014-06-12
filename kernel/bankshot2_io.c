@@ -519,8 +519,10 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
-//	nr_pages = align_offset_and_len(&b_offset, &b_len);
-//	nr_pages = align_offset_and_len(&b_offset, &b_len);
+
+	if (required == 0)
+		return 0;
+
 	align_offset_and_len(&b_offset, &count);
 	pos = job_offset = ALIGN_DOWN(pos);
 
@@ -599,6 +601,9 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
+	if (required == 0)
+		return 0;
+
 	align_offset_and_len(&b_offset, &count);
 	pos = job_offset = ALIGN_DOWN(pos);
 
