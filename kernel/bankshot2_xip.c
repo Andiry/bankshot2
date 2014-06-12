@@ -278,16 +278,6 @@ out:
 	return ret;
 }
 
-static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
-	void *start_addr)
-{
-	if (unlikely(pos & 0x7))
-		bankshot2_flush_buffer(start_addr, 1, false);
-	if (unlikely(((pos + len) & 0x7) && ((pos & (CACHELINE_SIZE - 1)) !=
-			((pos + len) & (CACHELINE_SIZE - 1)))))
-		bankshot2_flush_buffer(start_addr + len, 1, false);
-}
-
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
@@ -337,18 +327,6 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		if (bytes > count)
 			bytes = count;
-
-#if 0
-		/* void_array 1 means it's newly allocated. Copy to cache. */
-		if (void_array[i] == 0x1) {
-			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
-							bytes, xmem);
-			if (ret) {
-				kfree(void_array);
-				return ret;
-			}
-		}
-#endif
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 				== index)) { // Same page
@@ -406,9 +384,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	char *void_array;
 	int ret;
 	unsigned long required;
-//	char *buf1;
+	char c = 0x1;
 
-	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
+	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
+					&b_offset);
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
@@ -440,8 +419,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		/* If it's not fully write to whole page,
 		 * copy data to cache first */
 		if (bytes != bs2_dev->blocksize && void_array[i] == 0x1) {
-			ret = bankshot2_copy_to_cache(bs2_dev, b_offset,
-							bytes, xmem);
+			ret = bankshot2_copy_to_cache(bs2_dev, pi, pos,
+						PAGE_SIZE, b_offset, &c, 1);
 			if (ret) {
 				kfree(void_array);
 				return ret;
@@ -479,6 +458,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 				written += status;
 				count -= status;
 				pos += status;
+				b_offset += status;
 //				buf += status;
 			}
 		}
@@ -501,8 +481,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 }
 
 static int page_dirty(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, unsigned long pgoff,
-		void *xmem)
+		struct bankshot2_inode *pi, unsigned long pgoff)
 {
 	// FIXME: check PTE's dirty bit
 	return 1;
@@ -511,22 +490,38 @@ static int page_dirty(struct bankshot2_device *bs2_dev,
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent)
 {
-	size_t bytes;
 	u64 pos;
-	u64 block;
 	size_t count;
 	u64 b_offset;
 	unsigned long index;
-	void *xmem;
-	int ret;
+	char *void_array;
+	int ret, i;
+	unsigned long required = 0;
 
 	pos = extent->offset;
 	b_offset = extent->b_offset;
-	count = extent->length;
+	count = extent->length >> bs2_dev->s_blocksize_bits;
 
 	bs2_dbg("%s: inode %llu, offset %llu, length %lu\n",
 			__func__, pi->i_ino, pos, count);
 
+	/* Format the dirty array */
+	void_array = kzalloc(count, GFP_KERNEL);
+	BUG_ON(!void_array);
+
+	index = pos >> bs2_dev->s_blocksize_bits;
+	for (i = 0; i < count; i++) {
+		if (page_dirty(bs2_dev, pi, index)) {
+			void_array[i] = 0x1;
+			required++;
+		}
+		index++;
+	}
+
+	ret = bankshot2_copy_from_cache(bs2_dev, pi, pos, extent->length,
+					b_offset, void_array, required);
+
+#if 0
 	do {
 		index = pos >> bs2_dev->s_blocksize_bits;
 		bytes = PAGE_SIZE;
@@ -558,8 +553,10 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		pos += bytes;
 		b_offset += bytes;
 	} while (count);
+#endif
 
-	return 0;
+	kfree(void_array);
+	return ret;
 }
 
 static const struct vm_operations_struct bankshot2_xip_vm_ops = {

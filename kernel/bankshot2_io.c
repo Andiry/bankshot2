@@ -228,7 +228,6 @@ static inline size_t align_offset_and_len(uint64_t *b_offset, size_t *b_len)
 	return *b_len >> PAGE_SHIFT;
 }
 
-/* Currently only supper 1 page */
 size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 			struct bio *bio, size_t nr_pages)
 {
@@ -252,7 +251,8 @@ size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 	}
 
 	if (done != nr_pages)
-		bs2_info("ERROR: %s failed\n", __func__);
+		bs2_info("%s wants to add %lu pages but done %lu\n",
+				__func__, nr_pages, done);
 	return done;
 }
 
@@ -533,14 +533,18 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 	}
 
-	if(max_pages > BIO_MAX_PAGES)
+	if (max_pages > BIO_MAX_PAGES)
 		max_pages = BIO_MAX_PAGES;
+
+	if (max_pages > bs2_dev->backing_store_rqueue->nr_requests)
+		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
 
 	INIT_LIST_HEAD(&jd_head.jobs);
 	while(nr_pages){
 		bio_pages = (nr_pages > max_pages)?max_pages:nr_pages;
 
-		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages, &jd_head);
+		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages,
+							&jd_head);
 		if(!jd){
 			break;
 		}
@@ -554,7 +558,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		if (done <= 0) 
 			break;
 		/* Setup the bio fields before submit */
-		init_job_descriptor(jd, WAKEUP_ON_COMPLETION, done << PAGE_SHIFT, b_offset);
+		init_job_descriptor(jd, WAKEUP_ON_COMPLETION,
+					done << PAGE_SHIFT, b_offset);
 		jd->disk_cmd = READ;
 		jd->inode = pi;
 		jd->job_offset = job_offset;
@@ -567,7 +572,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		job_offset += (done << PAGE_SHIFT);
 	}
 	/* Wait on the jobs to complete, submit the transfer to cache and, free memory for completed jobs*/
-	result = do_cache_fill(bs2_dev, &jd_head, NULL, transferred, void_array);	
+	result = do_cache_fill(bs2_dev, &jd_head, NULL, transferred,
+				void_array);
 	free_jobs_in_list(bs2_dev, &jd_head, NULL);
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
 	bs2_dbg("%s result: %d\n", __func__, result);
@@ -575,7 +581,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
-			uint64_t b_offset, size_t b_len, void *xmem) 
+			struct bankshot2_inode *pi, u64 pos, size_t count,
+			u64 b_offset, char* void_array, unsigned long required) 
 {
 	/*
 	create bios and submit job_descritpors (we have to split and submit
@@ -584,28 +591,38 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	we then wait on completion of all job descriptors in sequential order
 	*/
 	struct bio *bio;
-	size_t nr_pages, bio_pages, max_pages, done;
+	size_t nr_pages, bio_pages, max_pages, done, transferred = 0;
 	struct request_queue *q = bs2_dev->backing_store_rqueue;
 	struct job_descriptor jd_head, *jd;
 //	uint8_t result;
+	u64 job_offset;
 	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
-	nr_pages = align_offset_and_len(&b_offset, &b_len);
-	if(nr_pages == 0)
+	align_offset_and_len(&b_offset, &count);
+	pos = job_offset = ALIGN_DOWN(pos);
+
+	nr_pages = count >> bs2_dev->s_blocksize_bits;
+
+	if(nr_pages == 0 || nr_pages < required)
 	{
-		bs2_info("Copy from cache Len is too small %lu\n", b_len);
+		bs2_info("Copy from cache Len is incorrect: %lu, "
+				"required %lu\n", nr_pages, required);
 		return -EINVAL;
 	}
 
-	if(max_pages > BIO_MAX_PAGES)
+	if (max_pages > BIO_MAX_PAGES)
 		max_pages = BIO_MAX_PAGES;
+
+	if (max_pages > bs2_dev->backing_store_rqueue->nr_requests)
+		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
 
 	INIT_LIST_HEAD(&jd_head.jobs);
 	while(nr_pages){
 		bio_pages = (nr_pages > max_pages)?max_pages:nr_pages;
 
-		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages, &jd_head);
+		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages,
+							&jd_head);
 		if(!jd){
 			break;
 		}
@@ -616,19 +633,24 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		bio->bi_rw = WRITE;
 
 		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages);
-		if(!done) 
+		if(done <= 0) 
 			break;
 		/* Setup the bio fields before submit */
-		init_job_descriptor(jd, WAKEUP_ON_COMPLETION, done << PAGE_SHIFT, b_offset);
+		init_job_descriptor(jd, WAKEUP_ON_COMPLETION,
+					done << PAGE_SHIFT, b_offset);
 //		jd->moneta_cmd = BBD_CMD_CACHE_CLEAN_WRITE; 
 //		jd->moneta_cmd = BBD_CMD_WRITE; 
 		jd->disk_cmd = WRITE;
-		jd->xmem = xmem;
-		bankshot2_add_to_cache_list(bs2_dev, jd, 0);
+		jd->inode = pi;
+		jd->job_offset = job_offset;
+		jd->start_offset = pos;
+		bankshot2_add_to_cache_list(bs2_dev, jd, 0, transferred,
+						void_array);
 		
 		nr_pages -= done;
+		transferred += done;
 		b_offset += (done << PAGE_SHIFT);
-//		c_offset += (done << PAGE_SHIFT);
+		job_offset += (done << PAGE_SHIFT);
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 	do_disk_fill(bs2_dev, &jd_head, NULL);	

@@ -448,6 +448,16 @@ static inline void bankshot2_flush_buffer(void *buf, uint32_t len, bool fence)
 		asm volatile ("sfence\n" : : );
 }
 
+static inline void bankshot2_flush_edge_cachelines(loff_t pos, ssize_t len,
+	void *start_addr)
+{
+	if (unlikely(pos & 0x7))
+		bankshot2_flush_buffer(start_addr, 1, false);
+	if (unlikely(((pos + len) & 0x7) && ((pos & (CACHELINE_SIZE - 1)) !=
+			((pos + len) & (CACHELINE_SIZE - 1)))))
+		bankshot2_flush_buffer(start_addr + len, 1, false);
+}
+
 static inline u64 __bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, unsigned long blocknr)
 {
@@ -586,10 +596,12 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				size_t sector, size_t size,
 				struct bio *bio, struct block_device *bdev,
 				int where, JOB_TYPE type);
-int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev, uint64_t b_offset,
-			size_t b_len, void *xmem); 
+int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, u64 pos, size_t count,
+			u64 b_offset, char *void_array, unsigned long required); 
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
-			uint64_t b_offset, size_t b_len, void *xmem); 
+			struct bankshot2_inode *pi, u64 pos, size_t count,
+			u64 b_offset, char* void_array, unsigned long required); 
 
 /* bankshot2_block.c */
 int bankshot2_init_block(struct bankshot2_device *);
