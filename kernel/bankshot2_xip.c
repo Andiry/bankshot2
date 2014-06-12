@@ -300,7 +300,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
-	unsigned long index, start_index, i;
+	unsigned long index, start_index;
 	unsigned long offset;
 	size_t copy_user;
 	void *xmem;
@@ -328,22 +328,15 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		return ret;
 	}
 
+	/* Now copy to user buffer */
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;
 		bytes = bs2_dev->blocksize - offset;
-		i = index - start_index;
+//		i = index - start_index;
 
 		if (bytes > count)
 			bytes = count;
-
-		block = bankshot2_find_data_block(bs2_dev, pi, index);
-		if (!block) {
-			bs2_info("%s: get block failed, index 0x%lx\n",
-					__func__, index);
-			break;
-		}
-		xmem = bankshot2_get_block(bs2_dev, block);
 
 #if 0
 		/* void_array 1 means it's newly allocated. Copy to cache. */
@@ -359,6 +352,13 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 				== index)) { // Same page
+			block = bankshot2_find_data_block(bs2_dev, pi, index);
+			if (!block) {
+				bs2_info("%s: get block failed, index 0x%lx\n",
+						__func__, index);
+				break;
+			}
+			xmem = bankshot2_get_block(bs2_dev, block);
 			copy_user = min(req_len, bytes);
 			__copy_to_user(buf, xmem + offset, copy_user);
 			req_len -= copy_user;
@@ -366,13 +366,12 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			user_offset += copy_user;
 		}
 
-		bankshot2_flush_edge_cachelines(pos, bytes, xmem + offset);
+//		bankshot2_flush_edge_cachelines(pos, bytes, xmem + offset);
 
 		read += bytes;
 		count -= bytes;
 		pos += bytes;
 		b_offset += bytes;
-//		buf += status;
 	} while (count);
 
 	if (pos > pi->i_size) {

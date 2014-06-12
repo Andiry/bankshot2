@@ -286,9 +286,11 @@ struct job_descriptor{
 	struct list_head store_queue;  /* This is the queue on which the job is placed before issuing. can be backing store or cache queue. Null if no queue */ 
 	struct list_head jobs; /* List of jobs that are issued by the thread. Used to track completion */
 	struct bankshot2_device *bs2_dev;
+	struct bankshot2_inode *inode;
 	struct task_struct *job_parent; /* Pointer to the task struct of the thread that initiated this job */
-	uint64_t b_offset;
-	uint64_t c_offset;
+	uint64_t b_offset;	/* Backing store offset */
+	uint64_t start_offset;	/* File offset for the void_array */
+	uint64_t job_offset;	/* File offset for this job */
 	size_t num_bytes; 
 	atomic_t status; /* use atomic operations to set the status of the job queue. Only when the list is global we need locks. I use mb() when operating on it */
 //	uint8_t moneta_cmd;

@@ -233,11 +233,10 @@ size_t add_pages_to_job_bio(struct bankshot2_device *bs2_dev,
 			struct bio *bio, size_t nr_pages)
 {
 	struct page *page;
-	size_t done = 0, required;
+	size_t done = 0;
 
 	while (done < nr_pages){
 //		BBD_START_TIMING(BBD, memory_alloc, timing);
-		required = nr_pages - done;
 		page = alloc_page(GFP_KERNEL);
 //		page = pfn_to_page(xpfn);
 //		BBD_END_TIMING(BBD, memory_alloc, timing); 	
@@ -285,19 +284,45 @@ void bankshot2_add_to_disk_list(struct bankshot2_device *bs2_dev,
 int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct job_descriptor *jd,
 				bool end, int read, size_t transferred, char* void_array)
 {
+	struct bankshot2_inode *pi;
 	struct bio *bio = jd->bio;
 	struct bio_vec *bvec;
 	unsigned int i;
 	char *buf;
 	unsigned long index;
+	int array_index;
+	u64 block;
+	void *xmem;
+
+	/* get the file offset and index */
+	pi = jd->inode;
+	array_index = (jd->job_offset - jd->start_offset) >> PAGE_SHIFT;
+	index = jd->job_offset >> bs2_dev->s_blocksize_bits;
 
 	bio_for_each_segment(bvec, bio, i) {
-		buf = kmap_atomic(bvec->bv_page);
-		if (read)
-			memcpy(xmem, buf + bvec->bv_offset, bvec->bv_len);
-		else
-			memcpy(buf + bvec->bv_offset, xmem, bvec->bv_len);
-		kunmap_atomic(buf);
+		if (void_array[array_index] == 0x1) {
+			block = bankshot2_find_data_block(bs2_dev, pi, index);
+			if (!block) {
+				bs2_info("%s: get block failed, index 0x%lx\n",
+						__func__, index);
+				bio_endio(bio, 0);
+				return -EINVAL;
+			}
+			xmem = bankshot2_get_block(bs2_dev, block);
+			buf = kmap_atomic(bvec->bv_page);
+			if (read)
+				memcpy(xmem, buf + bvec->bv_offset,
+						bvec->bv_len);
+			else
+				memcpy(buf + bvec->bv_offset, xmem,
+						bvec->bv_len);
+			kunmap_atomic(buf);
+			bankshot2_flush_edge_cachelines(
+				index << bs2_dev->s_blocksize_bits,
+				PAGE_SIZE, xmem);
+		}
+		array_index++;
+		index++;
 	}
 
 	if (end)
@@ -308,7 +333,7 @@ int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct job_descr
 
 static void bankshot2_add_to_cache_list(struct bankshot2_device *bs2_dev,
 			struct job_descriptor *jd, int read,
-			size_t transferred,, char* void_array)
+			size_t transferred, char* void_array)
 {
 //	set_job_status(jd, STATUS(JOB_QUEUED_TO_CACHE));
 	/* Moneta IO Is always blocking and not possible to have event driven operation */
@@ -531,7 +556,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		/* Setup the bio fields before submit */
 		init_job_descriptor(jd, WAKEUP_ON_COMPLETION, done << PAGE_SHIFT, b_offset);
 		jd->disk_cmd = READ;
-		jd->job_offset = start_offset;
+		jd->inode = pi;
+		jd->job_offset = job_offset;
 		jd->start_offset = pos;
 		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
 		
