@@ -344,6 +344,17 @@ static void bankshot2_add_to_cache_list(struct bankshot2_device *bs2_dev,
 					void_array);
 }
 
+static void reset_job_bio(struct job_descriptor *jd, sector_t sector,
+				struct block_device *bdev, unsigned long op)
+{
+	jd->bio->bi_sector = sector;
+	jd->bio->bi_size = jd->num_bytes;
+	jd->bio->bi_bdev = bdev;
+	jd->bio->bi_rw = op;
+	jd->bio->bi_idx = 0;
+	clear_job_status(jd);
+}
+
 uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
 			struct job_descriptor *head, spinlock_t *lock,
 			size_t transferred, char *void_array)
@@ -382,8 +393,7 @@ uint8_t do_cache_fill(struct bankshot2_device *bs2_dev,
 			}	
 			__set_current_state(TASK_RUNNING);
 		}
-//		reset_job_bio(jd, jd->c_offset >> 9, bs2_dev->self_bdev, WRITE);
-		clear_job_status(jd);
+		reset_job_bio(jd, jd->job_offset >> 9, bs2_dev->bs_bdev, WRITE);
 		jd->type = DO_COMPLETION;			
 		bankshot2_add_to_cache_list(bs2_dev, jd, 1, transferred,
 						void_array);
@@ -429,8 +439,8 @@ uint8_t do_disk_fill(struct bankshot2_device *bs2_dev,
 			}	
 			__set_current_state(TASK_RUNNING);
 		}
-//		reset_job_bio(jd, jd->c_offset >> 9, bs2_dev->self_bdev, WRITE);
-		clear_job_status(jd);
+		reset_job_bio(jd, jd->b_offset >> 9, bs2_dev->bs_bdev,
+				jd->disk_cmd);
 		jd->type = FREE_ON_COMPLETION;
 		list_del(i);
 		atomic_inc(&bs2_dev->cache_stats.sync_queued_count);
@@ -643,8 +653,6 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		/* Setup the bio fields before submit */
 		init_job_descriptor(jd, WAKEUP_ON_COMPLETION,
 					done << PAGE_SHIFT, b_offset);
-//		jd->moneta_cmd = BBD_CMD_CACHE_CLEAN_WRITE; 
-//		jd->moneta_cmd = BBD_CMD_WRITE; 
 		jd->disk_cmd = WRITE;
 		jd->inode = pi;
 		jd->job_offset = job_offset;
