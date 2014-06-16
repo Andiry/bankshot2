@@ -1,0 +1,10 @@
+Workloads	Group	Page cache	Chell	
+Write	1	4069.089	7349.928
+Re-write	1	4172.573	7590.733
+Read	1	5227.301	7459.084
+Re-read	1	5344.967	7459.768
+Random-read	1	4261.756	5194.082
+Random-write	1	3000.183	6107.771
+Bkwd-read	1	4992.170	6737.752
+Rec-rewrite	1	5627.613	7610.514
+Stride-read	1	4547.007	6511.516
