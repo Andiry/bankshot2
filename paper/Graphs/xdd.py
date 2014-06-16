@@ -51,6 +51,9 @@ width = 0.2
 print ind
 print len(data1[0])
 
+plt.rcParams['xtick.major.pad']='10'
+plt.rcParams['ytick.major.pad']='10'
+
 fig = plt.figure()
 ax = fig.add_subplot(131)
 rects = [[] for i in range(2)]
@@ -62,6 +65,7 @@ for j in range(2):
     rects[j] = ax.bar(ind + width * (j + 1), data1[j], width, color=color_pattern[j], hatch = hatch_pattern[j % len(hatch_pattern)])
 
 # add some
+ax.yaxis.labelpad = 20
 ax.set_ylabel('Bandwidth (GB/s)', fontsize = '30')
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width*2)

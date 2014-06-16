@@ -41,6 +41,9 @@ width = 0.1
 print ind
 print len(data[0])
 
+plt.rcParams['xtick.major.pad']='30'
+plt.rcParams['ytick.major.pad']='20'
+
 fig = plt.figure()
 ax = fig.add_subplot(111)
 rects = [[] for i in range(2)]
@@ -53,6 +56,7 @@ for j in range(2):
 
 # add some
 ax.set_ylabel('Latency (Nanosecond)', fontsize = '40')
+ax.yaxis.labelpad = 30
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width * 4)
 ax.set_xticklabels(traces)
