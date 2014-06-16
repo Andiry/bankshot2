@@ -230,12 +230,11 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	u64 ino;
 
 //	pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
-	ret = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
-	if (ret) {
+	pi = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
+	if (!pi) {
 		bs2_info("Not found existing match inode\n");
-		return ret;
+		return VM_FAULT_SIGBUS;
 	}
-	pi = bankshot2_get_inode(bs2_dev, ino);
 
 	bs2_dbg("%s: ino %llu, request pgoff %lu, virtual addr %p\n",
 			__func__, ino, vmf->pgoff, vmf->virtual_address);

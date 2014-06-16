@@ -1,6 +1,6 @@
 #!/bin/sh
 
 umount /mnt/ramdisk
-umount /mnt/ramdisk1
+umount /media/root/New_Volume2
 rmmod bankshot2
 #rmmod memudisk

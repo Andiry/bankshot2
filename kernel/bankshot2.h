@@ -634,9 +634,9 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 u64 bankshot2_find_data_block_verbose(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
-int bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
+struct bankshot2_inode *bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, u64 *st_ino);
-int bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
+struct bankshot2_inode *bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
