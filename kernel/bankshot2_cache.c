@@ -209,9 +209,11 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	struct inode *inode;
 	ssize_t actual_length = 0;
 	size_t request_len;
+//	struct timespec start, end;
 
 	data = &_data;
 
+//	getrawmonotonic(&start);
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
 		bs2_dbg("Get extent returned %d\n", ret);
@@ -219,6 +221,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 			ret = EOF_OR_HOLE;
 		return ret;
 	}
+//	getrawmonotonic(&end);
+//	bs2_info("get extent time: %lu\n", end.tv_nsec - start.tv_nsec);
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 
@@ -258,6 +262,7 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	list_move_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 
+//	getrawmonotonic(&start);
 	if (data->rnw == WRITE_EXTENT)
 		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
 						&actual_length);
@@ -265,6 +270,8 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 		ret = bankshot2_xip_file_read(bs2_dev, data, pi,
 						&actual_length);
 
+//	getrawmonotonic(&end);
+//	bs2_info("xip time: %lu\n", end.tv_nsec - start.tv_nsec);
 	if (ret) {
 		bs2_info("xip_file operation returned %d, "
 			"offset 0x%llx, request len %lu, actual len %lu\n",

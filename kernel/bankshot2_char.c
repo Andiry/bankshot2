@@ -109,13 +109,13 @@ static int bankshot2_ioctl_free_blocks(struct bankshot2_device *bs2_dev,
 					void *arg)
 {
 	int num_free;
-	struct bankshot2_inode *pi;
+//	struct bankshot2_inode *pi;
 
 	num_free = *(int *)arg;
-	pi = bankshot2_get_inode(bs2_dev, 3);
+//	pi = bankshot2_get_inode(bs2_dev, 3);
 
-	bankshot2_reclaim_num_blocks(bs2_dev, pi, num_free);
-
+//	bankshot2_reclaim_num_blocks(bs2_dev, pi, num_free);
+	bs2_info("%d\n", num_free);
 //	bankshot2_print_tree(bs2_dev, pi);
 	return 0;
 }
@@ -140,10 +140,12 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
+//	struct timespec start, end;
 	struct bankshot2_device *bs2_dev = filp->private_data;
 	int ret = 0;
 
 	bs2_dbg("ioctl sends to device, cmd 0x%x\n", cmd);
+//	getrawmonotonic(&start);
 	switch (cmd) {
 	case BANKSHOT2_IOCTL_CACHE_DATA:
 		ret = bankshot2_ioctl_cache_data(bs2_dev, (void *)arg);
@@ -179,6 +181,8 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 
+//	getrawmonotonic(&end);
+//	bs2_info("Ioctl time %lu\n", end.tv_nsec - start.tv_nsec);
 	return ret;
 }
 

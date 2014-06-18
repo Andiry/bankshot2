@@ -209,6 +209,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	u64 block;
 	unsigned long pfn;
 	int ret;
+//	struct timespec start, end;
 
 	inode = data->inode;
 
@@ -235,11 +236,14 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		return 0;
 	}
 
+//	getrawmonotonic(&start);
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED | MAP_POPULATE, data->file,
 			data->mmap_offset / PAGE_SIZE, &vma);
+//	getrawmonotonic(&end);
+//	bs2_info("MMap time: %lu\n", end.tv_nsec - start.tv_nsec);
 
 	if (data->mmap_addr >= (unsigned long)(-64)) {
 			// mmap failed

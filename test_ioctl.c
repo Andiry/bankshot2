@@ -6,6 +6,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <malloc.h>
+#include <time.h>
 
 #include "kernel/bankshot2_cache.h"
 
@@ -27,6 +28,8 @@ int main(void)
 	void *addr;
 	int rnw = 1;
 	int ret = 0;
+	struct timespec start, end;
+	int i;
 
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	data.file = fd1;
@@ -47,6 +50,15 @@ int main(void)
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 	printf("fds: %d %d\n", fd1, fd);
 	ret = ioctl(fd, BANKSHOT2_IOCTL_GET_INODE, &data);
+
+	for (i = 0; i < 1000; i++) {
+		clock_gettime(CLOCK_MONOTONIC, &start);
+		ret = ioctl(fd, BANKSHOT2_IOCTL_FREE_BLOCKS, &i);
+		clock_gettime(CLOCK_MONOTONIC, &end);
+		printf("Ioctl time: %lu\n", end.tv_nsec - start.tv_nsec);
+	}
+
+	return 0;
 
 	if (ret < 0)
 		printf("IOCTL_GET_INODE failed\n");

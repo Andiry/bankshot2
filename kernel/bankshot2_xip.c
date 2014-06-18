@@ -296,12 +296,16 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	char *void_array;
 	int ret;
 	unsigned long required;
+//	struct timespec start, end;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
+//	getrawmonotonic(&start);
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count);
+//	getrawmonotonic(&end);
+//	bs2_info("Alloc blocks time: %lu\n", end.tv_nsec - start.tv_nsec);
 	if (ret < 0)
 		return ret;
 
