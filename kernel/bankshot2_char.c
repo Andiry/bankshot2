@@ -125,6 +125,7 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	int i;
 	struct bankshot2_inode *pi;
 
+	bs2_info("Clear cache.\n");
 	for (i = BANKSHOT2_FREE_INODE_HINT_START;
 			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
@@ -142,6 +143,7 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
 	int i;
 	struct bankshot2_inode *pi;
 
+	bs2_info("Print cache info:\n");
 	for (i = BANKSHOT2_FREE_INODE_HINT_START;
 			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
