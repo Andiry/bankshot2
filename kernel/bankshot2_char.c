@@ -137,6 +137,22 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	bs2_dev->s_free_inode_hint = BANKSHOT2_FREE_INODE_HINT_START;
 }
 
+static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
+{
+	int i;
+	struct bankshot2_inode *pi;
+
+	for (i = BANKSHOT2_FREE_INODE_HINT_START;
+			i < bs2_dev->s_inodes_count; i++) {
+		pi = bankshot2_get_inode(bs2_dev, i);
+		if (pi && pi->root) {
+			bs2_info("Pi %llu: size %llu, %llu blocks, "
+				"%u extents\n", pi->i_ino, pi->i_size,
+				pi->i_blocks, pi->num_extents);
+		}
+	}
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -176,6 +192,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_CLEAR_CACHE:
 		bankshot2_ioctl_clear_cache(bs2_dev);
+		break;
+	case BANKSHOT2_IOCTL_GET_CACHE_INFO:
+		bankshot2_ioctl_print_cache_info(bs2_dev);
 		break;
 	default:
 		break;
