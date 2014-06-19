@@ -513,9 +513,10 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 					"address 0x%lx\n", __func__,
 					vma->vm_start, vma->vm_end,
 					vma->vm_pgoff, pgoff, address);
-			} else {
-				vm_munmap_page(mm, address, extent->length);
 			}
+
+			vm_munmap_page(mm, vma->vm_start,
+					vma->vm_end - vma->vm_start);
 
 			list_del(&delete->list);
 			kfree(delete);
