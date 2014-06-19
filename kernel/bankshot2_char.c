@@ -130,8 +130,11 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
 		if (pi && pi->root) {
-			bankshot2_evict_inode(bs2_dev, pi);
 			pi->backup_ino = 0;
+			pi->i_links_count = 0;
+			pi->i_mode = 0;
+			pi->i_dtime = 0;
+			bankshot2_evict_inode(bs2_dev, pi);
 		}
 	}
 
