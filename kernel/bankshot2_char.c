@@ -76,6 +76,7 @@ static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 					void *arg)
 {
 	struct extent_entry_user *data1;
+	struct extent_entry *access_extent;
 	struct bankshot2_inode *pi;
 	int ret;
 
@@ -83,7 +84,8 @@ static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 	pi = bankshot2_get_inode(bs2_dev, BANKSHOT2_ROOT_INO);
 
 	ret = bankshot2_add_extent(bs2_dev, pi, data1->offset,
-			data1->length, data1->offset, NULL, NULL);
+			data1->length, data1->offset, NULL, NULL,
+			&access_extent);
 
 	if (data1->dirty)
 		bankshot2_print_tree(bs2_dev, pi);

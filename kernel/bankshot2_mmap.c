@@ -200,14 +200,15 @@ not_mmaped:
 }
 
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry **access_extent)
 {
 	struct vm_area_struct *vma = NULL;
 	struct file *file = fget(data->file);
 	struct inode *inode;
 	unsigned long b_offset;
-	u64 block;
-	unsigned long pfn;
+//	u64 block;
+//	unsigned long pfn;
 	int ret;
 //	struct timespec start, end;
 
@@ -259,7 +260,8 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 				- data->extent_start_file_offset;
 
 	ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
-			data->mmap_length, b_offset, inode->i_mapping, vma);
+			data->mmap_length, b_offset, inode->i_mapping,
+			vma, access_extent);
 
 	if (ret) {
 		bs2_info("bankshot2_add_extent failed: %d\n", ret);
@@ -275,11 +277,11 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	bs2_dbg("Insert vma: start %lx, pgoff %lx, end %lx, mm %p\n",
 		vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
 
-	block = bankshot2_find_data_block(bs2_dev, pi,
-				data->mmap_offset >> PAGE_SHIFT);
-	pfn =  bankshot2_get_pfn(bs2_dev, block);
-	bs2_dbg("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
-			pfn, block, data->mmap_offset);
+//	block = bankshot2_find_data_block(bs2_dev, pi,
+//				data->mmap_offset >> PAGE_SHIFT);
+//	pfn =  bankshot2_get_pfn(bs2_dev, block);
+//	bs2_dbg("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
+//			pfn, block, data->mmap_offset);
 
 	return 0;
 }

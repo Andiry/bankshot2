@@ -670,7 +670,8 @@ void bankshot2_clear_extent_access(struct bankshot2_device *bs2_dev,
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
 		unsigned long b_offset, struct address_space *mapping,
-		struct vm_area_struct *vma);
+		struct vm_area_struct *vma,
+		struct extent_entry **access_extent);
 void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset);
 void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
@@ -692,4 +693,5 @@ void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
 int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct bankshot2_cache_data *data);
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry **access_extent);

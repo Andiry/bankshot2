@@ -66,7 +66,8 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
  * Return 1 means we evicted a extent. */
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		char **void_array, u64 offset, size_t length)
+		char **void_array, u64 offset, size_t length,
+		struct extent_entry **access_extent)
 {
 	unsigned long index;
 	unsigned long count;
@@ -113,7 +114,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
 
 	/* First add the new mapping, then remove the old mapping */
-	err = bankshot2_mmap_extent(bs2_dev, pi, data);
+	err = bankshot2_mmap_extent(bs2_dev, pi, data, access_extent);
 	if (err)
 		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
 
@@ -296,6 +297,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	char *void_array;
 	int ret;
 	unsigned long required;
+	struct extent_entry *access_extent = NULL;
 //	struct timespec start, end;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
@@ -303,7 +305,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	/* Pre-allocate the blocks we need */
 //	getrawmonotonic(&start);
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
-					pos, count);
+					pos, count, &access_extent);
 //	getrawmonotonic(&end);
 //	bs2_info("Alloc blocks time: %lu\n", end.tv_nsec - start.tv_nsec);
 	if (ret < 0)
@@ -361,7 +363,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	*actual_length = read;
 	kfree(void_array);
-	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
+//	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
+	if (access_extent)
+		atomic_set(&access_extent->access, 0);
 
 	return 0;
 }
@@ -388,13 +392,14 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	int ret;
 	unsigned long required;
 	char c = 0x1;
+	struct extent_entry *access_extent = NULL;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
 					&b_offset);
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
-					pos, count);
+					pos, count, &access_extent);
 	if (ret < 0)
 		return ret;
 
@@ -478,7 +483,9 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	*actual_length = written;
 	kfree(void_array);
-	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
+//	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
+	if (access_extent)
+		atomic_set(&access_extent->access, 0);
 
 	return status < 0 ? status : 0;
 }

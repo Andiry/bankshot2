@@ -177,7 +177,8 @@ static void bankshot2_initialize_new_extent(struct bankshot2_device *bs2_dev,
 int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset, size_t length,
 		unsigned long b_offset, struct address_space *mapping,
-		struct vm_area_struct *vma)
+		struct vm_area_struct *vma,
+		struct extent_entry **access_extent)
 {
 	struct extent_entry *curr, *new, *next;
 	struct rb_node **temp, *parent, *next_node;
@@ -260,6 +261,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 		extent_length, extent_b_offset, mapping, vma);
 
 	atomic_set(&new->access, 1);
+	*access_extent = new;
 	bs2_dbg("Set pi %llu, extent offset 0x%lx access\n",
 			pi->i_ino, new->offset);
 	rb_link_node(&new->node, parent, temp);
