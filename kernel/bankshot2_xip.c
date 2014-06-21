@@ -282,7 +282,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
 {
-	size_t bytes;
+	size_t bytes, user_bytes;
 	ssize_t read = 0;
 	u64 pos, block;
 	u64 user_offset = data->offset;
@@ -337,6 +337,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				== index)) { // Same page
 			user_offset_in_page =
 				user_offset & (bs2_dev->blocksize - 1);
+			user_bytes = bs2_dev->blocksize - user_offset_in_page;
 			block = bankshot2_find_data_block(bs2_dev, pi, index);
 			if (!block) {
 				bs2_info("%s: get block failed, index 0x%lx\n",
@@ -344,7 +345,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 				break;
 			}
 			xmem = bankshot2_get_block(bs2_dev, block);
-			copy_user = min(req_len, bytes);
+			copy_user = min(req_len, user_bytes);
 			__copy_to_user(buf, xmem + user_offset_in_page,
 					copy_user);
 			req_len -= copy_user;
@@ -378,7 +379,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 		ssize_t *actual_length)
 {
 	long status = 0;
-	size_t bytes;
+	size_t bytes, user_bytes;
 	ssize_t written = 0;
 	u64 pos;
 	u64 block;
@@ -443,9 +444,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
-			copy_user = min(req_len, bytes);
 			user_offset_in_page =
 				user_offset & (bs2_dev->blocksize - 1);
+			user_bytes = bs2_dev->blocksize - user_offset_in_page;
+			copy_user = min(req_len, user_bytes);
 
 			bs2_dbg("copy %p to index %lu, offset 0x%llx\n",
 					xmem, index, pos);
