@@ -14,21 +14,23 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 
 	if (data->extent_start_file_offset <= ALIGN_DOWN_2MB(data->offset)) {
 		data->mmap_offset = ALIGN_DOWN_2MB(data->offset);
-		data->mmap_length = ALIGN_DOWN(data->extent_start_file_offset +
-				data->extent_length - data->mmap_offset);
-		if (data->mmap_length > MAX_MMAP_SIZE)
-			data->mmap_length = MAX_MMAP_SIZE;
 	} else {
 		data->mmap_offset = ALIGN_DOWN(data->extent_start_file_offset);
-		data->mmap_length = ALIGN_DOWN(data->extent_start_file_offset
-				+ data->extent_length) - data->mmap_offset;
-		if (data->mmap_length % MAX_MMAP_SIZE)
-			data->mmap_length = data->mmap_length % MAX_MMAP_SIZE;
-		if (data->mmap_length > MAX_MMAP_SIZE)
-			data->mmap_length = MAX_MMAP_SIZE;
 	}
 
-#if 0
+	data->mmap_length = ALIGN_DOWN(data->extent_start_file_offset +
+			data->extent_length - data->mmap_offset);
+
+	if (data->mmap_length > MAX_MMAP_SIZE)
+		data->mmap_length = MAX_MMAP_SIZE;
+
+	/* (data->mmap_offset + data->mmap_length) should be aligned to 2MB */
+	if (((ALIGN_DOWN_2MB(data->mmap_offset + data->mmap_length)
+				> ALIGN_DOWN_2MB(data->mmap_offset)) &&
+			(data->mmap_offset + data->mmap_length) % MAX_MMAP_SIZE))
+		data->mmap_length -= 
+			(data->mmap_offset + data->mmap_length) % MAX_MMAP_SIZE;
+
 	if (data->extent_start_file_offset + data->extent_length
 			<= data->mmap_offset)
 		bs2_info("ERROR: mmap length will be less than zero! "
@@ -36,7 +38,6 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 			"mmap offset 0x%llx\n",
 			data->extent_start_file_offset, data->extent_length,
 			data->mmap_offset);
-#endif
 
 	if (data->mmap_length) {
 		*pos = data->mmap_offset;
