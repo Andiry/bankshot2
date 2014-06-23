@@ -144,7 +144,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 			bs2_info("Reclaim blocks failed\n");
 	}
 
-	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
+	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	if (required)
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
 						count, true);
