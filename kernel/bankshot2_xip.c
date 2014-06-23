@@ -62,6 +62,41 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 			__func__, pi->i_ino, *pos, *count);
 }
 
+static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, int *num_free)
+{
+	struct bankshot2_inode *victim_pi;
+
+	bs2_info("Reclaim blocks for pi %llu\n", pi->i_ino);
+	victim_pi = list_first_entry(&bs2_dev->pi_lru_list,
+				struct bankshot2_inode, lru_list);
+
+	if (!victim_pi) {
+		bs2_info("ERROR: victim pi not found\n");
+		*num_free = 0;
+		return -EINVAL;
+	}
+
+	/* Now victim pi can be the pi requesting blocks, or not */
+	if (victim_pi == pi) {
+		bs2_info("victim pi same as current pi\n");
+		bankshot2_evict_extent(bs2_dev, victim_pi, num_free);
+	} else {
+		/* Get lock first */
+		bs2_info("victim pi: %llu\n", victim_pi->i_ino);
+		mutex_lock(victim_pi->btree_lock);
+		bankshot2_evict_extent(bs2_dev, victim_pi, num_free);
+		mutex_unlock(victim_pi->btree_lock);
+
+		if (*num_free == 0) {
+			*num_free = victim_pi->i_blocks;
+			bankshot2_evict_inode(bs2_dev, victim_pi);
+		}
+	}
+
+	return 0;			
+}
+
 /* Pre allocate the blocks we need.
  * Return 1 means we evicted a extent. */
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
@@ -100,12 +135,16 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	}
 
 	while (bs2_dev->num_free_blocks < required) {
-		bs2_dbg("Need eviction: %lu free, %lu required\n",
+		bs2_info("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, required);
-		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+		num_free = 0;
+//		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+		bankshot2_reclaim_blocks(bs2_dev, pi, &num_free);
+		if (!num_free)
+			bs2_info("Reclaim blocks failed\n");
 	}
 
-	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
+	bs2_info("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	if (required)
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
 						count, true);

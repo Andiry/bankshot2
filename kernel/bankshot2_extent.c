@@ -473,7 +473,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	*num_free = victim->length >> PAGE_SHIFT;
 	block = bankshot2_find_data_block(bs2_dev, pi,
 					victim->offset >> PAGE_SHIFT);
-	pfn =  bankshot2_get_pfn(bs2_dev, block);
+	pfn = bankshot2_get_pfn(bs2_dev, block);
 	bs2_dbg("Free pfn @ 0x%lx, file offset 0x%lx\n", pfn, victim->offset);
 
 	bankshot2_truncate_blocks(bs2_dev, pi, victim->offset,
