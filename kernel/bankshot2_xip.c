@@ -20,7 +20,7 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 			data->mmap_length = MAX_MMAP_SIZE;
 	} else {
 		data->mmap_offset = ALIGN_DOWN(data->extent_start_file_offset);
-		data->mmap_length = ALIGN_UP_2MB(data->extent_start_file_offset
+		data->mmap_length = ALIGN_DOWN(data->extent_start_file_offset
 				+ data->extent_length) - data->mmap_offset;
 		if (data->mmap_length % MAX_MMAP_SIZE)
 			data->mmap_length = data->mmap_length % MAX_MMAP_SIZE;

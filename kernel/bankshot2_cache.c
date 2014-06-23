@@ -293,11 +293,12 @@ out:
 //	data->extent_start_file_offset = data->mmap_offset;
 //	data->extent_length = actual_length + data->offset
 //				- data->extent_start_file_offset;
-	bs2_dbg("%s: file %d, length %llu, offset 0x%llx, "
+	bs2_dbg("%s: file %d, inode %llu, length %llu, offset 0x%llx(%llu), "
 		"request len %lu, mmap offset 0x%llx, mmaped len %lu, "
 		"mmap_addr %lx, actual offset 0x%llx, actual length %lu, "
 		"extent start offset 0x%llx, extent length %lu\n",
-		__func__, data->file, data->file_length, data->offset,
+		__func__, data->file, pi->i_ino, data->file_length,
+		data->offset, data->offset,
 		data->size, data->mmap_offset, data->mmap_length,
 		data->mmap_addr, data->actual_offset, data->actual_length,
 		data->extent_start_file_offset, data->extent_length);
