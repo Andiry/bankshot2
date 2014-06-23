@@ -153,8 +153,8 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
 			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
 		if (pi && pi->root) {
-			bs2_info("Pi %llu: size %llu, %llu blocks, "
-				"%u extents\n", pi->i_ino, pi->i_size,
+			bs2_info("%d: Pi %llu: size %llu, %llu blocks, "
+				"%u extents\n", i, pi->i_ino, pi->i_size,
 				pi->i_blocks, pi->num_extents);
 		}
 	}

@@ -511,6 +511,8 @@ void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 	if (!pi)
 		return;
 
+	bs2_info("%s: inode %llu\n", __func__, pi->i_ino);
+
 	root = pi->root;
 	height = pi->height;
 	btype = pi->i_blk_type;
