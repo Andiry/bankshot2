@@ -334,7 +334,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
-	unsigned long index, start_index;
+	unsigned long index;
 	unsigned long offset, user_offset_in_page;
 	size_t copy_user;
 	void *xmem;
@@ -356,8 +356,6 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		return ret;
 
 	required = ret;
-
-	start_index = pos >> bs2_dev->s_blocksize_bits;
 
 	/* Copy to cache first if it's not in cache */
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
@@ -432,14 +430,13 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
-	unsigned long index, start_index, i;
+	unsigned long index;
 	unsigned long offset, user_offset_in_page;
 	size_t copied, copy_user;
 	void *xmem;
 	char *void_array;
 	int ret;
 	unsigned long required;
-	char c = 0x1;
 	struct extent_entry *access_extent = NULL;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
@@ -453,25 +450,25 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	required = ret;
 
-	start_index = pos >> bs2_dev->s_blocksize_bits;
+//	start_index = pos >> bs2_dev->s_blocksize_bits;
+
+	/* Copy to cache first if it's not in cache */
+	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
+					void_array, required);
+	if (ret) {
+		kfree(void_array);
+		return ret;
+	}
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;
 		bytes = bs2_dev->blocksize - offset;
-		i = index - start_index;
 
 		if (bytes > count)
 			bytes = count;
 
-		block = bankshot2_find_data_block(bs2_dev, pi, index);
-		if (!block) {
-			bs2_info("%s: get block failed, index 0x%lx\n",
-					__func__, index);
-			break;
-		}
-		xmem = bankshot2_get_block(bs2_dev, block);
-
+#if 0
 		/* If it's not fully write to whole page,
 		 * copy data to cache first */
 		if (bytes != bs2_dev->blocksize && void_array[i] == 0x1) {
@@ -482,12 +479,19 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 				return ret;
 			}
 		}
+#endif
 
-//		buf1 = (char *)xmem;
-//		bs2_dbg("Before copy from user\n");
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
+			block = bankshot2_find_data_block(bs2_dev, pi, index);
+			if (!block) {
+				bs2_info("%s: get block failed, index 0x%lx\n",
+						__func__, index);
+				break;
+			}
+			xmem = bankshot2_get_block(bs2_dev, block);
+
 			user_offset_in_page =
 				user_offset & (bs2_dev->blocksize - 1);
 			user_bytes = bs2_dev->blocksize - user_offset_in_page;
@@ -495,38 +499,32 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 			bs2_dbg("copy %p to index %lu, offset 0x%llx\n",
 					xmem, index, pos);
-			copied = bytes -
+			copied = copy_user -
 				__copy_from_user_inatomic_nocache(
 					xmem + user_offset_in_page,
 					buf, copy_user);
+			if (unlikely(copied != copy_user)) {
+				bs2_info("%s: copied %lu, bytes %lu\n",
+						__func__, copied, copy_user);
+				status = -EFAULT;
+				break;
+			}
 			req_len -= copied;
 			buf += copied;
 			user_offset += copied;
-		} else {
-			copied = bytes;
+			bankshot2_flush_edge_cachelines(pos, copied,
+						xmem + user_offset_in_page);
 		}
 
 //		bs2_dbg("After copy from user\n");
 
 //		bankshot2_copy_from_cache(bs2_dev, addr, bytes, xmem);
-		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
-
-		if (likely(copied > 0)) {
-			status = copied;
-
-			if (status >= 0) {
-				written += status;
-				count -= status;
-				pos += status;
-				b_offset += status;
-//				buf += status;
-			}
-		}
-		if (unlikely(copied != bytes))
-			if (status >= 0)
-				status = -EFAULT;
-		if (status < 0)
-			break;
+//		bankshot2_flush_edge_cachelines(pos, copied, xmem + offset);
+		status = bytes;
+		written += status;
+		count -= status;
+		pos += status;
+		b_offset += status;
 	} while (count);
 
 	if (pos > pi->i_size) {
