@@ -154,6 +154,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	root_i->i_blk_type = BANKSHOT2_BLOCK_TYPE_4K;
 	root_i->i_flags = 0;
 	root_i->i_blocks = cpu_to_le64(1);
+	root_i->start_index = ULONG_MAX;
 	root_i->i_size = cpu_to_le64(super->s_blocksize);
 	root_i->i_atime = root_i->i_mtime = root_i->i_ctime =
 		cpu_to_le32(get_seconds());

@@ -281,6 +281,7 @@ retry:
 	pi->i_blk_type = BANKSHOT2_DEFAULT_BLOCK_TYPE;
 //	pi->i_flags = bankshot2_mask_flags(mode, diri->i_flags);
 	pi->height = 0;
+	pi->start_index = ULONG_MAX;
 	pi->root = 0;
 	pi->i_dtime = 0;
 	pi->extent_tree = RB_ROOT;
@@ -442,6 +443,7 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 	pi->root = 0;
 	/* pi->i_links_count = 0;
 	pi->i_xattr = 0; */
+	pi->start_index = ULONG_MAX;
 	pi->i_size = 0;
 	pi->i_dtime = cpu_to_le32(get_seconds());
 //	bankshot2_memlock_inode(sb, pi);

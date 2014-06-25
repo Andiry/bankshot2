@@ -165,9 +165,9 @@ int bankshot2_new_block(struct bankshot2_device *bs2_dev,
 }
 
 static int bankshot2_increase_btree_height(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, u32 new_height,
-		unsigned long first_blocknr)
+		struct bankshot2_inode *pi, u32 new_height)
 {
+	unsigned long first_blocknr = pi->start_index;
 	u32 height = pi->height;
 	__le64 *root, prev_root = pi->root;
 	unsigned long blocknr;
@@ -449,8 +449,8 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 			pi->height = height;
 //			bankshot2_memlock_inode(bs2_dev, pi);
 		} else {
-			errval = bankshot2_increase_btree_height(bs2_dev, pi, height,
-								first_blocknr);
+			errval = bankshot2_increase_btree_height(bs2_dev, pi,
+						height);
 			if (errval) {
 				bs2_dbg("[%s:%d] failed: inc btree"
 					" height\n", __func__, __LINE__);
@@ -468,7 +468,7 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 
 		if (height > pi->height) {
 			errval = bankshot2_increase_btree_height(bs2_dev, pi,
-						height, first_blocknr);
+						height);
 			if (errval) {
 				bs2_dbg("Err: inc height %x:%x tot %lx"
 					"\n", pi->height, height, total_blocks);
@@ -494,6 +494,9 @@ int bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 		unsigned long file_blocknr, unsigned int num, bool zero)
 {
 	int errval;
+
+	if (pi->start_index > file_blocknr)
+		pi->start_index = file_blocknr;
 
 	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi, file_blocknr,
 						num, zero);
@@ -753,6 +756,10 @@ void bankshot2_truncate_blocks(struct bankshot2_device *bs2_dev,
 
 	if (first_blocknr > last_blocknr)
 		goto end_truncate_blocks;
+
+	if (pi->start_index >= first_blocknr &&
+			pi->start_index <= last_blocknr)
+		pi->start_index = last_blocknr + 1;
 
 	root = pi->root;
 

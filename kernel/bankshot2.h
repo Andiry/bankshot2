@@ -113,7 +113,7 @@ struct bankshot2_inode {
 	__le64	i_blocks;           /* Blocks count */
 
 	/* second 48 bytes */
-	__le64	i_xattr;            /* Extended attribute block */
+//	__le64	i_xattr;            /* Extended attribute block */
 	__le32	i_uid;              /* Owner Uid */
 	__le32	i_gid;              /* Group Id */
 	__le32	i_generation;       /* File version (for NFS) */
@@ -125,6 +125,7 @@ struct bankshot2_inode {
 //	spinlock_t btree_lock;	    /* B-tree lock */	
 	struct mutex *btree_lock;   /* Inode mutex */
 	unsigned int num_extents;   /* Num of extents in tree */	
+	unsigned long start_index;  /* Fpr btree height increase */	
 	struct list_head lru_list;  /* LRU list for eviction */	
 
 //	struct {
