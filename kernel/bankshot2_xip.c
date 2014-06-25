@@ -135,6 +135,8 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		}
 	}
 
+	data->required = required;
+
 	while (bs2_dev->num_free_blocks < required) {
 		bs2_info("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, required);

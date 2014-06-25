@@ -34,6 +34,7 @@ struct bankshot2_cache_data{
 	uint64_t file_length; //total file length in bytes
 	int read;
 	int write;
+	unsigned long required;
 	unsigned long mmap_addr; // returned mmap address
 	/* -=-=-= These Entries Must Match struct fiemap_extent -=-=-=- */
 	uint64_t extent_start_file_offset; //file offset at which this extent starts (in bytes)
