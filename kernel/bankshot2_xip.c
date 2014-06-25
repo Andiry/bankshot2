@@ -137,12 +137,14 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	data->required = required;
 
-	while (bs2_dev->num_free_blocks < required) {
+	while (bs2_dev->num_free_blocks < required * 2) {
 		bs2_info("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, required);
 		num_free = 0;
 //		bankshot2_evict_extent(bs2_dev, pi, &num_free);
 		bankshot2_reclaim_blocks(bs2_dev, pi, &num_free);
+		bs2_info("Freed %d blocks, %lu free, %lu required\n",
+				num_free, bs2_dev->num_free_blocks, required);
 		if (!num_free)
 			bs2_info("Reclaim blocks failed\n");
 	}
