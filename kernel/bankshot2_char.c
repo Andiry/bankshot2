@@ -146,6 +146,11 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	bankshot2_clear_time_stats(bs2_dev);
 }
 
+static void bankshot2_ioctl_clear_timing(struct bankshot2_device *bs2_dev)
+{
+	bankshot2_clear_time_stats(bs2_dev);
+}
+
 static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
 {
 	int i;
@@ -204,6 +209,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_CLEAR_CACHE:
 		bankshot2_ioctl_clear_cache(bs2_dev);
+		break;
+	case BANKSHOT2_IOCTL_CLEAR_TIMING:
+		bankshot2_ioctl_clear_timing(bs2_dev);
 		break;
 	case BANKSHOT2_IOCTL_GET_CACHE_INFO:
 		bankshot2_ioctl_print_cache_info(bs2_dev);
