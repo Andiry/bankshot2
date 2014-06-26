@@ -207,10 +207,8 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	struct file *file = fget(data->file);
 	struct inode *inode;
 	unsigned long b_offset;
-//	u64 block;
-//	unsigned long pfn;
 	int ret;
-//	struct timespec start, end;
+	timing_t mmap, add_extent;
 
 	inode = data->inode;
 
@@ -237,14 +235,13 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		return 0;
 	}
 
-//	getrawmonotonic(&start);
+	BANKSHOT2_START_TIMING(bs2_dev, mmap_t, mmap);
 	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED | MAP_POPULATE, data->file,
 			data->mmap_offset / PAGE_SIZE, &vma);
-//	getrawmonotonic(&end);
-//	bs2_info("MMap time: %lu\n", end.tv_nsec - start.tv_nsec);
+	BANKSHOT2_END_TIMING(bs2_dev, mmap_t, mmap);
 
 	if (data->mmap_addr >= (unsigned long)(-64)) {
 			// mmap failed
@@ -261,9 +258,11 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	b_offset = data->extent_start + data->mmap_offset
 				- data->extent_start_file_offset;
 
+	BANKSHOT2_START_TIMING(bs2_dev, add_extent_t, add_extent);
 	ret = bankshot2_add_extent(bs2_dev, pi, data->mmap_offset,
 			data->mmap_length, b_offset, inode->i_mapping,
 			vma, access_extent);
+	BANKSHOT2_END_TIMING(bs2_dev, add_extent_t, add_extent);
 
 	if (ret) {
 		bs2_info("bankshot2_add_extent failed: %d\n", ret);
@@ -278,12 +277,6 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		data->extent_start_file_offset, data->extent_length);
 	bs2_dbg("Insert vma: start %lx, pgoff %lx, end %lx, mm %p\n",
 		vma->vm_start, vma->vm_pgoff, vma->vm_end, vma->vm_mm);
-
-//	block = bankshot2_find_data_block(bs2_dev, pi,
-//				data->mmap_offset >> PAGE_SHIFT);
-//	pfn =  bankshot2_get_pfn(bs2_dev, block);
-//	bs2_dbg("Alloc pfn @ 0x%lx, block 0x%llx, file offset 0x%llx\n",
-//			pfn, block, data->mmap_offset);
 
 	return 0;
 }

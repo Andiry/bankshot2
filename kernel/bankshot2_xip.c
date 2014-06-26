@@ -112,6 +112,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	char *array;
 	int num_free, i;
 	int err = 0;
+	timing_t alloc, evict;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
@@ -142,7 +143,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 				bs2_dev->num_free_blocks, required);
 		num_free = 0;
 //		bankshot2_evict_extent(bs2_dev, pi, &num_free);
+		BANKSHOT2_START_TIMING(bs2_dev, evict_t, evict);
 		bankshot2_reclaim_blocks(bs2_dev, pi, &num_free);
+		BANKSHOT2_END_TIMING(bs2_dev, evict_t, evict);
+
 		bs2_info("Freed %d blocks, %lu free, %lu required\n",
 				num_free, bs2_dev->num_free_blocks, required);
 		if (!num_free)
@@ -150,9 +154,12 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	}
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
-	if (required)
+	if (required) {
+		BANKSHOT2_START_TIMING(bs2_dev, alloc_t, alloc);
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
 						count, true);
+		BANKSHOT2_END_TIMING(bs2_dev, alloc_t, alloc);
+	}
 
 	if (err)
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
@@ -273,8 +280,11 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	unsigned long xip_pfn;
 	int ret = 0;
 	u64 ino;
+//	timing_t page_fault;
 
 //	pi = bankshot2_get_inode(bs2_dev, inode->i_ino);
+//	BANKSHOT2_START_TIMING(bs2_dev, page_fault_t, page_fault);
+
 	pi = bankshot2_check_existing_inodes(bs2_dev, inode, &ino);
 	if (!pi) {
 		bs2_info("Not found existing match inode\n");
@@ -319,6 +329,8 @@ static int bankshot2_xip_file_fault(struct vm_area_struct *vma,
 	ret = VM_FAULT_NOPAGE;
 out:
 	rcu_read_unlock();
+//	BANKSHOT2_END_TIMING(bs2_dev, page_fault_t, page_fault);
+
 	return ret;
 }
 
@@ -342,24 +354,24 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
-//	struct timespec start, end;
+	timing_t bs_read, copy_user_time;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
 	/* Pre-allocate the blocks we need */
-//	getrawmonotonic(&start);
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count, &access_extent);
-//	getrawmonotonic(&end);
-//	bs2_info("Alloc blocks time: %lu\n", end.tv_nsec - start.tv_nsec);
 	if (ret < 0)
 		return ret;
 
 	required = ret;
 
 	/* Copy to cache first if it's not in cache */
+	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
 					void_array, required);
+	BANKSHOT2_END_TIMING(bs2_dev, bs_read_t, bs_read);
+
 	if (ret) {
 		kfree(void_array);
 		return ret;
@@ -377,6 +389,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 				== index)) { // Same page
+			BANKSHOT2_START_TIMING(bs2_dev, copy_to_user_t,
+						copy_user_time);
 			user_offset_in_page =
 				user_offset & (bs2_dev->blocksize - 1);
 			user_bytes = bs2_dev->blocksize - user_offset_in_page;
@@ -393,6 +407,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 			req_len -= copy_user;
 			buf += copy_user;
 			user_offset += copy_user;
+			BANKSHOT2_END_TIMING(bs2_dev, copy_to_user_t,
+						copy_user_time);
 		}
 
 //		bankshot2_flush_edge_cachelines(pos, bytes, xmem + offset);
@@ -438,6 +454,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
+	timing_t bs_read, copy_user_time;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
 					&b_offset);
@@ -453,8 +470,11 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 //	start_index = pos >> bs2_dev->s_blocksize_bits;
 
 	/* Copy to cache first if it's not in cache */
+	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
 					void_array, required);
+	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
+
 	if (ret) {
 		kfree(void_array);
 		return ret;
@@ -484,6 +504,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
+			BANKSHOT2_START_TIMING(bs2_dev, copy_from_user_t,
+						copy_user_time);
 			block = bankshot2_find_data_block(bs2_dev, pi, index);
 			if (!block) {
 				bs2_info("%s: get block failed, index 0x%lx\n",
@@ -512,6 +534,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 			req_len -= copied;
 			buf += copied;
 			user_offset += copied;
+			BANKSHOT2_END_TIMING(bs2_dev, copy_from_user_t,
+						copy_user_time);
 			bankshot2_flush_edge_cachelines(pos, copied,
 						xmem + user_offset_in_page);
 		}

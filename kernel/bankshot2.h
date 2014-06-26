@@ -83,6 +83,45 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 #define ALIGN_UP_2MB(addr) (((addr) & (MAX_MMAP_SIZE - 1)) ? \
 		(ALIGN_DOWN_2MB(addr + MAX_MMAP_SIZE)) : (addr))
 
+/* ========================= Timing =================================== */
+
+#define	TIMING_NUM	12
+
+extern const char *Timingsting[TIMING_NUM];
+
+enum timing_category {
+	cache_data_t = 0,
+	get_extent_t,
+	xip_read_t,
+	xip_write_t,
+	alloc_t,
+	mmap_t,
+	bs_read_t,
+	bs_write_t,
+	copy_to_user_t,
+	copy_from_user_t,
+	add_extent_t,
+	evict_t,
+};
+
+extern int measure_timing;
+
+typedef struct timespec timing_t;
+
+#define BANKSHOT2_START_TIMING(bs2_dev, name, start) \
+	{if (measure_timing) getrawmonotonic(&start);}
+
+#define BANKSHOT2_END_TIMING(bs2_dev, name, start) \
+	{if (measure_timing) { \
+		timing_t end; \
+		getrawmonotonic(&end); \
+		bs2_dev->timingstats[name] += \
+			(end.tv_sec - start.tv_sec) * 1e9 + \
+			(end.tv_nsec - start.tv_nsec); \
+	 } \
+	 bs2_dev->countstats[name]++; \
+	}
+
 /* ========================= Data structures =============================== */
 
 
@@ -366,6 +405,8 @@ struct bankshot2_device {
 //	spinlock_t		brd_lock;
 //	struct radix_tree_root	brd_pages;
 	struct list_head pi_lru_list;
+	u64 countstats[TIMING_NUM];
+	u64 timingstats[TIMING_NUM];
 };
 
 extern struct bankshot2_device *bs2_dev;
@@ -567,16 +608,6 @@ static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 		: "=D"(dummy1), "=d" (dummy2) : "D" (dest), "a" (qword), "d" (length) : "memory", "rcx");
 }
 
-
-#if 0
-int submit_bio_to_cache(struct brd_device *brd, struct bio *bio);
-int brd_cache_open_backing_dev(struct block_device **bdev,
-					char* backing_dev_name,
-					struct brd_device* brd);
-int brd_cache_init(struct brd_device *brd, struct block_device* bdev);
-void brd_cache_exit(struct brd_device *brd);
-#endif
-
 /* ========================= Interfaces =================================== */
 
 /* bankshot2_char.c */
@@ -696,3 +727,8 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		struct extent_entry **access_extent);
+
+/* bankshot2_stats.c */
+void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev);
+void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev);
+

@@ -13,11 +13,15 @@
 
 static unsigned long phys_addr;
 static unsigned long cache_size;
+int measure_timing;
 char *backing_dev_name = "/dev/ram0";
+
 module_param(phys_addr, ulong, S_IRUGO);
 MODULE_PARM_DESC(phys_addr, "Start physical address");
 module_param(cache_size, ulong, S_IRUGO);
 MODULE_PARM_DESC(cache_size, "Cache size");
+module_param(measure_timing, int, S_IRUGO);
+MODULE_PARM_DESC(measure_timing, "Timing measurement");
 module_param(backing_dev_name, charp, S_IRUGO);
 MODULE_PARM_DESC(backing_dev_name, "Backing store");
 

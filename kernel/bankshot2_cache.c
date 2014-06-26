@@ -209,20 +209,22 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	struct inode *inode;
 	ssize_t actual_length = 0;
 	size_t request_len;
-//	struct timespec start, end;
+	timing_t cache_data, get_extent, xip_read, xip_write;
 
 	data = &_data;
 
-//	getrawmonotonic(&start);
+	BANKSHOT2_START_TIMING(bs2_dev, cache_data_t, cache_data);
+
+	BANKSHOT2_START_TIMING(bs2_dev, get_extent_t, get_extent);
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
 		bs2_dbg("Get extent returned %d\n", ret);
 		if (ret == -3)
 			ret = EOF_OR_HOLE;
+		BANKSHOT2_END_TIMING(bs2_dev, get_extent_t, get_extent);
 		return ret;
 	}
-//	getrawmonotonic(&end);
-//	bs2_info("get extent time: %lu\n", end.tv_nsec - start.tv_nsec);
+	BANKSHOT2_END_TIMING(bs2_dev, get_extent_t, get_extent);
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 
@@ -262,16 +264,18 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	list_move_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 
-//	getrawmonotonic(&start);
-	if (data->rnw == WRITE_EXTENT)
+	if (data->rnw == WRITE_EXTENT) {
+		BANKSHOT2_START_TIMING(bs2_dev, xip_write_t, xip_write);
 		ret = bankshot2_xip_file_write(bs2_dev, data, pi,
 						&actual_length);
-	else
+		BANKSHOT2_END_TIMING(bs2_dev, xip_write_t, xip_write);
+	} else {
+		BANKSHOT2_START_TIMING(bs2_dev, xip_read_t, xip_read);
 		ret = bankshot2_xip_file_read(bs2_dev, data, pi,
 						&actual_length);
+		BANKSHOT2_END_TIMING(bs2_dev, xip_read_t, xip_read);
+	}
 
-//	getrawmonotonic(&end);
-//	bs2_info("xip time: %lu\n", end.tv_nsec - start.tv_nsec);
 	if (ret) {
 		bs2_info("xip_file operation returned %d, "
 			"offset 0x%llx, request len %lu, actual len %lu\n",
@@ -307,6 +311,8 @@ out:
 
 	if (ret)
 		bs2_info("%s: return %d\n", __func__, ret);
+
+	BANKSHOT2_END_TIMING(bs2_dev, cache_data_t, cache_data);
 	return ret;
 }
 

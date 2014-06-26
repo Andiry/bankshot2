@@ -141,6 +141,9 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	}
 
 	bs2_dev->s_free_inode_hint = BANKSHOT2_FREE_INODE_HINT_START;
+
+	bankshot2_print_time_stats(bs2_dev);
+	bankshot2_clear_time_stats(bs2_dev);
 }
 
 static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
@@ -158,6 +161,8 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
 				pi->i_blocks, pi->num_extents);
 		}
 	}
+
+	bankshot2_print_time_stats(bs2_dev);
 }
 
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
