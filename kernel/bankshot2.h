@@ -85,24 +85,27 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 
 /* ========================= Timing =================================== */
 
-#define	TIMING_NUM	12
-
-extern const char *Timingsting[TIMING_NUM];
-
 enum timing_category {
 	cache_data_t = 0,
 	get_extent_t,
 	xip_read_t,
 	xip_write_t,
 	alloc_t,
+	check_mmap_t,
 	mmap_t,
-	bs_read_t,
+	bs_read_r_t,
+	bs_read_w_t,
 	bs_write_t,
 	copy_to_user_t,
 	copy_from_user_t,
 	add_extent_t,
 	evict_t,
+	LAST_TIMING,	// Indicate num of timing
 };
+
+#define	TIMING_NUM	LAST_TIMING
+
+extern const char *Timingsting[TIMING_NUM];
 
 extern int measure_timing;
 

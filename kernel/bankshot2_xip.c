@@ -354,7 +354,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
-	timing_t bs_read, copy_user_time;
+	timing_t bs_read_r, copy_user_time;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
@@ -367,10 +367,10 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	required = ret;
 
 	/* Copy to cache first if it's not in cache */
-	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
+	BANKSHOT2_START_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
 					void_array, required);
-	BANKSHOT2_END_TIMING(bs2_dev, bs_read_t, bs_read);
+	BANKSHOT2_END_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 
 	if (ret) {
 		kfree(void_array);
@@ -454,7 +454,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
-	timing_t bs_read, copy_user_time;
+	timing_t bs_read_w, copy_user_time;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
 					&b_offset);
@@ -470,10 +470,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 //	start_index = pos >> bs2_dev->s_blocksize_bits;
 
 	/* Copy to cache first if it's not in cache */
-	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
+	BANKSHOT2_START_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
 					void_array, required);
-	BANKSHOT2_START_TIMING(bs2_dev, bs_read_t, bs_read);
+	BANKSHOT2_END_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 
 	if (ret) {
 		kfree(void_array);
@@ -534,10 +534,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 			req_len -= copied;
 			buf += copied;
 			user_offset += copied;
-			BANKSHOT2_END_TIMING(bs2_dev, copy_from_user_t,
-						copy_user_time);
 			bankshot2_flush_edge_cachelines(pos, copied,
 						xmem + user_offset_in_page);
+			BANKSHOT2_END_TIMING(bs2_dev, copy_from_user_t,
+						copy_user_time);
 		}
 
 //		bs2_dbg("After copy from user\n");

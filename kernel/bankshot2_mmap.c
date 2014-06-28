@@ -220,7 +220,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	struct inode *inode;
 	unsigned long b_offset;
 	int ret;
-	timing_t mmap, add_extent;
+	timing_t check_mmap, mmap, add_extent;
 
 	inode = data->inode;
 
@@ -240,7 +240,9 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	/* Maybe some other guy has already done the mapping.
 	 * Check before doing mmap */
 
+	BANKSHOT2_START_TIMING(bs2_dev, check_mmap_t, check_mmap);
 	ret = bankshot2_check_existing_mmap(bs2_dev, pi, data);
+	BANKSHOT2_END_TIMING(bs2_dev, check_mmap_t, check_mmap);
 
 	if (ret == 2) {
 		/* It's already mmaped */
