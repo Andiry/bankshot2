@@ -159,7 +159,7 @@ static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data)
 {
 	struct extent_entry *extent;
-	struct vma_list *temp;
+	struct vma_list *delete, *next;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	unsigned long pgoff = data->mmap_offset >> PAGE_SHIFT;
@@ -169,8 +169,8 @@ static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
 		return 0;
 
 	mm = current->mm;
-	list_for_each_entry(temp, &extent->vma_list, list) {
-		vma = temp->vma;
+	list_for_each_entry_safe(delete, next, &extent->vma_list, list) {
+		vma = delete->vma;
 		if (vma->vm_mm == mm) {
 			/* Mmaped for current process. Update mmap_addr */
 			if (pgoff < vma_start_pgoff(vma) ||
@@ -183,10 +183,21 @@ static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
 					vma_last_pgoff(vma));
 				goto not_mmaped;
 			}
-			data->mmap_addr = vma->vm_start;
-			data->mmap_offset = extent->offset;
-			data->mmap_length = extent->length;
-			return 2;
+			if (data->mmap_offset == extent->offset &&
+					data->mmap_length <= extent->length) {
+				data->mmap_addr = vma->vm_start;
+				data->mmap_length = extent->length;
+				return 2;
+			}
+
+			if (data->mmap_offset == extent->offset &&
+					data->mmap_length > extent->length) {
+				/* Extend the mapping, remove current vma */
+				data->mmap_addr = vma->vm_start;
+				list_del(&delete->list);
+				kfree(delete);
+				return 1;
+			}
 		}
 	}
 
@@ -194,7 +205,8 @@ static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
 	 * Return the extent for mmap. */
 not_mmaped:
 	data->mmap_offset = extent->offset;
-	data->mmap_length = extent->length;
+	data->mmap_length = data->mmap_length > extent->length ?
+				data->mmap_length : extent->length;
 
 	return 1;
 }
@@ -236,7 +248,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	}
 
 	BANKSHOT2_START_TIMING(bs2_dev, mmap_t, mmap);
-	data->mmap_addr = bankshot2_mmap(bs2_dev, 0,
+	data->mmap_addr = bankshot2_mmap(bs2_dev, data->mmap_addr,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED | MAP_POPULATE, data->file,

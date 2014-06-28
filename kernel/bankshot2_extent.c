@@ -220,7 +220,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 			temp = &((*temp)->rb_right);
 		} else {
 			if (curr->offset != extent_offset
-					|| curr->length != extent_length
+					|| curr->length > extent_length
 					|| curr->b_offset != extent_b_offset
 					|| curr->mapping != mapping) {
 				bs2_info("Existing extent hit but unmatch! "
@@ -238,6 +238,13 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 				break;
 			}
 			bankshot2_insert_vma(bs2_dev, curr, vma);
+			if (curr->length < extent_length) {
+				curr->length = extent_length;
+				atomic_set(&curr->access, 1);
+				new = curr;
+				goto check_overlap;
+			}
+
 			no_new = 1;
 			break;
 		}
@@ -268,6 +275,7 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	rb_insert_color(&new->node, &pi->extent_tree);
 	pi->num_extents++;
 
+check_overlap:
 	// Check the next node see if it overlaps
 	next_node = rb_next(&new->node);
 	if (!next_node)
@@ -277,50 +285,6 @@ int bankshot2_add_extent(struct bankshot2_device *bs2_dev,
 	if (new->offset + new->length > next->offset)
 		new->length = next->offset - new->offset;
 
-#if 0
-	// Check the prev node see if it can merge
-	pre_node = rb_prev(&new->node);
-	if (pre_node) {
-		prev = container_of(pre_node, struct extent_entry, node);
-		if (prev->offset + prev->length >= new->offset) {
-			if (prev->offset + prev->length
-					< new->offset + new->length) {
-				prev->length = new->offset + new->length
-						- prev->offset;
-			}
-
-			rb_erase(&new->node, &pi->extent_tree);
-			if (new->dirty)
-				prev->dirty = 1;
-			kmem_cache_free(bs2_dev->bs2_extent_slab, new);
-			new = prev;
-		}
-	}
-
-	// Check the next node see if it can merge
-	while (1) {
-		next_node = rb_next(&new->node);
-		if (!next_node)
-			break;
-
-		next = container_of(next_node, struct extent_entry, node);
-		if (new->offset + new->length >= next->offset) {
-			if (next->offset + next->length
-					> new->offset + new->length) {
-				new->length = next->offset + next->length
-						- new->offset;
-			}
-
-			if (next->dirty)
-				new->dirty = next->dirty;
-			rb_erase(&next->node, &pi->extent_tree);
-			kmem_cache_free(bs2_dev->bs2_extent_slab, next);
-		} else {
-			break;
-		}
-	}
-#endif
-//	write_unlock(&pi->extent_tree_lock);
 	return 0;
 }
 
