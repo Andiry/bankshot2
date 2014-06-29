@@ -508,6 +508,33 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 	return;
 }
 
+static unsigned long find_continuous_pages(char *void_array, size_t nr_pages,
+		unsigned long start, unsigned long *first)
+{
+	unsigned long i = start;
+	unsigned long last;
+
+	while(i < nr_pages) {
+		if (void_array[i] == 0x1)
+			break;
+		i++;
+	}
+
+	if (i < nr_pages)
+		*first = i;
+	else
+		return 0;
+
+	while(i < nr_pages) {
+		if (void_array[i] == 0)
+			break;
+		last = i;
+		i++;
+	}
+
+	return (last - *first + 1);	
+}
+
 /*To keep up with the iops capabilities of moneta, we have the io kernel
   issuing multiple request simultaneously */
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
@@ -525,7 +552,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	struct request_queue *q = bs2_dev->backing_store_rqueue;
 	struct job_descriptor jd_head, *jd;
 	uint8_t result;
-	u64 job_offset;
+	unsigned long start, first, length;
+	u64 job_offset, start_b_offset;
 	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
@@ -535,6 +563,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 
 	align_offset_and_len(&b_offset, &count);
 	pos = job_offset = ALIGN_DOWN(pos);
+	start_b_offset = b_offset;
 
 	nr_pages = count >> bs2_dev->s_blocksize_bits;
 
@@ -552,8 +581,19 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
 
 	INIT_LIST_HEAD(&jd_head.jobs);
-	while(nr_pages){
-		bio_pages = (nr_pages > max_pages)?max_pages:nr_pages;
+	start = first = 0;
+	while(required) {
+		length = find_continuous_pages(void_array, nr_pages, start,
+						&first);
+
+		if (length == 0) {
+			bs2_info("ERROR: Consecutive pages not found, "
+					"required %lu, start %lu, first %lu\n",
+					required, start, first);
+			return -EINVAL;
+		}
+
+		bio_pages = (length > max_pages) ? max_pages : length;
 
 		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages,
 							&jd_head);
@@ -561,6 +601,9 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 			break;
 		}
 		bio = jd->bio;
+
+		b_offset = start_b_offset + (first << PAGE_SHIFT);
+		job_offset = pos + (first << PAGE_SHIFT);
 
 		bio->bi_sector = b_offset >> 9;
 		bio->bi_bdev = bs2_dev->bs_bdev;
@@ -578,10 +621,9 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		jd->start_offset = pos;
 		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
 		
-		nr_pages -= done;
+		required -= done;
 		transferred += done;
-		b_offset += (done << PAGE_SHIFT);
-		job_offset += (done << PAGE_SHIFT);
+		start = first + done;
 	}
 	/* Wait on the jobs to complete, submit the transfer to cache and, free memory for completed jobs*/
 	result = do_cache_fill(bs2_dev, &jd_head, NULL, transferred,
