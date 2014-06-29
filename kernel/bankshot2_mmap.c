@@ -193,7 +193,10 @@ static int bankshot2_check_existing_mmap(struct bankshot2_device *bs2_dev,
 			if (data->mmap_offset == extent->offset &&
 					data->mmap_length > extent->length) {
 				/* Extend the mapping, remove current vma */
-				data->mmap_addr = vma->vm_start;
+//				data->mmap_addr = vma->vm_start;
+				vm_munmap_page(mm, vma->vm_start,
+					vma->vm_end - vma->vm_start);
+
 				list_del(&delete->list);
 				kfree(delete);
 				return 1;
