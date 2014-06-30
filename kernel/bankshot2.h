@@ -413,6 +413,7 @@ struct bankshot2_device {
 	u64 timingstats[TIMING_NUM];
 	u64 bs_read_blocks;
 	u64 bs_write_blocks;
+	u64 fiemap_count;
 };
 
 extern struct bankshot2_device *bs2_dev;

@@ -94,6 +94,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 					test_offset,
 					data->file_length - test_offset);
 
+			bs2_dev->fiemap_count++;
 			if (fieinfo.fi_extents_mapped == 0) {
 				data->extent_start = -512;
 				data->extent_length = -512;

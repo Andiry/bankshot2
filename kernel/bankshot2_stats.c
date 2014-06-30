@@ -55,6 +55,7 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 				bs2_dev->bs_read_blocks);
 	bs2_info("copy_to_cache for write blocks: %llu\n",
 				bs2_dev->bs_write_blocks);
+	bs2_info("Fiemap count: %llu\n", bs2_dev->fiemap_count);
 }
 
 void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
@@ -68,5 +69,6 @@ void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
 
 	bs2_dev->bs_read_blocks = 0;
 	bs2_dev->bs_write_blocks = 0;
+	bs2_dev->fiemap_count = 0;
 }
 
