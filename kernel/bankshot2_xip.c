@@ -103,13 +103,15 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
  * Return 1 means we evicted a extent. */
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		char **void_array, u64 offset, size_t length,
-		struct extent_entry **access_extent)
+		char **void_array, u64 offset, size_t length, u64 user_offset,
+		size_t req_len,	struct extent_entry **access_extent, int write)
 {
 	unsigned long index;
 	unsigned long count;
+	unsigned long unallocated = 0;
 	unsigned long required = 0;
 	u64 block;
+	u64 curr_offset;
 	char *array;
 	int num_free, i;
 	int err = 0;
@@ -132,16 +134,26 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	for (i = 0; i < count; i++) {
 		block = bankshot2_find_data_block(bs2_dev, pi, index + i);
 		if (!block) {
+			unallocated++;
 			required++;
 			array[i] = 0x1;
+			curr_offset = (index + i) << bs2_dev->s_blocksize_bits;
+			if ((write == 1) && (user_offset <= curr_offset) &&
+			    (user_offset + req_len >=
+					curr_offset + bs2_dev->blocksize)) {
+				/* If write covers the whole page,
+				 * no need to copy to cache first */
+				required--;
+				array[i] = 0;
+			}
 		}
 	}
 
 	data->required = required;
 
-	while (bs2_dev->num_free_blocks < required * 2) {
+	while (bs2_dev->num_free_blocks < unallocated * 2) {
 		bs2_info("Need eviction: %lu free, %lu required\n",
-				bs2_dev->num_free_blocks, required);
+				bs2_dev->num_free_blocks, unallocated);
 		num_free = 0;
 //		bankshot2_evict_extent(bs2_dev, pi, &num_free);
 		BANKSHOT2_START_TIMING(bs2_dev, evict_t, evict);
@@ -149,13 +161,14 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		BANKSHOT2_END_TIMING(bs2_dev, evict_t, evict);
 
 		bs2_info("Freed %d blocks, %lu free, %lu required\n",
-				num_free, bs2_dev->num_free_blocks, required);
+				num_free, bs2_dev->num_free_blocks,
+				unallocated);
 		if (!num_free)
 			bs2_info("Reclaim blocks failed\n");
 	}
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
-	if (required) {
+	if (unallocated) {
 		BANKSHOT2_START_TIMING(bs2_dev, alloc_t, alloc);
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
 						count, true);
@@ -361,7 +374,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
-					pos, count, &access_extent);
+					pos, count, user_offset, req_len,
+					&access_extent, 0);
 	if (ret < 0)
 		return ret;
 
@@ -462,7 +476,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
-					pos, count, &access_extent);
+					pos, count, user_offset, req_len,
+					&access_extent, 1);
 	if (ret < 0)
 		return ret;
 
