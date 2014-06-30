@@ -411,6 +411,8 @@ struct bankshot2_device {
 	struct list_head pi_lru_list;
 	u64 countstats[TIMING_NUM];
 	u64 timingstats[TIMING_NUM];
+	u64 bs_read_blocks;
+	u64 bs_write_blocks;
 };
 
 extern struct bankshot2_device *bs2_dev;

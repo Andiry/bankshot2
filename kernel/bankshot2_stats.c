@@ -50,6 +50,11 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 				bs2_dev->countstats[i]);
 		}
 	}
+
+	bs2_info("copy_to_cache for read blocks: %llu\n",
+				bs2_dev->bs_read_blocks);
+	bs2_info("copy_to_cache for write blocks: %llu\n",
+				bs2_dev->bs_write_blocks);
 }
 
 void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
@@ -60,5 +65,8 @@ void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
 		bs2_dev->countstats[i] = 0;
 		bs2_dev->timingstats[i] = 0;
 	}
+
+	bs2_dev->bs_read_blocks = 0;
+	bs2_dev->bs_write_blocks = 0;
 }
 
