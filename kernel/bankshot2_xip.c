@@ -12,8 +12,8 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 	   otherwise we will just copy start from offset. */
 	/* Must ensure that the required extent is covered by fiemap extent */
 
-	if (data->extent_start_file_offset <= ALIGN_DOWN_2MB(data->offset)) {
-		data->mmap_offset = ALIGN_DOWN_2MB(data->offset);
+	if (data->extent_start_file_offset <= ALIGN_DOWN_MMAP(data->offset)) {
+		data->mmap_offset = ALIGN_DOWN_MMAP(data->offset);
 	} else {
 		data->mmap_offset = ALIGN_DOWN(data->extent_start_file_offset);
 	}
@@ -24,9 +24,10 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 	if (data->mmap_length > MAX_MMAP_SIZE)
 		data->mmap_length = MAX_MMAP_SIZE;
 
-	/* (data->mmap_offset + data->mmap_length) should be aligned to 2MB */
-	if (((ALIGN_DOWN_2MB(data->mmap_offset + data->mmap_length)
-				> ALIGN_DOWN_2MB(data->mmap_offset)) &&
+	/* (data->mmap_offset + data->mmap_length) should be aligned to
+	 * MAX_MMAP size */
+	if (((ALIGN_DOWN_MMAP(data->mmap_offset + data->mmap_length)
+				> ALIGN_DOWN_MMAP(data->mmap_offset)) &&
 			(data->mmap_offset + data->mmap_length) % MAX_MMAP_SIZE))
 		data->mmap_length -= 
 			(data->mmap_offset + data->mmap_length) % MAX_MMAP_SIZE;

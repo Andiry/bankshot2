@@ -78,8 +78,8 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 
 		filemap_write_and_wait(inode->i_mapping);
 
-		/* Test if we can start mmap from 2MB boundary */
-		test_offset = ALIGN_DOWN_2MB(data->offset);
+		/* Test if we can start mmap from MAX_MMAP boundary */
+		test_offset = ALIGN_DOWN_MMAP(data->offset);
 
 		do {
 			memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
