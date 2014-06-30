@@ -15,6 +15,7 @@ const char *Timingstring[TIMING_NUM] =
 {
 	"cache_data",
 	"get_extent",
+	"get_extent_failed",
 	"xip_read",
 	"xip_write",
 	"allocation",

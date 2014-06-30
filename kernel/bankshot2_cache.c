@@ -209,22 +209,21 @@ int bankshot2_ioctl_cache_data(struct bankshot2_device *bs2_dev, void *arg)
 	struct inode *inode;
 	ssize_t actual_length = 0;
 	size_t request_len;
-	timing_t cache_data, get_extent, xip_read, xip_write;
+	timing_t cache_data, xip_read, xip_write;
 
 	data = &_data;
 
 	BANKSHOT2_START_TIMING(bs2_dev, cache_data_t, cache_data);
 
-	BANKSHOT2_START_TIMING(bs2_dev, get_extent_t, get_extent);
 	ret = bankshot2_get_extent(bs2_dev, arg, &inode);
 	if (ret < 0) {
 		bs2_dbg("Get extent returned %d\n", ret);
 		if (ret == -3)
 			ret = EOF_OR_HOLE;
-		BANKSHOT2_END_TIMING(bs2_dev, get_extent_t, get_extent);
+		BANKSHOT2_END_TIMING(bs2_dev, get_extent_fail_t, cache_data);
 		return ret;
 	}
-	BANKSHOT2_END_TIMING(bs2_dev, get_extent_t, get_extent);
+	BANKSHOT2_END_TIMING(bs2_dev, get_extent_t, cache_data);
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 

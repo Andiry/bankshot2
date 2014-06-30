@@ -88,6 +88,7 @@ extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
 enum timing_category {
 	cache_data_t = 0,
 	get_extent_t,
+	get_extent_fail_t,
 	xip_read_t,
 	xip_write_t,
 	alloc_t,
