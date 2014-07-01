@@ -635,8 +635,9 @@ void bankshot2_reroute_bio(struct bankshot2_device *bs2_dev, int idx,
 				struct bio *bio, struct block_device *bdev,
 				int where, JOB_TYPE type);
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
-			struct bankshot2_inode *pi, u64 pos, size_t count,
-			u64 b_offset, char *void_array, unsigned long required); 
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 pos, size_t count, u64 b_offset, char *void_array,
+		unsigned long required); 
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, u64 pos, size_t count,
 			u64 b_offset, char* void_array, unsigned long required); 

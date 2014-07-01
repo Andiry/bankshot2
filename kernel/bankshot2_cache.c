@@ -55,15 +55,6 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 	}
 
 	if (S_ISREG(inode->i_mode)) {
-		struct fiemap_extent_info fieinfo = {0,};
-
-		bs2_dbg("Detected normal file, try fiemap\n");
-		if (!inode->i_op->fiemap) {
-			fput(fileinfo);
-			bs2_info("file system does not support fiemap.\n");
-			return -EINVAL;
-		}
-
 		data->file_length = i_size_read(inode);
 		bs2_dbg("File length: %llu\n", data->file_length);
 
@@ -76,35 +67,15 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			goto out;
 		}
 
-		filemap_write_and_wait(inode->i_mapping);
-
 		/* Test if we can start mmap from MAX_MMAP boundary */
 		test_offset = ALIGN_DOWN_MMAP(data->offset);
 
-		do {
-			memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
-			fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
-			fieinfo.fi_extents_max = 1;
-			fieinfo.fi_extents_start =
-				&data->extent_start_file_offset;
+		data->extent_start_file_offset = test_offset;
+		data->extent_start = test_offset;
+		data->extent_length = data->file_length - test_offset;
+		bs2_dev->fiemap_count++;
 
-			bs2_dbg("Extent does not overlap with request extent. "
-				"Find the next extent.\n");
-			ret = inode->i_op->fiemap(inode, &fieinfo,
-					test_offset,
-					data->file_length - test_offset);
-
-			bs2_dev->fiemap_count++;
-			if (fieinfo.fi_extents_mapped == 0) {
-				data->extent_start = -512;
-				data->extent_length = -512;
-				data->extent_start_file_offset = -512;
-				goto out;
-			}
-			ret = 1;
-			test_offset = data->extent_start_file_offset +
-					data->extent_length; 
-		} while(bankshot2_check_zero_length(bs2_dev, data));
+		ret = 1;
 
 		bs2_dbg("Extent: PhyStart: 0x%llx, len: 0x%lx,"
 			" LogStart: 0x%llx, offset 0x%llx\n",
@@ -123,19 +94,6 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 			ret = -1;
 		}
 	}
-
-	//we should invalidate the inode's buffer-cache mappings as well, so we don't get invalid data later
-	if (inode->i_mapping){
-//		invalidate_inode_pages2(inode->i_mapping);
-		truncate_inode_pages(inode->i_mapping, 0);
-		filemap_write_and_wait(inode->i_mapping);
-	}
-
-	truncate_inode_pages(&inode->i_data, 0);
-	filemap_write_and_wait(&inode->i_data);
-	if (unlikely(inode->i_mapping->nrpages || inode->i_data.nrpages))
-		bs2_info("Still has dirty pages %lu %lu\n",
-			inode->i_mapping->nrpages, inode->i_data.nrpages);
 
 out:
 	fput(fileinfo);

@@ -261,7 +261,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	BANKSHOT2_END_TIMING(bs2_dev, mmap_t, mmap);
 
 	if (data->mmap_addr >= (unsigned long)(-64)) {
-			// mmap failed
+		// mmap failed
 		bs2_info("Mmap failed, returned %d, "
 				"mmap offset 0x%llx, length %lu\n",
 				(int)(data->mmap_addr),

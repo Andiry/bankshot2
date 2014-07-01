@@ -383,7 +383,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	/* Copy to cache first if it's not in cache */
 	BANKSHOT2_START_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
-	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
+	ret = bankshot2_copy_to_cache(bs2_dev, pi, data, pos, count, b_offset,
 					void_array, required);
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 	bs2_dev->bs_read_blocks += required;
@@ -488,7 +488,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	/* Copy to cache first if it's not in cache */
 	BANKSHOT2_START_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
-	ret = bankshot2_copy_to_cache(bs2_dev, pi, pos, count, b_offset,
+	ret = bankshot2_copy_to_cache(bs2_dev, pi, data, pos, count, b_offset,
 					void_array, required);
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 	bs2_dev->bs_write_blocks += required;

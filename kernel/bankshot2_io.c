@@ -535,26 +535,63 @@ static unsigned long find_continuous_pages(char *void_array, size_t nr_pages,
 	return (last - *first + 1);	
 }
 
+static int do_vfs_cache_fill(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, char *buf, u64 job_offset,
+		u64 start_offset, size_t done, char* void_array, int read)
+{
+	unsigned long index;
+	int array_index;
+	u64 block;
+	void *xmem;
+	int i = 0;
+
+	/* get the file offset and index */
+	array_index = (job_offset - start_offset) >> PAGE_SHIFT;
+	index = job_offset >> bs2_dev->s_blocksize_bits;
+
+	while(done) {
+		if (void_array[array_index] != 0x1) {
+			bs2_info("%s: ERROR: void_array is zero\n", __func__);
+			goto next;
+		}
+
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("%s: get block failed, index 0x%lx\n",
+					__func__, index);
+			return -EINVAL;
+		}
+		xmem = bankshot2_get_block(bs2_dev, block);
+		if (read)
+			memcpy(xmem, buf + i * PAGE_SIZE, PAGE_SIZE);
+		else
+			memcpy(buf + i * PAGE_SIZE, xmem, PAGE_SIZE);
+		bankshot2_flush_edge_cachelines(
+				index << bs2_dev->s_blocksize_bits,
+				PAGE_SIZE, xmem);
+next:
+		array_index++;
+		index++;
+		i++;
+		done -= PAGE_SIZE;
+	}
+
+	return 0;
+}
+
 /*To keep up with the iops capabilities of moneta, we have the io kernel
   issuing multiple request simultaneously */
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
-			struct bankshot2_inode *pi, u64 pos, size_t count,
-			u64 b_offset, char *void_array, unsigned long required) 
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 pos, size_t count, u64 b_offset, char *void_array,
+		unsigned long required)
 {
-	/*
-	create bios and submit job_descritpors (we have to split and submit
-	jobs sometimes to satisfy iovec alignment, page availability etc) with
-	job type  COPY_TO_CACHE.
-	we then wait on completion of all job descriptors in sequential order
-	*/
-	struct bio *bio;
-	size_t nr_pages, bio_pages, max_pages, done, transferred = 0;
-	struct request_queue *q = bs2_dev->backing_store_rqueue;
-	struct job_descriptor jd_head, *jd;
+	struct file *file;
+	size_t nr_pages, done, transferred = 0;
 	uint8_t result;
 	unsigned long start, first, length;
 	u64 job_offset, start_b_offset;
-	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
+	char *buf;
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
 
@@ -567,71 +604,70 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 
 	nr_pages = count >> bs2_dev->s_blocksize_bits;
 
-	if(nr_pages == 0 || nr_pages < required)
+	if (nr_pages == 0 || nr_pages < required)
 	{
 		bs2_info("Copy to cache Len is incorrect: %lu, required %lu\n",
 				nr_pages, required);
 		return -EINVAL;
 	}
 
-	if (max_pages > BIO_MAX_PAGES)
-		max_pages = BIO_MAX_PAGES;
+	file = fget(data->file);
+	if (!file) {
+		bs2_info("fget failed\n");
+		return -EINVAL;
+	}
 
-	if (max_pages > bs2_dev->backing_store_rqueue->nr_requests)
-		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
+	buf = kmalloc(required * bs2_dev->blocksize, GFP_KERNEL);
+	if (!buf) {
+		fput(file);
+		return -ENOMEM;
+	}
 
-	INIT_LIST_HEAD(&jd_head.jobs);
 	start = first = 0;
 	while(required) {
 		length = find_continuous_pages(void_array, nr_pages, start,
 						&first);
 
-		if (length == 0) {
-			bs2_info("ERROR: Consecutive pages not found, "
-					"required %lu, start %lu, first %lu\n",
-					required, start, first);
+		if (length == 0 || length > required) {
+			bs2_info("ERROR: Consecutive pages get error, "
+				"required %lu, start %lu, first %lu, "
+				"length %lu\n", required, start, first, length);
+			fput(file);
+			kfree(buf);
 			return -EINVAL;
 		}
-
-		bio_pages = (length > max_pages) ? max_pages : length;
-
-		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages,
-							&jd_head);
-		if(!jd){
-			break;
-		}
-		bio = jd->bio;
 
 		b_offset = start_b_offset + (first << PAGE_SHIFT);
 		job_offset = pos + (first << PAGE_SHIFT);
 
-		bio->bi_sector = b_offset >> 9;
-		bio->bi_bdev = bs2_dev->bs_bdev;
-		bio->bi_rw = READ;
+		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
 
-		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages);
+		if (done >= (unsigned long)(-64)) {
+			bs2_info("vfs read failed, returned %d\n", (int)done);
+			return -EINVAL;
+		}
+		bs2_info("vfs read: offset %llu, request %lu, done %lu\n",
+					b_offset, length << PAGE_SHIFT, done);
 		if (done <= 0) 
 			break;
-		/* Setup the bio fields before submit */
-		init_job_descriptor(jd, WAKEUP_ON_COMPLETION,
-					done << PAGE_SHIFT, b_offset);
-		jd->disk_cmd = READ;
-		jd->inode = pi;
-		jd->job_offset = job_offset;
-		jd->start_offset = pos;
-		bankshot2_add_to_disk_list(bs2_dev, jd, &bs2_dev->disk_queue);
-		
-		required -= done;
-		transferred += done;
-		start = first + done;
+
+		if (done != (length << PAGE_SHIFT))
+			bs2_info("read length unmatch: request %lu, done %lu\n",
+						length << PAGE_SHIFT, done);
+
+		do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
+						done, void_array, 1);
+
+		required -= (done >> bs2_dev->s_blocksize_bits);
+		transferred += (done >> bs2_dev->s_blocksize_bits);
+		start = first + (done >> bs2_dev->s_blocksize_bits);
 	}
-	/* Wait on the jobs to complete, submit the transfer to cache and, free memory for completed jobs*/
-	result = do_cache_fill(bs2_dev, &jd_head, NULL, transferred,
-				void_array);
-	free_jobs_in_list(bs2_dev, &jd_head, NULL);
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
+	fput(file);
+	kfree(buf);
 	bs2_dbg("%s result: %d\n", __func__, result);
-	return (result & ~(1 << JOB_DONE))?-1:0;
+
+	return 0;
 }
 
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
