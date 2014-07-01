@@ -670,6 +670,11 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		done = do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
 						done, void_array, 1);
 
+		if (done < PAGE_SIZE) {
+			bs2_info("ERROR: cache filled less than one page!\n");
+			break;
+		}
+
 		required -= (done >> bs2_dev->s_blocksize_bits);
 		transferred += (done >> bs2_dev->s_blocksize_bits);
 		start = first + (done >> bs2_dev->s_blocksize_bits);
