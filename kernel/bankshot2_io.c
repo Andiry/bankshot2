@@ -617,7 +617,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 	}
 
-	buf = kmalloc(required * bs2_dev->blocksize, GFP_KERNEL);
+	buf = data->carrier;
 	if (!buf) {
 		fput(file);
 		return -ENOMEM;
@@ -633,7 +633,6 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 				"required %lu, start %lu, first %lu, "
 				"length %lu\n", required, start, first, length);
 			fput(file);
-			kfree(buf);
 			return -EINVAL;
 		}
 
@@ -644,9 +643,11 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 
 		if (done >= (unsigned long)(-64)) {
 			bs2_info("vfs read failed, returned %d\n", (int)done);
+			fput(file);
 			return -EINVAL;
 		}
-		bs2_info("vfs read: offset %llu, request %lu, done %lu\n",
+
+		bs2_dbg("vfs read: offset %llu, request %lu, done %lu\n",
 					b_offset, length << PAGE_SHIFT, done);
 		if (done <= 0) 
 			break;
@@ -664,7 +665,6 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	}
 //	atomic64_set(&bs2_dev->last_offset, b_offset);
 	fput(file);
-	kfree(buf);
 	bs2_dbg("%s result: %d\n", __func__, result);
 
 	return 0;

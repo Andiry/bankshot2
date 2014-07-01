@@ -28,6 +28,7 @@ struct bankshot2_cache_data{
 	size_t cache_file_size;
 	uint8_t rnw;
 	char *buf;
+	char *carrier;	// Carry data between backing store and cache
 	struct inode *inode;
 	//return values
 	size_t chunk_len;
