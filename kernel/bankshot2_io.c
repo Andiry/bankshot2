@@ -580,7 +580,10 @@ next:
 		array_index++;
 		index++;
 		i++;
-		done -= PAGE_SIZE;
+		if (done < PAGE_SIZE)
+			done = 0;
+		else
+			done -= PAGE_SIZE;
 		ret += PAGE_SIZE;
 	}
 
@@ -661,10 +664,10 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 			break;
 
 		if (done != (length << PAGE_SHIFT))
-			bs2_info("read length unmatch: request %lu, done %lu\n",
+			bs2_dbg("read length unmatch: request %lu, done %lu\n",
 						length << PAGE_SHIFT, done);
 
-		do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
+		done = do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
 						done, void_array, 1);
 
 		required -= (done >> bs2_dev->s_blocksize_bits);
