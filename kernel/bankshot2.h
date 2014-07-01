@@ -639,8 +639,9 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		u64 pos, size_t count, u64 b_offset, char *void_array,
 		unsigned long required); 
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
-			struct bankshot2_inode *pi, u64 pos, size_t count,
-			u64 b_offset, char* void_array, unsigned long required); 
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 pos, size_t count, u64 b_offset, char *void_array,
+		unsigned long required); 
 
 /* bankshot2_block.c */
 int bankshot2_init_block(struct bankshot2_device *);
@@ -700,7 +701,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length);
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent);
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry *extent);
 
 /* bankshot2_extent.c */
 struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
@@ -723,7 +725,8 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 int bankshot2_init_extents(struct bankshot2_device *);
 void bankshot2_destroy_extents(struct bankshot2_device *);
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int *num_free);
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		int *num_free);
 int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi);
 

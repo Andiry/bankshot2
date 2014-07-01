@@ -65,7 +65,8 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 }
 
 static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int *num_free)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		int *num_free)
 {
 	struct bankshot2_inode *victim_pi;
 
@@ -82,12 +83,12 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 	/* Now victim pi can be the pi requesting blocks, or not */
 	if (victim_pi == pi) {
 		bs2_info("victim pi same as current pi\n");
-		bankshot2_evict_extent(bs2_dev, victim_pi, num_free);
+		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
 	} else {
 		/* Get lock first */
 		bs2_info("victim pi: %llu\n", victim_pi->i_ino);
 		mutex_lock(victim_pi->btree_lock);
-		bankshot2_evict_extent(bs2_dev, victim_pi, num_free);
+		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
 		mutex_unlock(victim_pi->btree_lock);
 
 		if (*num_free == 0) {
@@ -155,9 +156,8 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bs2_info("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, unallocated);
 		num_free = 0;
-//		bankshot2_evict_extent(bs2_dev, pi, &num_free);
 		BANKSHOT2_START_TIMING(bs2_dev, evict_t, evict);
-		bankshot2_reclaim_blocks(bs2_dev, pi, &num_free);
+		bankshot2_reclaim_blocks(bs2_dev, pi, data, &num_free);
 		BANKSHOT2_END_TIMING(bs2_dev, evict_t, evict);
 
 		bs2_info("Freed %d blocks, %lu free, %lu required\n",
@@ -202,7 +202,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 {
 	int err = -EIO;
 	u64 block;
-	int num_free;
+//	int num_free;
 //	bankshot2_transaction_t *trans;
 
 	mutex_lock(pi->btree_lock);
@@ -213,21 +213,24 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 			err = -ENODATA;
 			goto err;
 		}
-retry:
+//retry:
 		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, iblock,
 						1, true);
 		if (err) {
 			bs2_dbg("[%s:%d] Alloc failed, "
 				"trying to reclaim some blocks\n",
 				__func__, __LINE__);
-
-			err = bankshot2_evict_extent(bs2_dev, pi, &num_free);
+			goto err;
+#if 0
+			err = bankshot2_evict_extent(bs2_dev, pi, data, 
+							&num_free);
 			if (err || num_free != MMAP_UNIT / PAGE_SIZE) {
 				bs2_info("Evict extent failed! return %d, "
 					"%d freed\n", err, num_free);
 				goto err;
 			}
 			goto retry;
+#endif
 		}
 		
 		block = bankshot2_find_data_block(bs2_dev, pi, iblock);
@@ -590,7 +593,8 @@ static int page_dirty(struct bankshot2_device *bs2_dev,
 }
 
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		struct extent_entry *extent)
 {
 	u64 pos;
 	size_t count;
@@ -620,42 +624,8 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		index++;
 	}
 
-	ret = bankshot2_copy_from_cache(bs2_dev, pi, pos, extent->length,
+	ret = bankshot2_copy_from_cache(bs2_dev, pi, data, pos, extent->length,
 					b_offset, void_array, required);
-
-#if 0
-	do {
-		index = pos >> bs2_dev->s_blocksize_bits;
-		bytes = PAGE_SIZE;
-		if (bytes > count)
-			bytes = count;
-
-		/* We cannot call get_xip_mem here because
-		 * we are holding the btree lock */
-		block = bankshot2_find_data_block(bs2_dev, pi, index);
-		if (!block) {
-			bs2_info("find_data_block failed!\n");
-			block = bankshot2_find_data_block_verbose(bs2_dev,
-					pi, index);
-			break;
-		}
-
-		xmem = bankshot2_get_block(bs2_dev, block);
-		if (!xmem)
-			bs2_info("ERROR: xmem is NULL\n");
-
-		if (page_dirty(bs2_dev, pi, index, xmem)) {
-			ret = bankshot2_copy_from_cache(bs2_dev, b_offset,
-							bytes, xmem);
-			if (ret)
-				return ret;
-		}
-
-		count -= bytes;
-		pos += bytes;
-		b_offset += bytes;
-	} while (count);
-#endif
 
 	kfree(void_array);
 	return ret;

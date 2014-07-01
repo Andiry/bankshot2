@@ -409,7 +409,8 @@ found:
 }
 
 int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int *num_free)
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		int *num_free)
 {
 	struct extent_entry *victim;
 	int ret = 0;
@@ -432,7 +433,7 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	bankshot2_munmap_extent(bs2_dev, pi, victim);
 
 	if (victim->dirty)
-		ret = bankshot2_write_back_extent(bs2_dev, pi, victim);
+		ret = bankshot2_write_back_extent(bs2_dev, pi, data, victim);
 
 	*num_free = victim->length >> PAGE_SHIFT;
 	block = bankshot2_find_data_block(bs2_dev, pi,
