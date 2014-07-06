@@ -157,25 +157,26 @@ struct bankshot2_inode {
 
 	/* second 48 bytes */
 //	__le64	i_xattr;            /* Extended attribute block */
-	__le32	i_uid;              /* Owner Uid */
-	__le32	i_gid;              /* Group Id */
-	__le32	i_generation;       /* File version (for NFS) */
-	__le32	i_atime;            /* Access time */
 	__le64	i_ino;		    /* Inode number in bankshot2 */
 	__le64	backup_ino;	    /* Inode number in backing store */
+	__le32	i_uid;              /* Owner Uid */
+	__le32	i_gid;              /* Group Id */
+//	__le32	i_generation;       /* File version (for NFS) */
+	__le32	i_atime;            /* Access time */
+	struct inode *inode;	    /* Backing inode */
 	struct rb_root extent_tree; /* Extent tree root */
 //	rwlock_t extent_tree_lock;  /* Extent tree lock */
 //	spinlock_t btree_lock;	    /* B-tree lock */	
 	struct mutex *btree_lock;   /* Inode mutex */
 	unsigned int num_extents;   /* Num of extents in tree */	
-	unsigned long start_index;  /* Fpr btree height increase */	
+	unsigned long start_index;  /* For btree height increase */	
 	struct list_head lru_list;  /* LRU list for eviction */	
 
 //	struct {
 //		__le32 rdev;    /* major/minor # */
 //	} dev;              /* device inode */
 //	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
-};
+}__attribute__((packed));
 
 struct extent_entry {
 	struct rb_node node;

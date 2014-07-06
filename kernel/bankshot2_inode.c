@@ -202,7 +202,7 @@ static void bankshot2_update_inode(struct inode *inode,
 	pi->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
 	pi->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
 	pi->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
-	pi->i_generation = cpu_to_le32(inode->i_generation);
+//	pi->i_generation = cpu_to_le32(inode->i_generation);
 	bankshot2_get_inode_flags(inode, pi);
 
 //	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
