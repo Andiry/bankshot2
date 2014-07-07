@@ -686,6 +686,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+#if 0
 int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		u64 pos, size_t count, u64 b_offset, char *void_array,
@@ -784,9 +785,11 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	fput(file);
 	return 0;
 }
+#endif
 
 static int find_bs_offset(struct inode *inode,
-		struct bankshot2_cache_data *data, u64 job_offset)
+		struct bankshot2_cache_data *data, u64 job_offset,
+		u64 *b_offset, size_t *b_length)
 {
 	struct fiemap_extent_info fieinfo = {0,};
 	u64 file_length;
@@ -797,13 +800,19 @@ static int find_bs_offset(struct inode *inode,
 	memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
 	fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
 	fieinfo.fi_extents_max = 1;
-	fieinfo.fi_extents_start = &data->extent_start_file_offset;
+	fieinfo.fi_extents_start = data->extent;
 
 	ret = inode->i_op->fiemap(inode, &fieinfo, job_offset,
 					file_length - job_offset);
 
 	if (fieinfo.fi_extents_mapped == 0)
 		return -1;
+
+	*b_offset = data->extent->fe_physical + job_offset -
+					data->extent->fe_logical;
+
+	*b_length = data->extent->fe_length - (job_offset - 
+					data->extent->fe_logical);
 
 	return ret;
 }
@@ -855,6 +864,7 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
 
 	INIT_LIST_HEAD(&jd_head.jobs);
+	start = first = 0;
 	while(nr_pages){
 		length = find_continuous_pages(void_array, nr_pages, start,
 						&first);
@@ -870,18 +880,13 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 
 		job_offset = pos + (first << PAGE_SHIFT);
 
-		ret = find_bs_offset(inode, data, job_offset);
+		ret = find_bs_offset(inode, data, job_offset,
+						&b_offset, &b_length);
 
 		if (ret) {
 			bs2_info("ERROR: Find bs offset failed %d\n", ret);
 			return -EINVAL;
 		}
-
-		b_offset = data->extent_start + job_offset -
-				data->extent_start_file_offset;
-
-		b_length = data->extent_length - (job_offset - 
-				data->extent_start_file_offset);
 
 		if (bio_pages > (b_length >> PAGE_SHIFT))
 			bio_pages = (b_length >> PAGE_SHIFT);
