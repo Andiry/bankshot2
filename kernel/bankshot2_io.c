@@ -785,3 +785,140 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+static int find_bs_offset(struct inode *inode,
+		struct bankshot2_cache_data *data, u64 job_offset)
+{
+	struct fiemap_extent_info fieinfo = {0,};
+	u64 file_length;
+	int ret;
+
+	file_length = i_size_read(inode);
+
+	memset(&fieinfo, 0, sizeof(struct fiemap_extent_info));
+	fieinfo.fi_flags = FIEMAP_FLAG_SYNC;
+	fieinfo.fi_extents_max = 1;
+	fieinfo.fi_extents_start = &data->extent_start_file_offset;
+
+	ret = inode->i_op->fiemap(inode, &fieinfo, job_offset,
+					file_length - job_offset);
+
+	if (fieinfo.fi_extents_mapped == 0)
+		return -1;
+
+	return ret;
+}
+
+int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 pos, size_t count, u64 b_offset, char *void_array,
+		unsigned long required)
+{
+	/*
+	create bios and submit job_descritpors (we have to split and submit
+	jobs sometimes to satisfy iovec alignment, page availability etc) with
+	job type  COPY_TO_CACHE.
+	we then wait on completion of all job descriptors in sequential order
+	*/
+	struct inode *inode = pi->inode;
+	struct bio *bio;
+	size_t nr_pages, bio_pages, max_pages, done, transferred = 0;
+	struct request_queue *q = bs2_dev->backing_store_rqueue;
+	struct job_descriptor jd_head, *jd;
+	unsigned long start, first, length;
+//	uint8_t result;
+	u64 job_offset;
+	size_t b_length;
+	int ret;
+
+	max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
+
+////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
+	if (required == 0)
+		return 0;
+
+	align_offset_and_len(&b_offset, &count);
+	pos = job_offset = ALIGN_DOWN(pos);
+
+	nr_pages = count >> bs2_dev->s_blocksize_bits;
+
+	if(nr_pages == 0 || nr_pages < required)
+	{
+		bs2_info("Copy from cache Len is incorrect: %lu, "
+				"required %lu\n", nr_pages, required);
+		return -EINVAL;
+	}
+
+	if (max_pages > BIO_MAX_PAGES)
+		max_pages = BIO_MAX_PAGES;
+
+	if (max_pages > bs2_dev->backing_store_rqueue->nr_requests)
+		max_pages = bs2_dev->backing_store_rqueue->nr_requests;
+
+	INIT_LIST_HEAD(&jd_head.jobs);
+	while(nr_pages){
+		length = find_continuous_pages(void_array, nr_pages, start,
+						&first);
+
+		if (length == 0 || length > required) {
+			bs2_info("ERROR: Consecutive pages get error, "
+				"required %lu, start %lu, first %lu, "
+				"length %lu\n", required, start, first, length);
+			return -EINVAL;
+		}
+
+		bio_pages = (length > max_pages) ? max_pages : length;
+
+		job_offset = pos + (first << PAGE_SHIFT);
+
+		ret = find_bs_offset(inode, data, job_offset);
+
+		if (ret) {
+			bs2_info("ERROR: Find bs offset failed %d\n", ret);
+			return -EINVAL;
+		}
+
+		b_offset = data->extent_start + job_offset -
+				data->extent_start_file_offset;
+
+		b_length = data->extent_length - (job_offset - 
+				data->extent_start_file_offset);
+
+		if (bio_pages > (b_length >> PAGE_SHIFT))
+			bio_pages = (b_length >> PAGE_SHIFT);
+
+		jd = bankshot2_alloc_job_descriptor(bs2_dev, bio_pages,
+							&jd_head);
+		if (!jd) {
+			break;
+		}
+		bio = jd->bio;
+
+		bio->bi_sector = b_offset >> 9;
+		bio->bi_bdev = bs2_dev->bs_bdev;
+		bio->bi_rw = WRITE;
+
+		done = add_pages_to_job_bio(bs2_dev, bio, bio_pages);
+		if (done <= 0) 
+			break;
+		/* Setup the bio fields before submit */
+		init_job_descriptor(jd, WAKEUP_ON_COMPLETION,
+					done << PAGE_SHIFT, b_offset);
+		jd->disk_cmd = WRITE;
+		jd->inode = pi;
+		jd->job_offset = job_offset;
+		jd->start_offset = pos;
+		bankshot2_add_to_cache_list(bs2_dev, jd, 0, transferred,
+						void_array);
+		
+		nr_pages -= done;
+		transferred += done;
+		job_offset += (done << PAGE_SHIFT);
+	}
+	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
+	do_disk_fill(bs2_dev, &jd_head, NULL);	
+//	free_jobs_in_list(bs2_dev, &jd_head, NULL);
+//	atomic64_set(&bs2_dev->last_offset, b_offset);
+
+	return 0;
+}
+

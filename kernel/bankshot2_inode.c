@@ -410,6 +410,7 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 found:
 	*st_ino = ino;
 	data->cache_ino = ino;
+	pi->inode = inode;
 
 	return pi;
 }
