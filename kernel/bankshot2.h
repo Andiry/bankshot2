@@ -719,8 +719,11 @@ void bankshot2_remove_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t offset);
 void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent);
+unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent,
+		char *void_array, size_t count);
 void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
-				struct bankshot2_inode *pi);
+				struct bankshot2_inode *pi, int print_dirty);
 void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
 int bankshot2_init_extents(struct bankshot2_device *);

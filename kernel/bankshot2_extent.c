@@ -288,11 +288,79 @@ check_overlap:
 	return 0;
 }
 
+unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, struct extent_entry *extent,
+		char *void_array, size_t count)
+{
+	unsigned long required = 0;
+	struct vma_list *temp;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	unsigned long address;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	int i;
+
+	list_for_each_entry(temp, &extent->vma_list, list) {
+		vma = temp->vma;
+		mm = vma->vm_mm;
+		address = vma->vm_start;
+
+		spin_lock(&mm->page_table_lock);
+		for (i = 0; i < count; i++, address += PAGE_SIZE) {
+			if (void_array[i] == 0x1)
+				continue;
+
+			if (address < vma->vm_start || address >= vma->vm_end) {
+				bs2_info("%s: address not in vma\n", __func__);
+				continue;
+			}
+
+			pgd = pgd_offset(mm, address);
+			if (!pgd_present(*pgd)) {
+				bs2_info("%s: pgd not found\n", __func__);
+				continue;
+			}
+
+			pud = pud_offset(pgd, address);
+			if (!pud_present(*pud)) {
+				bs2_info("%s: pud not found\n", __func__);
+				continue;
+			}
+
+			pmd = pmd_offset(pud, address);
+			if (!pmd_present(*pmd)) {
+				bs2_info("%s: pmd not found\n", __func__);
+				continue;
+			}
+
+			pte = pte_offset_map(pmd, address);
+			if (!pte_present(*pte)) {
+				bs2_info("%s: pte not found\n", __func__);
+				continue;
+			}
+
+			if (pte_dirty(*pte)) {
+				void_array[i] = 0x1;
+				required++;
+			}
+		}
+		spin_unlock(&mm->page_table_lock);
+	}
+
+	return required;
+}
+
 void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
-				struct bankshot2_inode *pi)
+				struct bankshot2_inode *pi, int print_dirty)
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
+	char *void_array;
+	size_t count;
+	unsigned long required;
 
 //	read_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
@@ -301,6 +369,14 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 		curr = container_of(temp, struct extent_entry, node);
 		bs2_info("pi %llu, extent offset %lu, length %lu\n",
 				pi->i_ino, curr->offset, curr->length);
+		if (print_dirty) {
+			count = curr->length >> bs2_dev->s_blocksize_bits;
+			void_array = kzalloc(count, GFP_KERNEL);
+			required = bankshot2_get_dirty_page_array(bs2_dev,
+				pi, curr, void_array, count);
+			bs2_info("%lu dirty pages\n", required);
+			kfree(void_array);
+		}
 		temp = rb_next(temp);
 	}
 

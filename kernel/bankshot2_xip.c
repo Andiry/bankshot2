@@ -592,61 +592,6 @@ static int page_dirty(struct bankshot2_device *bs2_dev,
 	return 1;
 }
 
-static unsigned long get_dirty_page_array(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, struct extent_entry *extent,
-		char *void_array, size_t count)
-{
-	unsigned long required = 0;
-	struct vma_list *temp;
-	struct vm_area_struct *vma;
-	struct mm_struct *mm;
-	unsigned long address;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int i;
-
-	list_for_each_entry(temp, &extent->vma_list, list) {
-		vma = temp->vma;
-		mm = vma->vm_mm;
-		address = vma->vm_start;
-
-		spin_lock(&mm->page_table_lock);
-		for (i = 0; i < count; i++, address += PAGE_SIZE) {
-			if (void_array[i] == 0x1)
-				continue;
-
-			if (address < vma->vm_start || address >= vma->vm_end)
-				continue;
-
-			pgd = pgd_offset(mm, address);
-			if (!pgd_present(*pgd))
-				continue;
-
-			pud = pud_offset(pgd, address);
-			if (!pud_present(*pud))
-				continue;
-
-			pmd = pmd_offset(pud, address);
-			if (!pmd_present(*pmd))
-				continue;
-
-			pte = pte_offset_map(pmd, address);
-			if (!pte_present(*pte))
-				continue;
-
-			if (pte_dirty(*pte)) {
-				void_array[i] = 0x1;
-				required++;
-			}
-		}
-		spin_unlock(&mm->page_table_lock);
-	}
-
-	return required;
-}
-
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		struct extent_entry *extent)
@@ -682,7 +627,8 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 	}
 #endif
 
-	required = get_dirty_page_array(bs2_dev, pi, extent, void_array, count);
+	required = bankshot2_get_dirty_page_array(bs2_dev, pi, extent,
+							void_array, count);
 
 	ret = bankshot2_copy_from_cache(bs2_dev, pi, data, pos, extent->length,
 					b_offset, void_array, required);

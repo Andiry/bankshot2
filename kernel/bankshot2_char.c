@@ -88,7 +88,7 @@ static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 			&access_extent);
 
 	if (data1->dirty)
-		bankshot2_print_tree(bs2_dev, pi);
+		bankshot2_print_tree(bs2_dev, pi, 1);
 	return ret;
 }
 
@@ -103,7 +103,7 @@ static int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev,
 
 	bankshot2_remove_extent(bs2_dev, pi, offset);
 
-	bankshot2_print_tree(bs2_dev, pi);
+	bankshot2_print_tree(bs2_dev, pi, 0);
 	return 0;
 }
 
@@ -151,9 +151,11 @@ static void bankshot2_ioctl_clear_timing(struct bankshot2_device *bs2_dev)
 	bankshot2_clear_time_stats(bs2_dev);
 }
 
-static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
+static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
+						void *arg)
 {
 	int i;
+	int print_dirty = *(int *)arg;
 	struct bankshot2_inode *pi;
 
 	bs2_info("Print cache info:\n");
@@ -164,6 +166,8 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev)
 			bs2_info("%d: Pi %llu: size %llu, %llu blocks, "
 				"%u extents\n", i, pi->i_ino, pi->i_size,
 				pi->i_blocks, pi->num_extents);
+			if (print_dirty)
+				bankshot2_print_tree(bs2_dev, pi, print_dirty);
 		}
 	}
 
@@ -214,7 +218,7 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		bankshot2_ioctl_clear_timing(bs2_dev);
 		break;
 	case BANKSHOT2_IOCTL_GET_CACHE_INFO:
-		bankshot2_ioctl_print_cache_info(bs2_dev);
+		bankshot2_ioctl_print_cache_info(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;
