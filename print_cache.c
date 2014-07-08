@@ -9,13 +9,17 @@
 
 #include "kernel/bankshot2_cache.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
 	int fd;
+	int print_dirty = 0;
 
 	fd = open("/dev/bankshot2Ctrl0", O_RDWR);
 
-	ioctl(fd, BANKSHOT2_IOCTL_GET_CACHE_INFO, &fd);
+	if (argc > 1)
+		print_dirty = 1;
+
+	ioctl(fd, BANKSHOT2_IOCTL_GET_CACHE_INFO, &print_dirty);
 
 	close(fd);
 
