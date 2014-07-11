@@ -40,6 +40,11 @@ static void bankshot2_decide_mmap_extent(struct bankshot2_device *bs2_dev,
 			data->extent_start_file_offset, data->extent_length,
 			data->mmap_offset);
 
+	/* If we cannot mmap MAX_MMAP_SIZE, don't do mmap.
+	 * Otherwise there will be numerous unmapping and remapping. */
+	if (data->mmap_length < MAX_MMAP_SIZE)
+		data->mmap_length = 0;
+
 	if (data->mmap_length) {
 		*pos = data->mmap_offset;
 		*count = data->mmap_offset + data->mmap_length
