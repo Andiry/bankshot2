@@ -174,6 +174,52 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
 	bankshot2_print_time_stats(bs2_dev);
 }
 
+static int bankshot2_ioctl_get_dirty_info(struct bankshot2_device *bs2_dev,
+		void *arg)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long address = (unsigned long)arg;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	bs2_info("%s: check address 0x%lx\n", __func__, address);
+	spin_lock(&mm->page_table_lock);
+
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd)) {
+		bs2_info("%s: pgd not found\n", __func__);
+		goto out;
+	}
+
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud)) {
+		bs2_info("%s: pud not found\n", __func__);
+		goto out;
+	}
+
+	pmd = pmd_offset(pud, address);
+	if (!pmd_present(*pmd)) {
+		bs2_info("%s: pmd not found\n", __func__);
+		goto out;
+	}
+
+	pte = pte_offset_map(pmd, address);
+	if (!pte_present(*pte)) {
+		bs2_info("%s: pte not found\n", __func__);
+		goto out;
+	}
+
+	if (pte_dirty(*pte)) {
+		bs2_info("%s: address 0x%lx dirty\n", __func__, address);
+	}
+
+out:
+	spin_unlock(&mm->page_table_lock);
+	return 0;
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -219,6 +265,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_GET_CACHE_INFO:
 		bankshot2_ioctl_print_cache_info(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_GET_DIRTY_INFO:
+		bankshot2_ioctl_get_dirty_info(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;
