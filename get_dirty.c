@@ -35,9 +35,18 @@ int main(int argc, char **argv)
 
 	ioctl(fd, BANKSHOT2_IOCTL_GET_DIRTY_INFO, address);
 
+	printf("address[0]: %c\n", address[0]);
+
+	ioctl(fd, BANKSHOT2_IOCTL_GET_DIRTY_INFO, address);
+
 	address[0] = '1';
 
 	ioctl(fd, BANKSHOT2_IOCTL_GET_DIRTY_INFO, address);
+
+	printf("address[0]: %c\n", address[0]);
+
+	ioctl(fd, BANKSHOT2_IOCTL_GET_DIRTY_INFO, address);
+
 	munmap(address, 4096);
 
 	close(fd1);
