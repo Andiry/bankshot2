@@ -495,10 +495,10 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 	bs2_info("%s: pi %llu, extent offset 0x%lx, length 0x%lx\n",
 		__func__, pi->i_ino, victim->offset, victim->length);
 
-	bankshot2_munmap_extent(bs2_dev, pi, victim);
+//	bankshot2_munmap_extent(bs2_dev, pi, victim);
 
-	if (victim->dirty)
-		ret = bankshot2_write_back_extent(bs2_dev, pi, data, victim);
+//	if (victim->dirty)
+	ret = bankshot2_write_back_extent(bs2_dev, pi, data, victim);
 
 	*num_free = victim->length >> PAGE_SHIFT;
 	block = bankshot2_find_data_block(bs2_dev, pi,

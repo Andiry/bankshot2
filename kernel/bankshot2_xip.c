@@ -590,12 +590,14 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	return status < 0 ? status : 0;
 }
 
+#if 0
 static int page_dirty(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, unsigned long pgoff)
 {
 	// FIXME: check PTE's dirty bit
 	return 1;
 }
+#endif
 
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
@@ -632,8 +634,11 @@ int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 	}
 #endif
 
+	/* Get dirty array before munmap */
 	required = bankshot2_get_dirty_page_array(bs2_dev, pi, extent,
 							void_array, count);
+
+	bankshot2_munmap_extent(bs2_dev, pi, extent);
 
 	ret = bankshot2_copy_from_cache(bs2_dev, pi, data, pos, extent->length,
 					b_offset, void_array, required);
