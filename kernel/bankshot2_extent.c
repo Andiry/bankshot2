@@ -354,13 +354,10 @@ unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
 }
 
 void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
-				struct bankshot2_inode *pi, int print_dirty)
+				struct bankshot2_inode *pi)
 {
 	struct extent_entry *curr;
 	struct rb_node *temp;
-	char *void_array;
-	size_t count;
-	unsigned long required;
 
 //	read_lock(&pi->extent_tree_lock);
 	temp = rb_first(&pi->extent_tree);
@@ -369,14 +366,6 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 		curr = container_of(temp, struct extent_entry, node);
 		bs2_info("pi %llu, extent offset %lu, length %lu\n",
 				pi->i_ino, curr->offset, curr->length);
-		if (print_dirty) {
-			count = curr->length >> bs2_dev->s_blocksize_bits;
-			void_array = kzalloc(count, GFP_KERNEL);
-			required = bankshot2_get_dirty_page_array(bs2_dev,
-				pi, curr, void_array, count);
-			bs2_info("%lu dirty pages\n", required);
-			kfree(void_array);
-		}
 		temp = rb_next(temp);
 	}
 
@@ -535,6 +524,9 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 	struct vm_area_struct *vma;
 	unsigned long address;
 	unsigned long pgoff = 0;
+//	char *void_array;
+//	size_t count;
+//	unsigned long required;
 
 	pgoff = extent->offset >> PAGE_SHIFT;
 
@@ -557,7 +549,15 @@ bankshot2_remove_mapping_from_extent(struct bankshot2_device *bs2_dev,
 					vma->vm_start, vma->vm_end,
 					vma->vm_pgoff, pgoff, address);
 			}
-
+#if 0
+			count = extent->length >> bs2_dev->s_blocksize_bits;
+			void_array = kzalloc(count, GFP_KERNEL);
+			required = bankshot2_get_dirty_page_array(bs2_dev,
+				NULL, extent, void_array, count);
+			bs2_info("Extent 0x%lx, length %lu: %lu dirty pages\n",
+				extent->offset, extent->length, required);
+			kfree(void_array);
+#endif
 			vm_munmap_page(mm, vma->vm_start,
 					vma->vm_end - vma->vm_start);
 

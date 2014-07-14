@@ -88,7 +88,7 @@ static int bankshot2_ioctl_add_extent(struct bankshot2_device *bs2_dev,
 			&access_extent);
 
 	if (data1->dirty)
-		bankshot2_print_tree(bs2_dev, pi, 1);
+		bankshot2_print_tree(bs2_dev, pi);
 	return ret;
 }
 
@@ -103,7 +103,7 @@ static int bankshot2_ioctl_remove_extent(struct bankshot2_device *bs2_dev,
 
 	bankshot2_remove_extent(bs2_dev, pi, offset);
 
-	bankshot2_print_tree(bs2_dev, pi, 0);
+	bankshot2_print_tree(bs2_dev, pi);
 	return 0;
 }
 
@@ -167,7 +167,7 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
 				"%u extents\n", i, pi->i_ino, pi->i_size,
 				pi->i_blocks, pi->num_extents);
 			if (print_dirty)
-				bankshot2_print_tree(bs2_dev, pi, print_dirty);
+				bankshot2_print_tree(bs2_dev, pi);
 		}
 	}
 
