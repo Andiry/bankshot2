@@ -321,6 +321,7 @@ int bankshot2_submit_to_cache(struct bankshot2_device *bs2_dev, struct job_descr
 				index << bs2_dev->s_blocksize_bits,
 				PAGE_SIZE, xmem);
 		}
+		//FIXME: Need to check bv_len and update index
 		array_index++;
 		index++;
 	}

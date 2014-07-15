@@ -42,9 +42,16 @@ const struct block_device_operations bankshot2_block_fops = {
 void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 {
 	struct bankshot2_device *bs2_dev;
-//	size_t size;
-//	unsigned int sectors;
-//	int idx;
+	struct bankshot2_inode *pi;
+	struct extent_entry *extent;
+	size_t size;
+	struct bio_vec *bvec;
+	u64 b_offset;
+	u64 block;
+	void *xmem;
+	char *buf;
+	unsigned long index;
+	unsigned int i;
 
 	bs2_dev = (struct bankshot2_device *)q->queuedata;
 //	bs2_dbg("Bio sends to block device\n");
@@ -56,6 +63,64 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 //	bankshot2_reroute_bio(bs2_dev, idx, sectors, size, bio,
 //				bs2_dev->bs_bdev, DISK, SYS_BIO_LAST);
 //	jd->disk_cmd = bio_data_dir(bio) ? WRITE : READ;
+
+	/* If it's a write and b_offset in physical tree, copy to cache */
+	if (bio_data_dir(bio)) {
+		b_offset = bio->bi_sector << 9;
+		size = bio->bi_size;
+
+		bs2_info("b_offset 0x%llx, size %lu\n", b_offset, size);
+		extent = bankshot2_find_physical_extent(bs2_dev, b_offset);
+
+		if (!extent)
+			goto out;
+
+		pi = bankshot2_get_inode(bs2_dev, extent->ino);
+		if (!pi) {
+			bs2_info("Pi not found: %llu\n", extent->ino);
+			goto out;
+		}
+
+		index = (extent->offset + b_offset - extent->b_offset)
+				>> bs2_dev->s_blocksize_bits;
+
+		if (b_offset + size > extent->b_offset + extent->length)
+			bs2_info("Err: bio length larger than extent length: "
+			"pi %llu, extent offset 0x%lx, b_offset 0x%lx, "
+			"length %lu, bio b_offset 0x%llx, length %lu\n",
+			extent->ino, extent->offset, extent->b_offset,
+			extent->length, b_offset, size);
+
+		bs2_info("Found: pi %llu, offset 0x%lx, length %lu\n",
+			extent->ino, index << bs2_dev->s_blocksize_bits, size);
+		bio_for_each_segment(bvec, bio, i) {
+			block = bankshot2_find_data_block(bs2_dev, pi, index);
+			if (!block) {
+				bs2_info("Transfer to cache failed\n");
+				break;
+			}
+
+			xmem = bankshot2_get_block(bs2_dev, block);
+			buf = kmap_atomic(bvec->bv_page);
+			bs2_info("Memcpy: index %lu, length %u\n",
+					index, bvec->bv_len);
+			memcpy(xmem, buf + bvec->bv_offset, bvec->bv_len);
+			kunmap_atomic(buf);
+			bankshot2_flush_edge_cachelines(
+				index << bs2_dev->s_blocksize_bits,
+				PAGE_SIZE, xmem);
+
+			index++;
+			if (index << bs2_dev->s_blocksize_bits
+					>= extent->offset + extent->length)
+				break;
+		}
+
+		bio->bi_size = size;
+		bio->bi_idx = 0;
+	}
+
+out:
 	bio->bi_bdev = bs2_dev->bs_bdev;
 	submit_bio(bio_data_dir(bio) ? WRITE : READ, bio);
 

@@ -22,6 +22,19 @@ static inline int bankshot2_rbtree_compare_find(struct extent_entry *curr,
 	return 0;
 }
 
+static inline int bankshot2_rbtree_compare_find_phy(struct extent_entry *curr,
+		off_t b_offset)
+{
+	if ((curr->b_offset <= b_offset) &&
+			(curr->b_offset + curr->length > b_offset))
+		return 0;
+
+	if (b_offset < curr->b_offset) return -1;
+	if (b_offset > curr->b_offset) return 1;
+
+	return 0;
+}
+
 void bankshot2_free_extent(struct bankshot2_device *bs2_dev,
 		struct extent_entry *extent)
 {
@@ -64,6 +77,33 @@ struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 	}
 
 //	read_unlock(&pi->extent_tree_lock);
+	return NULL;
+}
+
+struct extent_entry * bankshot2_find_physical_extent(
+		struct bankshot2_device *bs2_dev, off_t b_offset)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	int compVal;
+
+	spin_lock(&bs2_dev->phy_tree_lock);
+	temp = bs2_dev->physical_tree.rb_node;
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find_phy(curr, b_offset);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			spin_unlock(&bs2_dev->phy_tree_lock);
+			return curr;
+		}
+	}
+
+	spin_unlock(&bs2_dev->phy_tree_lock);
 	return NULL;
 }
 

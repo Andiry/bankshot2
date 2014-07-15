@@ -744,6 +744,8 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		u64 offset, size_t length, char *alloc_array,
 		unsigned long unallocated);
+struct extent_entry * bankshot2_find_physical_extent(
+		struct bankshot2_device *bs2_dev, off_t b_offset);
 int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 extent_offset,
 		size_t extent_length, u64 b_offset);
