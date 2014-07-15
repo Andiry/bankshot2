@@ -121,7 +121,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	char *array, *alloc_array;
 	int num_free, i;
 	int err = 0;
-	timing_t alloc, evict, add_phy;
+	timing_t alloc, evict, update_phy;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
@@ -182,10 +182,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 						count, true);
 		BANKSHOT2_END_TIMING(bs2_dev, alloc_t, alloc);
 
-		BANKSHOT2_START_TIMING(bs2_dev, add_physical_t, add_phy);
+		BANKSHOT2_START_TIMING(bs2_dev, update_physical_t, update_phy);
 		bankshot2_update_physical_tree(bs2_dev, pi, data, offset,
 					length, alloc_array, unallocated);
-		BANKSHOT2_END_TIMING(bs2_dev, add_physical_t, add_phy);
+		BANKSHOT2_END_TIMING(bs2_dev, update_physical_t, update_phy);
 	}
 
 	kfree(alloc_array);

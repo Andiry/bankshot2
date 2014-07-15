@@ -171,6 +171,7 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
 		}
 	}
 
+	bankshot2_print_physical_tree(bs2_dev);
 	bankshot2_print_time_stats(bs2_dev);
 }
 

@@ -28,6 +28,7 @@ const char *Timingstring[TIMING_NUM] =
 	"copy_from_user",
 	"add_extent",
 	"evict_cache",
+	"update_physical_tree",
 	"add_physical_extent",
 	"fiemap",
 };
