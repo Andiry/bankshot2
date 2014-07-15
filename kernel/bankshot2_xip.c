@@ -182,11 +182,11 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 						count, true);
 		BANKSHOT2_END_TIMING(bs2_dev, alloc_t, alloc);
 
-		bankshot2_update_physical_tree(bs2_dev, pi, index, count,
-					alloc_array, unallocated);
+		bankshot2_update_physical_tree(bs2_dev, pi, data, offset,
+					length, alloc_array, unallocated);
 	}
 
-	kfree(alloc_aray);
+	kfree(alloc_array);
 	if (err)
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
 

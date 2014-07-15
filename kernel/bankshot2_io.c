@@ -788,8 +788,7 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 #endif
 
 static int find_bs_offset(struct inode *inode,
-		struct bankshot2_cache_data *data, u64 job_offset,
-		u64 *b_offset, size_t *b_length)
+		struct bankshot2_cache_data *data, u64 job_offset)
 {
 	struct fiemap_extent_info fieinfo = {0,};
 	u64 file_length;
@@ -807,12 +806,6 @@ static int find_bs_offset(struct inode *inode,
 
 	if (fieinfo.fi_extents_mapped == 0)
 		return -1;
-
-	*b_offset = data->extent->fe_physical + job_offset -
-					data->extent->fe_logical;
-
-	*b_length = data->extent->fe_length - (job_offset - 
-					data->extent->fe_logical);
 
 	return ret;
 }
@@ -880,13 +873,18 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 
 		job_offset = pos + (first << PAGE_SHIFT);
 
-		ret = find_bs_offset(inode, data, job_offset,
-						&b_offset, &b_length);
+		ret = find_bs_offset(inode, data, job_offset);
 
 		if (ret) {
 			bs2_info("ERROR: Find bs offset failed %d\n", ret);
 			return -EINVAL;
 		}
+
+		b_offset = data->extent->fe_physical + job_offset -
+						data->extent->fe_logical;
+
+		b_length = data->extent->fe_length - (job_offset - 
+						data->extent->fe_logical);
 
 		if (bio_pages > (b_length >> PAGE_SHIFT))
 			bio_pages = (b_length >> PAGE_SHIFT);
@@ -917,7 +915,7 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		
 		nr_pages -= done;
 		transferred += done;
-		job_offset += (done << PAGE_SHIFT);
+		start = first + done;
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 	do_disk_fill(bs2_dev, &jd_head, NULL);	
@@ -927,3 +925,69 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+/* Get the backing store extent info of newly allocated cache blocks
+ * and insert into the physical extent tree. */
+int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev, 
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 offset, size_t length, char *alloc_array,
+		unsigned long unallocated)
+{
+	struct inode *inode = pi->inode;
+	size_t nr_pages, bio_pages;
+	unsigned long start, first, cont_length;
+	u64 pos;
+	u64 extent_offset, b_offset;
+	size_t extent_length, b_length;
+	int ret;
+
+	if (unallocated == 0)
+		return 0;
+
+	nr_pages = length >> bs2_dev->s_blocksize_bits;
+
+	if (nr_pages == 0) {
+		bs2_info("%s len is incorrect\n", __func__);
+		return -EINVAL;
+	}
+
+	pos = ALIGN_DOWN(offset);
+	start = first = 0;
+	while(nr_pages){
+		cont_length = find_continuous_pages(alloc_array, nr_pages,
+						start, &first);
+
+		if (cont_length == 0 || cont_length > unallocated) {
+			bs2_info("ERROR: Consecutive pages get error, "
+				"required %lu, start %lu, first %lu, "
+				"length %lu\n", unallocated, start, first,
+				cont_length);
+			return -EINVAL;
+		}
+
+		bio_pages = cont_length;
+
+		extent_offset = pos + (first << PAGE_SHIFT);
+
+		ret = find_bs_offset(inode, data, extent_offset);
+
+		if (ret) {
+			bs2_info("ERROR: Find bs offset failed %d\n", ret);
+			return -EINVAL;
+		}
+
+		b_offset = data->extent->fe_physical + extent_offset -
+						data->extent->fe_logical;
+
+		b_length = data->extent->fe_length - (extent_offset - 
+						data->extent->fe_logical);
+
+		if (bio_pages > (b_length >> PAGE_SHIFT))
+			bio_pages = (b_length >> PAGE_SHIFT);
+
+		extent_length = bio_pages << PAGE_SHIFT;
+		nr_pages -= bio_pages;
+		start = first + bio_pages;
+	}
+
+	return ret;
+}

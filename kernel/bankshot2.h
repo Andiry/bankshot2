@@ -733,6 +733,10 @@ int bankshot2_evict_extent(struct bankshot2_device *bs2_dev,
 		int *num_free);
 int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi);
+int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev, 
+		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
+		u64 offset, size_t length, char *alloc_array,
+		unsigned long unallocated);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
