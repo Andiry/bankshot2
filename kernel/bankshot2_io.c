@@ -939,6 +939,7 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 	u64 extent_offset, b_offset;
 	size_t extent_length, b_length;
 	int ret;
+	timing_t timing;
 
 	if (unallocated == 0)
 		return 0;
@@ -968,7 +969,9 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 
 		extent_offset = pos + (first << PAGE_SHIFT);
 
+		BANKSHOT2_START_TIMING(bs2_dev, fiemap_t, timing); 	
 		ret = find_bs_offset(inode, data, extent_offset);
+		BANKSHOT2_END_TIMING(bs2_dev, fiemap_t, timing); 	
 
 		if (ret) {
 			bs2_info("ERROR: Find bs offset failed %d\n", ret);

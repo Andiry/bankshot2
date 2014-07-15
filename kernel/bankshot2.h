@@ -102,6 +102,7 @@ enum timing_category {
 	add_extent_t,
 	evict_t,
 	add_physical_t,
+	fiemap_t,
 	LAST_TIMING,	// Indicate num of timing
 };
 

@@ -73,7 +73,7 @@ static int bankshot2_get_extent(struct bankshot2_device *bs2_dev,
 		data->extent_start_file_offset = test_offset;
 		data->extent_start = test_offset;
 		data->extent_length = data->file_length - test_offset;
-		bs2_dev->fiemap_count++;
+//		bs2_dev->fiemap_count++;
 
 		ret = 1;
 

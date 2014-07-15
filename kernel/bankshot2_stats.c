@@ -29,6 +29,7 @@ const char *Timingstring[TIMING_NUM] =
 	"add_extent",
 	"evict_cache",
 	"add_physical_extent",
+	"fiemap",
 };
 
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
