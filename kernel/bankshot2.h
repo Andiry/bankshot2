@@ -180,6 +180,7 @@ struct bankshot2_inode {
 
 struct extent_entry {
 	struct rb_node node;
+	u64 ino;
 	off_t offset; // file offset
 	size_t length;
 	int dirty;
@@ -383,6 +384,8 @@ struct bankshot2_device {
 
 	struct cdev chardev;
 	dev_t chardevnum;
+
+	struct rb_root physical_tree; /* Physical tree root */
 
 	struct block_device *bs_bdev;
 	struct request_queue	*backing_store_rqueue;
@@ -740,7 +743,8 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 extent_offset,
 		size_t extent_length, u64 b_offset);
-
+void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev);
+void bankshot2_print_physical_tree(struct bankshot2_device *bs2_dev);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,

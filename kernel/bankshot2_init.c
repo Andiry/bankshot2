@@ -124,6 +124,9 @@ check_fail:
 
 static void __exit bankshot2_exit(void)
 {
+	bankshot2_print_physical_tree(bs2_dev);
+	bankshot2_destroy_physical_tree(bs2_dev);
+
 	bs2_info("Exit Bankshot2.\n");
 	bankshot2_destroy_extents(bs2_dev);
 	bankshot2_destroy_job_queue(bs2_dev);

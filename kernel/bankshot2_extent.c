@@ -317,9 +317,8 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 					"unmatch! existing extent ino %llu, "
 					"offset 0x%lx, length %lu, "
 					"b_offset 0x%lx, "
-					"new extent ino %llu, offset 0x%lx, "
-					"length %lu, "
-					"b_offset 0x%lx, mapping %p\n",
+					"new extent ino %llu, offset 0x%llx, "
+					"length %lu, b_offset 0x%llx\n",
 					curr->ino,
 					curr->offset, curr->length,
 					curr->b_offset, pi->i_ino,
@@ -351,6 +350,7 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 	new->offset = extent_offset;
 	new->length = extent_length;
 	new->b_offset = extent_b_offset;
+	INIT_LIST_HEAD(&new->vma_list); // Not used
 
 	rb_link_node(&new->node, parent, temp);
 	rb_insert_color(&new->node, &bs2_dev->physical_tree);
@@ -396,6 +396,27 @@ check_next_overlap:
 	}
 
 	return 0;
+}
+
+void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+//	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&bs2_dev->physical_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+//		bs2_info("pi %llu, extent offset %lu, length %lu, "
+//				"mmap addr %lx\n", pi->i_ino, curr->offset,
+//				curr->length, curr->mmap_addr);
+		temp = rb_next(temp);
+		rb_erase(&curr->node, &bs2_dev->physical_tree);
+		bankshot2_free_extent(bs2_dev, curr);
+	}
+
+//	write_unlock(&pi->extent_tree_lock);
+	return;
 }
 
 unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
@@ -476,6 +497,26 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 		curr = container_of(temp, struct extent_entry, node);
 		bs2_info("pi %llu, extent offset %lu, length %lu\n",
 				pi->i_ino, curr->offset, curr->length);
+		temp = rb_next(temp);
+	}
+
+//	read_unlock(&pi->extent_tree_lock);
+	return;
+}
+
+void bankshot2_print_physical_tree(struct bankshot2_device *bs2_dev)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+//	read_lock(&pi->extent_tree_lock);
+	bs2_info("Print physical tree:\n");
+	temp = rb_first(&bs2_dev->physical_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("b_offset 0x%lx, pi %llu, extent offset 0x%lx, "
+				"length %lu\n",	curr->b_offset, curr->ino,
+				curr->offset, curr->length);
 		temp = rb_next(temp);
 	}
 

@@ -61,6 +61,8 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	mutex_init(&bs2_dev->inode_table_mutex);
 	mutex_init(&bs2_dev->s_lock);
 
+	bs2_dev->physical_tree = RB_ROOT;
+
 	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
 	if (ret) {
 		bs2_info("Bankshot2 ioremap failed\n");
