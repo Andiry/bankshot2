@@ -389,6 +389,7 @@ struct bankshot2_device {
 	dev_t chardevnum;
 
 	struct rb_root physical_tree; /* Physical tree root */
+	spinlock_t phy_tree_lock;
 
 	struct block_device *bs_bdev;
 	struct request_queue	*backing_store_rqueue;
