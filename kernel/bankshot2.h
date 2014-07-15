@@ -101,6 +101,7 @@ enum timing_category {
 	copy_from_user_t,
 	add_extent_t,
 	evict_t,
+	add_physical_t,
 	LAST_TIMING,	// Indicate num of timing
 };
 

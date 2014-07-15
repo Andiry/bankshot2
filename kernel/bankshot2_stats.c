@@ -28,6 +28,7 @@ const char *Timingstring[TIMING_NUM] =
 	"copy_from_user",
 	"add_extent",
 	"evict_cache",
+	"add_physical_extent",
 };
 
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
