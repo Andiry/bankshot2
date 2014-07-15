@@ -985,6 +985,10 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 			bio_pages = (b_length >> PAGE_SHIFT);
 
 		extent_length = bio_pages << PAGE_SHIFT;
+
+		bankshot2_insert_physical_tree(bs2_dev, pi, extent_offset,
+					extent_length, b_offset);
+
 		nr_pages -= bio_pages;
 		start = first + bio_pages;
 	}

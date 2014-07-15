@@ -288,6 +288,59 @@ check_overlap:
 	return 0;
 }
 
+int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u64 extent_offset,
+		size_t extent_length, u64 extent_b_offset)
+{
+	struct extent_entry *curr, *new, *next;
+	struct rb_node **temp, *parent, *next_node;
+	int compVal;
+	int no_new = 0;
+
+	temp = &(bs2_dev->physical_tree.rb_node);
+	parent = NULL;
+
+	while (*temp) {
+		curr = container_of(*temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr,
+					extent_b_offset);
+		parent = *temp;
+
+		if (compVal == -1) {
+			temp = &((*temp)->rb_left);
+		} else if (compVal == 1) {
+			temp = &((*temp)->rb_right);
+		} else {
+			if (curr->offset != extent_offset
+					|| curr->length > extent_length
+					|| curr->b_offset != extent_b_offset
+					|| curr->mapping != mapping) {
+				bs2_info("Existing extent hit but unmatch! "
+					"existing extent offset 0x%lx, "
+					"length %lu, b_offset 0x%lx, "
+					"mapping %p, "
+					"new extent offset 0x%lx, length %lu, "
+					"b_offset 0x%lx, mapping %p\n",
+					curr->offset, curr->length,
+					curr->b_offset, curr->mapping,
+					extent_offset, extent_length,
+					extent_b_offset, mapping);
+
+				no_new = 1;
+				break;
+			}
+			if (curr->length < extent_length) {
+				curr->length = extent_length;
+				new = curr;
+				goto check_overlap;
+			}
+
+			no_new = 1;
+			break;
+		}
+	}
+}
+
 unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent,
 		char *void_array, size_t count)
