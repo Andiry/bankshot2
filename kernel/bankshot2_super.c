@@ -62,7 +62,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	mutex_init(&bs2_dev->s_lock);
 
 	bs2_dev->physical_tree = RB_ROOT;
-	spin_lock_init(&bs2_dev->phy_tree_lock);
+	mutex_init(&bs2_dev->phy_tree_lock);
 
 	ret = bankshot2_ioremap(bs2_dev, phys_addr, cache_size);
 	if (ret) {

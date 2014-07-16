@@ -859,7 +859,7 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 
 	INIT_LIST_HEAD(&jd_head.jobs);
 	start = first = 0;
-	while(nr_pages){
+	while(required) {
 		length = find_continuous_pages(void_array, nr_pages, start,
 						&first);
 
@@ -914,7 +914,7 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		bankshot2_add_to_cache_list(bs2_dev, jd, 0, transferred,
 						void_array);
 		
-		nr_pages -= done;
+		required -= done;
 		transferred += done;
 		start = first + done;
 	}
@@ -946,6 +946,8 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 		return 0;
 
 	nr_pages = length >> bs2_dev->s_blocksize_bits;
+	if (length % bs2_dev->blocksize)
+		nr_pages++;
 
 	if (nr_pages == 0) {
 		bs2_info("%s len is incorrect\n", __func__);
@@ -954,7 +956,7 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 
 	pos = ALIGN_DOWN(offset);
 	start = first = 0;
-	while(nr_pages){
+	while(unallocated) {
 		cont_length = find_continuous_pages(alloc_array, nr_pages,
 						start, &first);
 
@@ -995,7 +997,7 @@ int bankshot2_update_physical_tree(struct bankshot2_device *bs2_dev,
 					extent_length, b_offset);
 		BANKSHOT2_END_TIMING(bs2_dev, add_physical_t, add_phy);
 
-		nr_pages -= bio_pages;
+		unallocated -= bio_pages;
 		start = first + bio_pages;
 	}
 

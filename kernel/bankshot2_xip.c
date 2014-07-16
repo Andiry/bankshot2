@@ -183,10 +183,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		BANKSHOT2_END_TIMING(bs2_dev, alloc_t, alloc);
 
 		BANKSHOT2_START_TIMING(bs2_dev, update_physical_t, update_phy);
-		spin_lock(&bs2_dev->phy_tree_lock);
+//		mutex_lock(&bs2_dev->phy_tree_lock);
 		bankshot2_update_physical_tree(bs2_dev, pi, data, offset,
 					length, alloc_array, unallocated);
-		spin_unlock(&bs2_dev->phy_tree_lock);
+//		mutex_unlock(&bs2_dev->phy_tree_lock);
 		BANKSHOT2_END_TIMING(bs2_dev, update_physical_t, update_phy);
 	}
 

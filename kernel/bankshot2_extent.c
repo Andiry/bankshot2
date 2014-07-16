@@ -87,7 +87,7 @@ struct extent_entry * bankshot2_find_physical_extent(
 	struct rb_node *temp;
 	int compVal;
 
-	spin_lock(&bs2_dev->phy_tree_lock);
+	mutex_lock(&bs2_dev->phy_tree_lock);
 	temp = bs2_dev->physical_tree.rb_node;
 	while (temp) {
 		curr = container_of(temp, struct extent_entry, node);
@@ -98,12 +98,12 @@ struct extent_entry * bankshot2_find_physical_extent(
 		} else if (compVal == 1) {
 			temp = temp->rb_right;
 		} else {
-			spin_unlock(&bs2_dev->phy_tree_lock);
+			mutex_unlock(&bs2_dev->phy_tree_lock);
 			return curr;
 		}
 	}
 
-	spin_unlock(&bs2_dev->phy_tree_lock);
+	mutex_unlock(&bs2_dev->phy_tree_lock);
 	return NULL;
 }
 
@@ -335,14 +335,16 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr, *new, *prev, *next;
 	struct rb_node **temp, *parent, *prev_node, *next_node;
 	int compVal;
+	int ret;
 
 	temp = &(bs2_dev->physical_tree.rb_node);
 	parent = NULL;
 
+	mutex_lock(&bs2_dev->phy_tree_lock);
 	while (*temp) {
 		curr = container_of(*temp, struct extent_entry, node);
-		compVal = bankshot2_rbtree_compare_find(curr,
-					extent_b_offset);
+		compVal = bankshot2_rbtree_compare_find_phy(curr,
+						extent_b_offset);
 		parent = *temp;
 
 		if (compVal == -1) {
@@ -364,12 +366,13 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 					curr->b_offset, pi->i_ino,
 					extent_offset, extent_length,
 					extent_b_offset);
-
-				return 0;
+				ret = 0;
+				goto out;
 			}
 			if (extent_offset + extent_length <=
 					curr->offset + curr->length) {
-				return 0;
+				ret = 0;
+				goto out;
 			} else {
 				curr->length = extent_offset + extent_length
 					- curr->offset;
@@ -383,7 +386,8 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
 	if (!new) {
 //		write_unlock(&pi->extent_tree_lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	new->ino = pi->i_ino;
@@ -435,7 +439,10 @@ check_next_overlap:
 		}
 	}
 
-	return 0;
+	ret = 0;
+out:
+	mutex_unlock(&bs2_dev->phy_tree_lock);
+	return ret;
 }
 
 void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev)
