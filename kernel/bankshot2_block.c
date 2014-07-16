@@ -52,6 +52,7 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 	char *buf;
 	unsigned long index;
 	unsigned int i;
+	timing_t bio_cache;
 
 	bs2_dev = (struct bankshot2_device *)q->queuedata;
 //	bs2_dbg("Bio sends to block device\n");
@@ -69,12 +70,13 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 		b_offset = bio->bi_sector << 9;
 		size = bio->bi_size;
 
-		bs2_info("b_offset 0x%llx, size %lu\n", b_offset, size);
+		bs2_dbg("b_offset 0x%llx, size %lu\n", b_offset, size);
 		extent = bankshot2_find_physical_extent(bs2_dev, b_offset);
 
 		if (!extent)
 			goto out;
 
+		BANKSHOT2_START_TIMING(bs2_dev, bio_cache_t, bio_cache);
 		pi = bankshot2_get_inode(bs2_dev, extent->ino);
 		if (!pi) {
 			bs2_info("Pi not found: %llu\n", extent->ino);
@@ -91,7 +93,7 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 			extent->ino, extent->offset, extent->b_offset,
 			extent->length, b_offset, size);
 
-		bs2_info("Found: pi %llu, offset 0x%lx, length %lu\n",
+		bs2_dbg("Found: pi %llu, offset 0x%lx, length %lu\n",
 			extent->ino, index << bs2_dev->s_blocksize_bits, size);
 		bio_for_each_segment(bvec, bio, i) {
 			block = bankshot2_find_data_block(bs2_dev, pi, index);
@@ -102,7 +104,7 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 
 			xmem = bankshot2_get_block(bs2_dev, block);
 			buf = kmap_atomic(bvec->bv_page);
-			bs2_info("Memcpy: index %lu, length %u\n",
+			bs2_dbg("Memcpy: index %lu, length %u\n",
 					index, bvec->bv_len);
 			memcpy(xmem, buf + bvec->bv_offset, bvec->bv_len);
 			kunmap_atomic(buf);
@@ -116,8 +118,10 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 				break;
 		}
 
+		bs2_dev->bio_cache_size += size;
 		bio->bi_size = size;
 		bio->bi_idx = 0;
+		BANKSHOT2_END_TIMING(bs2_dev, bio_cache_t, bio_cache);
 	}
 
 out:

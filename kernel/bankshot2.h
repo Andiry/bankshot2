@@ -104,6 +104,7 @@ enum timing_category {
 	update_physical_t,
 	add_physical_t,
 	fiemap_t,
+	bio_cache_t,
 	LAST_TIMING,	// Indicate num of timing
 };
 
@@ -421,6 +422,7 @@ struct bankshot2_device {
 	u64 timingstats[TIMING_NUM];
 	u64 bs_read_blocks;
 	u64 bs_write_blocks;
+	u64 bio_cache_size;
 	u64 fiemap_count;
 };
 
