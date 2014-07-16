@@ -65,6 +65,9 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 //				bs2_dev->bs_bdev, DISK, SYS_BIO_LAST);
 //	jd->disk_cmd = bio_data_dir(bio) ? WRITE : READ;
 
+	if (bio_interception == 0)
+		goto out;
+
 	/* If it's a write and b_offset in physical tree, copy to cache */
 	if (bio_data_dir(bio)) {
 		b_offset = bio->bi_sector << 9;

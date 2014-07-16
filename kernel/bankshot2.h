@@ -58,6 +58,7 @@
 
 extern unsigned int blk_type_to_shift[BANKSHOT2_BLOCK_TYPE_MAX];
 extern uint32_t blk_type_to_size[BANKSHOT2_BLOCK_TYPE_MAX];
+extern int bio_interception;
 
 /* INODE HINT Start at 3 */
 #define	BANKSHOT2_FREE_INODE_HINT_START	3

@@ -13,7 +13,8 @@
 
 static unsigned long phys_addr;
 static unsigned long cache_size;
-int measure_timing;
+int measure_timing = 0;
+int bio_interception = 0;
 char *backing_dev_name = "/dev/ram0";
 
 module_param(phys_addr, ulong, S_IRUGO);
@@ -22,6 +23,8 @@ module_param(cache_size, ulong, S_IRUGO);
 MODULE_PARM_DESC(cache_size, "Cache size");
 module_param(measure_timing, int, S_IRUGO);
 MODULE_PARM_DESC(measure_timing, "Timing measurement");
+module_param(bio_interception, int, S_IRUGO);
+MODULE_PARM_DESC(bio_interception, "Bio to cache interception");
 module_param(backing_dev_name, charp, S_IRUGO);
 MODULE_PARM_DESC(backing_dev_name, "Backing store");
 
