@@ -23,6 +23,8 @@ const char *Timingstring[TIMING_NUM] =
 	"mmap",
 	"copy_to_cache_for_read",
 	"copy_to_cache_for_write",
+	"vfs_read",
+	"vfs_cache_fill",
 	"copy_from_cache",
 	"copy_to_user",
 	"copy_from_user",

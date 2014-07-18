@@ -604,6 +604,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	unsigned long start, first, length;
 	u64 job_offset, start_b_offset;
 	char *buf;
+	timing_t vfs_read_time, cache_fill_time;
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
 
@@ -651,7 +652,9 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		b_offset = start_b_offset + (first << PAGE_SHIFT);
 		job_offset = pos + (first << PAGE_SHIFT);
 
+		BANKSHOT2_START_TIMING(bs2_dev, vfs_read_t, vfs_read_time);
 		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
+		BANKSHOT2_END_TIMING(bs2_dev, vfs_read_t, vfs_read_time);
 
 		if (done >= (unsigned long)(-64)) {
 			bs2_info("vfs read failed, returned %d\n", (int)done);
@@ -668,8 +671,12 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 			bs2_dbg("read length unmatch: request %lu, done %lu\n",
 						length << PAGE_SHIFT, done);
 
+		BANKSHOT2_START_TIMING(bs2_dev, vfs_cache_fill_t,
+						cache_fill_time);
 		done = do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
 						done, void_array, 1);
+		BANKSHOT2_END_TIMING(bs2_dev, vfs_cache_fill_t,
+						cache_fill_time);
 
 		if (done < PAGE_SIZE) {
 			bs2_info("ERROR: cache filled less than one page!\n");

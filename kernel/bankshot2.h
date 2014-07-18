@@ -97,6 +97,8 @@ enum timing_category {
 	mmap_t,
 	bs_read_r_t,
 	bs_read_w_t,
+	vfs_read_t,
+	vfs_cache_fill_t,
 	bs_write_t,
 	copy_to_user_t,
 	copy_from_user_t,
@@ -106,10 +108,8 @@ enum timing_category {
 	add_physical_t,
 	fiemap_t,
 	bio_cache_t,
-	LAST_TIMING,	// Indicate num of timing
+	TIMING_NUM,	// Indicate num of timing
 };
-
-#define	TIMING_NUM	LAST_TIMING
 
 extern const char *Timingsting[TIMING_NUM];
 
