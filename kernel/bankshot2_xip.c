@@ -371,6 +371,37 @@ out:
 	return ret;
 }
 
+/* If some other guy is accessing the extent, block until it finishes */
+static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u64 pos, size_t count)
+{
+	while(true) {
+		mutex_lock(pi->btree_lock);
+		if (bankshot2_extent_being_accessed(bs2_dev, pi, pos, count)
+				== 0) {
+			bankshot2_insert_access_extent(bs2_dev, pi, pos,
+							count);
+			mutex_unlock(pi->btree_lock);
+			break;
+		}
+		mutex_unlock(pi->btree_lock);
+		wait_event_interruptible(pi->wait_queue, true);
+	}
+
+	return;
+}
+
+static void bankshot2_unlock_access_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u64 pos, size_t count)
+{
+	mutex_lock(pi->btree_lock);
+	bankshot2_remove_access_extent(bs2_dev, pi, pos, count);
+	mutex_unlock(pi->btree_lock);
+	wake_up_interruptible(&pi->wait_queue);
+
+	return;
+}
+
 int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, struct bankshot2_inode *pi,
 		ssize_t *actual_length)
@@ -387,7 +418,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	unsigned long offset, user_offset_in_page;
 	size_t copy_user;
 	void *xmem;
-	char *void_array;
+	char *void_array = NULL;
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
@@ -395,12 +426,15 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
+	/* Add to access extent tree, may sleep */
+	bankshot2_lock_access_extent(bs2_dev, pi, pos, count);
+
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count, user_offset, req_len,
 					&access_extent, 0);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	required = ret;
 
@@ -411,10 +445,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 	bs2_dev->bs_read_blocks += required;
 
-	if (ret) {
-		kfree(void_array);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
 	/* Now copy to user buffer */
 	do {
@@ -463,12 +495,16 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = read;
+	ret = 0;
+
+out:
+	bankshot2_unlock_access_extent(bs2_dev, pi, pos, count);
 	kfree(void_array);
 //	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 	if (access_extent)
 		atomic_set(&access_extent->access, 0);
 
-	return 0;
+	return ret;
 }
 
 ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
@@ -489,7 +525,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	unsigned long offset, user_offset_in_page;
 	size_t copied, copy_user;
 	void *xmem;
-	char *void_array;
+	char *void_array = NULL;
 	int ret;
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
@@ -498,12 +534,15 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
 					&b_offset);
 
+	/* Add to access extent tree, may sleep */
+	bankshot2_lock_access_extent(bs2_dev, pi, pos, count);
+
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count, user_offset, req_len,
 					&access_extent, 1);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	required = ret;
 
@@ -516,10 +555,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 	bs2_dev->bs_write_blocks += required;
 
-	if (ret) {
-		kfree(void_array);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -597,12 +634,16 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	}	
 
 	*actual_length = written;
+	ret = status < 0 ? status : 0;
+
+out:
+	bankshot2_unlock_access_extent(bs2_dev, pi, pos, count);
 	kfree(void_array);
 //	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 	if (access_extent)
 		atomic_set(&access_extent->access, 0);
 
-	return status < 0 ? status : 0;
+	return ret;
 }
 
 #if 0

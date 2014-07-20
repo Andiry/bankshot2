@@ -1,5 +1,8 @@
 #include "bankshot2.h"
 
+
+/* ========================== Extent Tree ============================= */
+
 static inline int bankshot2_rbtree_compare(struct extent_entry *curr,
 		struct extent_entry *new)
 {
@@ -18,19 +21,6 @@ static inline int bankshot2_rbtree_compare_find(struct extent_entry *curr,
 
 	if (offset < curr->offset) return -1;
 	if (offset > curr->offset) return 1;
-
-	return 0;
-}
-
-static inline int bankshot2_rbtree_compare_find_phy(struct extent_entry *curr,
-		off_t b_offset)
-{
-	if ((curr->b_offset <= b_offset) &&
-			(curr->b_offset + curr->length > b_offset))
-		return 0;
-
-	if (b_offset < curr->b_offset) return -1;
-	if (b_offset > curr->b_offset) return 1;
 
 	return 0;
 }
@@ -77,33 +67,6 @@ struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
 	}
 
 //	read_unlock(&pi->extent_tree_lock);
-	return NULL;
-}
-
-struct extent_entry * bankshot2_find_physical_extent(
-		struct bankshot2_device *bs2_dev, off_t b_offset)
-{
-	struct extent_entry *curr;
-	struct rb_node *temp;
-	int compVal;
-
-	mutex_lock(&bs2_dev->phy_tree_lock);
-	temp = bs2_dev->physical_tree.rb_node;
-	while (temp) {
-		curr = container_of(temp, struct extent_entry, node);
-		compVal = bankshot2_rbtree_compare_find_phy(curr, b_offset);
-
-		if (compVal == -1) {
-			temp = temp->rb_left;
-		} else if (compVal == 1) {
-			temp = temp->rb_right;
-		} else {
-			mutex_unlock(&bs2_dev->phy_tree_lock);
-			return curr;
-		}
-	}
-
-	mutex_unlock(&bs2_dev->phy_tree_lock);
 	return NULL;
 }
 
@@ -328,144 +291,6 @@ check_overlap:
 	return 0;
 }
 
-int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, u64 extent_offset,
-		size_t extent_length, u64 extent_b_offset)
-{
-	struct extent_entry *curr, *new, *prev, *next;
-	struct rb_node **temp, *parent, *prev_node, *next_node;
-	int compVal;
-	int ret;
-
-	temp = &(bs2_dev->physical_tree.rb_node);
-	parent = NULL;
-
-	mutex_lock(&bs2_dev->phy_tree_lock);
-	while (*temp) {
-		curr = container_of(*temp, struct extent_entry, node);
-		compVal = bankshot2_rbtree_compare_find_phy(curr,
-						extent_b_offset);
-		parent = *temp;
-
-		if (compVal == -1) {
-			temp = &((*temp)->rb_left);
-		} else if (compVal == 1) {
-			temp = &((*temp)->rb_right);
-		} else {
-			if (curr->ino != pi->i_ino
-					|| (extent_offset - curr->offset) !=
-					(extent_b_offset - curr->b_offset)) {
-				bs2_info("Existing physical extent hit but "
-					"unmatch! existing extent ino %llu, "
-					"offset 0x%lx, length %lu, "
-					"b_offset 0x%lx, "
-					"new extent ino %llu, offset 0x%llx, "
-					"length %lu, b_offset 0x%llx\n",
-					curr->ino,
-					curr->offset, curr->length,
-					curr->b_offset, pi->i_ino,
-					extent_offset, extent_length,
-					extent_b_offset);
-				ret = 0;
-				goto out;
-			}
-			if (extent_offset + extent_length <=
-					curr->offset + curr->length) {
-				ret = 0;
-				goto out;
-			} else {
-				curr->length = extent_offset + extent_length
-					- curr->offset;
-				new = curr;
-				goto check_next_overlap;
-			}
-		}
-	}
-
-	new = (struct extent_entry *)
-		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
-	if (!new) {
-//		write_unlock(&pi->extent_tree_lock);
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	new->ino = pi->i_ino;
-	new->offset = extent_offset;
-	new->length = extent_length;
-	new->b_offset = extent_b_offset;
-	INIT_LIST_HEAD(&new->vma_list); // Not used
-
-	rb_link_node(&new->node, parent, temp);
-	rb_insert_color(&new->node, &bs2_dev->physical_tree);
-
-	/* Check prev extent overlap */
-	prev_node = rb_prev(&new->node);
-	if (!prev_node)
-		goto check_next_overlap;
-
-	prev = container_of(prev_node, struct extent_entry, node);
-
-	if ((prev->ino == new->ino) &&
-	    (prev->offset + prev->length >= new->offset) &&
-	    (prev->b_offset + (new->offset - prev->offset) == new->b_offset)) {
-		if (prev->offset + prev->length < new->offset + new->length)
-			prev->length = new->offset + new->length - prev->offset;
-
-		rb_erase(&new->node, &bs2_dev->physical_tree);
-		bankshot2_free_extent(bs2_dev, new);
-
-		new = prev;
-	}
-
-check_next_overlap:
-	while(1) {
-		next_node = rb_next(&new->node);
-		if (!next_node)
-			break;
-	
-		next = container_of(next_node, struct extent_entry, node);
-
-		if ((new->ino == next->ino) &&
-		    (new->offset + new->length >= next->offset) &&
-		    (new->b_offset + (next->offset - new->offset)
-				== next->b_offset)) {
-			if (next->offset + next->length > new->offset + new->length)
-				new->length = next->offset + next->length - new->offset;
-
-			rb_erase(&next->node, &bs2_dev->physical_tree);
-		} else {
-			break;
-		}
-	}
-
-	ret = 0;
-out:
-	mutex_unlock(&bs2_dev->phy_tree_lock);
-	return ret;
-}
-
-void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev)
-{
-	struct extent_entry *curr;
-	struct rb_node *temp;
-
-//	write_lock(&pi->extent_tree_lock);
-	temp = rb_first(&bs2_dev->physical_tree);
-	while (temp) {
-		curr = container_of(temp, struct extent_entry, node);
-//		bs2_info("pi %llu, extent offset %lu, length %lu, "
-//				"mmap addr %lx\n", pi->i_ino, curr->offset,
-//				curr->length, curr->mmap_addr);
-		temp = rb_next(temp);
-		rb_erase(&curr->node, &bs2_dev->physical_tree);
-		bankshot2_free_extent(bs2_dev, curr);
-	}
-
-//	write_unlock(&pi->extent_tree_lock);
-	return;
-}
-
 unsigned long bankshot2_get_dirty_page_array(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct extent_entry *extent,
 		char *void_array, size_t count)
@@ -551,26 +376,6 @@ void bankshot2_print_tree(struct bankshot2_device *bs2_dev,
 	return;
 }
 
-void bankshot2_print_physical_tree(struct bankshot2_device *bs2_dev)
-{
-	struct extent_entry *curr;
-	struct rb_node *temp;
-
-//	read_lock(&pi->extent_tree_lock);
-	bs2_info("Print physical tree:\n");
-	temp = rb_first(&bs2_dev->physical_tree);
-	while (temp) {
-		curr = container_of(temp, struct extent_entry, node);
-		bs2_info("b_offset 0x%lx, pi %llu, extent offset 0x%lx, "
-				"length %lu\n",	curr->b_offset, curr->ino,
-				curr->offset, curr->length);
-		temp = rb_next(temp);
-	}
-
-//	read_unlock(&pi->extent_tree_lock);
-	return;
-}
-
 void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi)
 {
@@ -593,56 +398,6 @@ void bankshot2_delete_tree(struct bankshot2_device *bs2_dev,
 	pi->num_extents = 0;
 	return;
 }
-
-#if 0
-int bankshot2_free_num_blocks(struct bankshot2_device *bs2_dev,
-		struct bankshot2_inode *pi, int num_free)
-{
-	struct extent_entry *curr;
-	struct rb_node *temp;
-	off_t offset;
-	int num_pages;
-	int total_freed = 0, freed;
-
-//	bs2_info("Before free:\n");
-//	bankshot2_print_tree(bs2_dev, pi);
-
-	write_lock(&pi->extent_tree_lock);
-	temp = rb_first(&pi->extent_tree);
-	while (temp && num_free > 0) {
-		curr = container_of(temp, struct extent_entry, node);
-		bs2_info("Free: pi %llu, extent offset %lu, length %lu\n",
-				pi->i_ino, curr->offset, curr->length);
-		temp = rb_next(temp);
-		offset = curr->offset;
-		num_pages = curr->length / PAGE_SIZE;
-		if (num_pages > num_free) {
-			// Shrink the extent;
-			freed = num_free;
-//			vm_munmap(curr->mmap_addr, num_free * PAGE_SIZE);
-			curr->length -= num_free * PAGE_SIZE;
-			curr->offset += num_free * PAGE_SIZE;
-		} else {
-			// Delete the extent;
-			freed = num_pages;
-//			vm_munmap(curr->mmap_addr, curr->length);
-			rb_erase(&curr->node, &pi->extent_tree);
-			bankshot2_free_extent(bs2_dev, curr);
-		}
-
-		bankshot2_munmap(bs2_dev, pi, offset, freed);
-		bankshot2_free_blocks(bs2_dev, pi, offset, freed); 
-		total_freed += freed;
-		num_free -= freed;
-	}
-
-	write_unlock(&pi->extent_tree_lock);
-
-//	bs2_info("After free:\n");
-//	bankshot2_print_tree(bs2_dev, pi);
-	return total_freed;
-}
-#endif
 
 static struct extent_entry* bankshot2_get_victim_extent(
 		struct bankshot2_device *bs2_dev, struct bankshot2_inode *pi)
@@ -784,6 +539,319 @@ int bankshot2_remove_mapping_from_tree(struct bankshot2_device *bs2_dev,
 
 //	write_unlock(&pi->extent_tree_lock);
 	return 0;
+}
+
+/* ========================= Physical Tree ============================ */
+
+static inline int bankshot2_rbtree_compare_find_phy(struct extent_entry *curr,
+		off_t b_offset)
+{
+	if ((curr->b_offset <= b_offset) &&
+			(curr->b_offset + curr->length > b_offset))
+		return 0;
+
+	if (b_offset < curr->b_offset) return -1;
+	if (b_offset > curr->b_offset) return 1;
+
+	return 0;
+}
+
+struct extent_entry * bankshot2_find_physical_extent(
+		struct bankshot2_device *bs2_dev, off_t b_offset)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	int compVal;
+
+	mutex_lock(&bs2_dev->phy_tree_lock);
+	temp = bs2_dev->physical_tree.rb_node;
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find_phy(curr, b_offset);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			mutex_unlock(&bs2_dev->phy_tree_lock);
+			return curr;
+		}
+	}
+
+	mutex_unlock(&bs2_dev->phy_tree_lock);
+	return NULL;
+}
+
+int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, u64 extent_offset,
+		size_t extent_length, u64 extent_b_offset)
+{
+	struct extent_entry *curr, *new, *prev, *next;
+	struct rb_node **temp, *parent, *prev_node, *next_node;
+	int compVal;
+	int ret;
+
+	temp = &(bs2_dev->physical_tree.rb_node);
+	parent = NULL;
+
+	mutex_lock(&bs2_dev->phy_tree_lock);
+	while (*temp) {
+		curr = container_of(*temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find_phy(curr,
+						extent_b_offset);
+		parent = *temp;
+
+		if (compVal == -1) {
+			temp = &((*temp)->rb_left);
+		} else if (compVal == 1) {
+			temp = &((*temp)->rb_right);
+		} else {
+			if (curr->ino != pi->i_ino
+					|| (extent_offset - curr->offset) !=
+					(extent_b_offset - curr->b_offset)) {
+				bs2_info("Existing physical extent hit but "
+					"unmatch! existing extent ino %llu, "
+					"offset 0x%lx, length %lu, "
+					"b_offset 0x%lx, "
+					"new extent ino %llu, offset 0x%llx, "
+					"length %lu, b_offset 0x%llx\n",
+					curr->ino,
+					curr->offset, curr->length,
+					curr->b_offset, pi->i_ino,
+					extent_offset, extent_length,
+					extent_b_offset);
+				ret = 0;
+				goto out;
+			}
+			if (extent_offset + extent_length <=
+					curr->offset + curr->length) {
+				ret = 0;
+				goto out;
+			} else {
+				curr->length = extent_offset + extent_length
+					- curr->offset;
+				new = curr;
+				goto check_next_overlap;
+			}
+		}
+	}
+
+	new = (struct extent_entry *)
+		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
+	if (!new) {
+//		write_unlock(&pi->extent_tree_lock);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	new->ino = pi->i_ino;
+	new->offset = extent_offset;
+	new->length = extent_length;
+	new->b_offset = extent_b_offset;
+	INIT_LIST_HEAD(&new->vma_list); // Not used
+
+	rb_link_node(&new->node, parent, temp);
+	rb_insert_color(&new->node, &bs2_dev->physical_tree);
+
+	/* Check prev extent overlap */
+	prev_node = rb_prev(&new->node);
+	if (!prev_node)
+		goto check_next_overlap;
+
+	prev = container_of(prev_node, struct extent_entry, node);
+
+	if ((prev->ino == new->ino) &&
+	    (prev->offset + prev->length >= new->offset) &&
+	    (prev->b_offset + (new->offset - prev->offset) == new->b_offset)) {
+		if (prev->offset + prev->length < new->offset + new->length)
+			prev->length = new->offset + new->length - prev->offset;
+
+		rb_erase(&new->node, &bs2_dev->physical_tree);
+		bankshot2_free_extent(bs2_dev, new);
+
+		new = prev;
+	}
+
+check_next_overlap:
+	while(1) {
+		next_node = rb_next(&new->node);
+		if (!next_node)
+			break;
+	
+		next = container_of(next_node, struct extent_entry, node);
+
+		if ((new->ino == next->ino) &&
+		    (new->offset + new->length >= next->offset) &&
+		    (new->b_offset + (next->offset - new->offset)
+				== next->b_offset)) {
+			if (next->offset + next->length > new->offset + new->length)
+				new->length = next->offset + next->length - new->offset;
+
+			rb_erase(&next->node, &bs2_dev->physical_tree);
+		} else {
+			break;
+		}
+	}
+
+	ret = 0;
+out:
+	mutex_unlock(&bs2_dev->phy_tree_lock);
+	return ret;
+}
+
+void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+//	write_lock(&pi->extent_tree_lock);
+	temp = rb_first(&bs2_dev->physical_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+//		bs2_info("pi %llu, extent offset %lu, length %lu, "
+//				"mmap addr %lx\n", pi->i_ino, curr->offset,
+//				curr->length, curr->mmap_addr);
+		temp = rb_next(temp);
+		rb_erase(&curr->node, &bs2_dev->physical_tree);
+		bankshot2_free_extent(bs2_dev, curr);
+	}
+
+//	write_unlock(&pi->extent_tree_lock);
+	return;
+}
+
+void bankshot2_print_physical_tree(struct bankshot2_device *bs2_dev)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+//	read_lock(&pi->extent_tree_lock);
+	bs2_info("Print physical tree:\n");
+	temp = rb_first(&bs2_dev->physical_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("b_offset 0x%lx, pi %llu, extent offset 0x%lx, "
+				"length %lu\n",	curr->b_offset, curr->ino,
+				curr->offset, curr->length);
+		temp = rb_next(temp);
+	}
+
+//	read_unlock(&pi->extent_tree_lock);
+	return;
+}
+
+/* ========================== Access Tree ============================= */
+
+static inline int bankshot2_rbtree_compare_overlap(struct extent_entry *curr,
+		off_t offset, size_t count)
+{
+	if (offset + count <= curr->offset)
+		return -1;
+
+	if (curr->offset + curr->length <= offset)
+		return 1;
+
+	return 0;
+}
+
+int bankshot2_extent_being_accessed(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t pos, size_t count)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	int compVal;
+
+	temp = pi->access_tree.rb_node;
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_overlap(curr, pos, count);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+int bankshot2_insert_access_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t pos, size_t count)
+{
+	struct extent_entry *curr, *new;
+	struct rb_node **temp, *parent;
+	int compVal;
+
+	temp = &(pi->access_tree.rb_node);
+	parent = NULL;
+
+	while (*temp) {
+		curr = container_of(*temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr, pos);
+		parent = *temp;
+
+		if (compVal == -1) {
+			temp = &((*temp)->rb_left);
+		} else if (compVal == 1) {
+			temp = &((*temp)->rb_right);
+		} else {
+			bs2_info("ERROR: Hit accessing extent! existing extent"
+					" offset 0x%lx, length %lu, "
+					"new extent offset 0x%lx, length %lu\n",
+					curr->offset, curr->length,
+					pos, count);
+			return -EINVAL;
+		}
+	}
+
+	new = (struct extent_entry *)
+		kmem_cache_alloc(bs2_dev->bs2_extent_slab, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	new->offset = pos;
+	new->length = count;
+	INIT_LIST_HEAD(&new->vma_list); // Not used
+
+	rb_link_node(&new->node, parent, temp);
+	rb_insert_color(&new->node, &pi->access_tree);
+	pi->num_access_extents++;
+
+	return 0;
+}
+
+void bankshot2_remove_access_extent(struct bankshot2_device *bs2_dev,
+			struct bankshot2_inode *pi, off_t pos, size_t count)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+	int compVal;
+
+	temp = pi->access_tree.rb_node;
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		compVal = bankshot2_rbtree_compare_find(curr, pos);
+
+		if (compVal == -1) {
+			temp = temp->rb_left;
+		} else if (compVal == 1) {
+			temp = temp->rb_right;
+		} else {
+			bs2_dbg("Delete extent to pi %llu, extent offset %lu, "
+				"length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
+			rb_erase(&curr->node, &pi->access_tree);
+			pi->num_access_extents--;
+			bankshot2_free_extent(bs2_dev, curr);
+			break;
+		}
+	}
+
+	return;
 }
 
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)

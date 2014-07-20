@@ -174,10 +174,12 @@ struct bankshot2_inode {
 //	rwlock_t extent_tree_lock;  /* Extent tree lock */
 //	spinlock_t btree_lock;	    /* B-tree lock */	
 	struct mutex *btree_lock;   /* Inode mutex */
-	unsigned int num_extents;   /* Num of extents in tree */	
+	unsigned int num_extents;   /* Num of extents in tree */
 	unsigned long start_index;  /* For btree height increase */	
 	struct list_head lru_list;  /* LRU list for eviction */	
 
+	wait_queue_head_t wait_queue; /* wait queue for access extent */
+	unsigned int num_access_extents;   /* Num of access extents in tree */
 //	struct {
 //		__le32 rdev;    /* major/minor # */
 //	} dev;              /* device inode */
@@ -755,6 +757,12 @@ int bankshot2_insert_physical_tree(struct bankshot2_device *bs2_dev,
 		size_t extent_length, u64 b_offset);
 void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev);
 void bankshot2_print_physical_tree(struct bankshot2_device *bs2_dev);
+int bankshot2_extent_being_accessed(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t pos, size_t count);
+int bankshot2_insert_access_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t pos, size_t count);
+void bankshot2_remove_access_extent(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, off_t pos, size_t count);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,

@@ -286,10 +286,12 @@ retry:
 	pi->i_dtime = 0;
 	pi->extent_tree = RB_ROOT;
 	pi->access_tree = RB_ROOT;
+	init_waitqueue_head(&pi->wait_queue);
 //	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	pi->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
 	mutex_init(pi->btree_lock);
 	pi->num_extents = 0;
+	pi->num_access_extents = 0;
 	INIT_LIST_HEAD(&pi->lru_list);
 	list_add_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
 
