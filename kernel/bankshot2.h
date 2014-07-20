@@ -763,6 +763,8 @@ int bankshot2_insert_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t pos, size_t count);
 void bankshot2_remove_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, off_t pos, size_t count);
+void bankshot2_print_access_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi);
 
 /* bankshot2_mmap.c */
 void bankshot2_munmap_extent(struct bankshot2_device *bs2_dev,
