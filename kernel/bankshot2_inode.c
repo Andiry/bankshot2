@@ -285,6 +285,7 @@ retry:
 	pi->root = 0;
 	pi->i_dtime = 0;
 	pi->extent_tree = RB_ROOT;
+	pi->access_tree = RB_ROOT;
 //	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	pi->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
 	mutex_init(pi->btree_lock);

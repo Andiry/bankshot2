@@ -166,6 +166,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	root_i->height = 0;
 	root_i->i_ino = BANKSHOT2_ROOT_INO;
 	root_i->extent_tree = RB_ROOT;
+	root_i->access_tree = RB_ROOT;
 //	root_i->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
 	root_i->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
 	mutex_init(root_i->btree_lock);

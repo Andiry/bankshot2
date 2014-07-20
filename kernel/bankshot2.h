@@ -170,6 +170,7 @@ struct bankshot2_inode {
 	__le32	i_atime;            /* Access time */
 	struct inode *inode;	    /* Backing inode */
 	struct rb_root extent_tree; /* Extent tree root */
+	struct rb_root access_tree; /* Extent being accessed */
 //	rwlock_t extent_tree_lock;  /* Extent tree lock */
 //	spinlock_t btree_lock;	    /* B-tree lock */	
 	struct mutex *btree_lock;   /* Inode mutex */
