@@ -381,11 +381,18 @@ static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 				== 0) {
 			bankshot2_insert_access_extent(bs2_dev, pi, pos,
 							count);
+			bs2_info("Lock extent: pi %llu, offset 0x%llx, "
+					"size %lu\n", pi->i_ino, pos, count);
 			mutex_unlock(pi->btree_lock);
 			break;
 		}
 		mutex_unlock(pi->btree_lock);
-		wait_event_interruptible(pi->wait_queue, true);
+		bs2_info("Waiting on extent: pi %llu, offset 0x%llx, "
+					"size %lu\n", pi->i_ino, pos, count);
+		wait_event_interruptible_timeout(pi->wait_queue, false,
+					msecs_to_jiffies(1));
+		bs2_info("Wakeup and test again: pi %llu, offset 0x%llx, "
+					"size %lu\n", pi->i_ino, pos, count);
 	}
 
 	return;
@@ -397,6 +404,8 @@ static void bankshot2_unlock_access_extent(struct bankshot2_device *bs2_dev,
 	mutex_lock(pi->btree_lock);
 	bankshot2_remove_access_extent(bs2_dev, pi, pos, count);
 	mutex_unlock(pi->btree_lock);
+	bs2_info("Release extent: pi %llu, offset 0x%llx, size %lu\n",
+			pi->i_ino, pos, count);
 	wake_up_interruptible(&pi->wait_queue);
 
 	return;
@@ -408,9 +417,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 {
 	size_t bytes, user_bytes;
 	ssize_t read = 0;
-	u64 pos, block;
+	u64 pos, block, origin_pos;
 	u64 user_offset = data->offset;
-	size_t count;
+	size_t count, origin_count;
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
@@ -428,6 +437,8 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 
 	/* Add to access extent tree, may sleep */
 	bankshot2_lock_access_extent(bs2_dev, pi, pos, count);
+	origin_pos = pos;
+	origin_count = count;
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
@@ -498,7 +509,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	ret = 0;
 
 out:
-	bankshot2_unlock_access_extent(bs2_dev, pi, pos, count);
+	bankshot2_unlock_access_extent(bs2_dev, pi, origin_pos, origin_count);
 	kfree(void_array);
 //	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 	if (access_extent)
@@ -514,10 +525,10 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	long status = 0;
 	size_t bytes, user_bytes;
 	ssize_t written = 0;
-	u64 pos;
+	u64 pos, origin_pos;
 	u64 block;
 	u64 user_offset = data->offset;
-	size_t count;
+	size_t count, origin_count;
 	size_t req_len = data->size;
 	u64 b_offset;
 	char *buf = data->buf;
@@ -536,6 +547,8 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 	/* Add to access extent tree, may sleep */
 	bankshot2_lock_access_extent(bs2_dev, pi, pos, count);
+	origin_pos = pos;
+	origin_count = count;
 
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
@@ -637,7 +650,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	ret = status < 0 ? status : 0;
 
 out:
-	bankshot2_unlock_access_extent(bs2_dev, pi, pos, count);
+	bankshot2_unlock_access_extent(bs2_dev, pi, origin_pos, origin_count);
 	kfree(void_array);
 //	bankshot2_clear_extent_access(bs2_dev, pi, start_index);
 	if (access_extent)
