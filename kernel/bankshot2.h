@@ -42,8 +42,8 @@
 #define	BANKSHOT2_SUPER_MAGIC	0xDEAD
 #define	BANKSHOT2_BLOCK_TYPE_4K	0
 #define	BANKSHOT2_ROOT_INO	1
-#define	BANKSHOT2_INODE_SIZE	128
-#define	BANKSHOT2_INODE_BITS	7
+#define	BANKSHOT2_INODE_SIZE	256
+#define	BANKSHOT2_INODE_BITS	8
 #define	BANKSHOT2_DEFAULT_JOURNAL_SIZE	(4 << 20)
 
 /* PMFS supported data blocks */
@@ -181,7 +181,7 @@ struct bankshot2_inode {
 //		__le32 rdev;    /* major/minor # */
 //	} dev;              /* device inode */
 //	__le32 padding;     /* pad to ensure truncate_item starts 8-byte aligned */
-}__attribute__((packed));
+};
 
 struct extent_entry {
 	struct rb_node node;
