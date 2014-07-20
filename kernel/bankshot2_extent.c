@@ -854,6 +854,51 @@ void bankshot2_remove_access_extent(struct bankshot2_device *bs2_dev,
 	return;
 }
 
+void bankshot2_print_access_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+	mutex_lock(pi->btree_lock);
+
+	if (pi->num_access_extents)
+		bs2_info("Print access tree for pi %llu, %u extents\n",
+				pi->i_ino, pi->num_access_extents);
+	temp = rb_first(&pi->access_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("pi %llu, access extent offset %lu, length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
+		temp = rb_next(temp);
+	}
+
+	mutex_unlock(pi->btree_lock);
+	return;
+}
+
+void bankshot2_delete_access_tree(struct bankshot2_device *bs2_dev,
+				struct bankshot2_inode *pi)
+{
+	struct extent_entry *curr;
+	struct rb_node *temp;
+
+	temp = rb_first(&pi->access_tree);
+	while (temp) {
+		curr = container_of(temp, struct extent_entry, node);
+		bs2_info("pi %llu, access extent offset %lu, length %lu\n",
+				pi->i_ino, curr->offset, curr->length);
+		temp = rb_next(temp);
+		rb_erase(&curr->node, &pi->access_tree);
+		bankshot2_free_extent(bs2_dev, curr);
+	}
+
+	pi->num_access_extents = 0;
+	return;
+}
+
+/* ============================= Init code =============================== */
+
 int bankshot2_init_extents(struct bankshot2_device *bs2_dev)
 {
 	bs2_dev->bs2_extent_slab = kmem_cache_create(
@@ -877,6 +922,11 @@ void bankshot2_destroy_extents(struct bankshot2_device *bs2_dev)
 			bs2_dbg("pi %llu: %u extents\n",
 					pi->i_ino, pi->num_extents);
 			bankshot2_delete_tree(bs2_dev, pi);
+		}
+		if (pi && pi->num_access_extents) {
+			bs2_info("pi %llu: still have %u access extents\n",
+					pi->i_ino, pi->num_access_extents);
+			bankshot2_delete_access_tree(bs2_dev, pi);
 		}
 	}
 
