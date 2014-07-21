@@ -381,7 +381,7 @@ static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 				== 0) {
 			bankshot2_insert_access_extent(bs2_dev, pi, pos,
 							count);
-			bs2_info("Lock extent: pi %llu, offset 0x%llx, "
+			bs2_dbg("Lock extent: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
 			mutex_unlock(pi->btree_lock);
 			break;
@@ -404,7 +404,7 @@ static void bankshot2_unlock_access_extent(struct bankshot2_device *bs2_dev,
 	mutex_lock(pi->btree_lock);
 	bankshot2_remove_access_extent(bs2_dev, pi, pos, count);
 	mutex_unlock(pi->btree_lock);
-	bs2_info("Release extent: pi %llu, offset 0x%llx, size %lu\n",
+	bs2_dbg("Release extent: pi %llu, offset 0x%llx, size %lu\n",
 			pi->i_ino, pos, count);
 	wake_up_interruptible(&pi->wait_queue);
 
