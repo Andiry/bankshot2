@@ -141,9 +141,9 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(pi->btree_lock);
+	mutex_lock(&pi->tree_lock);
 	ret = bankshot2_remove_mapping_from_tree(bs2_dev, pi);
-	mutex_unlock(pi->btree_lock);
+	mutex_unlock(&pi->tree_lock);
 
 	return ret;
 }

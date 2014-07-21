@@ -288,8 +288,7 @@ retry:
 	pi->access_tree = RB_ROOT;
 	init_waitqueue_head(&pi->wait_queue);
 //	pi->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
-	pi->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
-	mutex_init(pi->btree_lock);
+	mutex_init(&pi->tree_lock);
 	pi->num_extents = 0;
 	pi->num_access_extents = 0;
 	INIT_LIST_HEAD(&pi->lru_list);
@@ -472,7 +471,6 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 		   bs2_dev->s_free_inode_hint);
 
 	list_del(&pi->lru_list);
-	kfree(pi->btree_lock);
 //out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;

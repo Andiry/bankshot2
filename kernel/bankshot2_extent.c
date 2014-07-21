@@ -860,7 +860,7 @@ void bankshot2_print_access_tree(struct bankshot2_device *bs2_dev,
 	struct extent_entry *curr;
 	struct rb_node *temp;
 
-	mutex_lock(pi->btree_lock);
+	mutex_lock(&pi->tree_lock);
 
 	if (pi->num_access_extents)
 		bs2_info("Print access tree for pi %llu, %u extents\n",
@@ -873,7 +873,7 @@ void bankshot2_print_access_tree(struct bankshot2_device *bs2_dev,
 		temp = rb_next(temp);
 	}
 
-	mutex_unlock(pi->btree_lock);
+	mutex_unlock(&pi->tree_lock);
 	return;
 }
 

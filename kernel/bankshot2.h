@@ -175,7 +175,7 @@ struct bankshot2_inode {
 	struct rb_root access_tree; /* Extent being accessed */
 //	rwlock_t extent_tree_lock;  /* Extent tree lock */
 //	spinlock_t btree_lock;	    /* B-tree lock */	
-	struct mutex *btree_lock;   /* Inode mutex */
+	struct mutex tree_lock;     /* Inode mutex */
 	unsigned int num_extents;   /* Num of extents in tree */
 	unsigned long start_index;  /* For btree height increase */	
 	struct list_head lru_list;  /* LRU list for eviction */	

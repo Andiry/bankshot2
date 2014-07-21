@@ -169,8 +169,7 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 	root_i->access_tree = RB_ROOT;
 	init_waitqueue_head(&root_i->wait_queue);
 //	root_i->extent_tree_lock = __RW_LOCK_UNLOCKED(extent_tree_lock);
-	root_i->btree_lock = kmalloc(sizeof(struct mutex), GFP_KERNEL);
-	mutex_init(root_i->btree_lock);
+	mutex_init(&root_i->tree_lock);
 	INIT_LIST_HEAD(&root_i->lru_list);
 
 	/* bankshot2_sync_inode(root_i); */

@@ -92,9 +92,9 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 	} else {
 		/* Get lock first */
 		bs2_info("victim pi: %llu\n", victim_pi->i_ino);
-		mutex_lock(victim_pi->btree_lock);
+		mutex_lock(&victim_pi->tree_lock);
 		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
-		mutex_unlock(victim_pi->btree_lock);
+		mutex_unlock(&victim_pi->tree_lock);
 
 		if (*num_free == 0) {
 			*num_free = victim_pi->i_blocks;
@@ -137,7 +137,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 //	bankshot2_print_tree(bs2_dev, pi);
 	bs2_dbg("pi root @ 0x%llx, height %u", pi->root, pi->height);
 
-	mutex_lock(pi->btree_lock);
+	mutex_lock(&pi->tree_lock);
 
 	for (i = 0; i < count; i++) {
 		block = bankshot2_find_data_block(bs2_dev, pi, index + i);
@@ -205,7 +205,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	*void_array = array;
 
-	mutex_unlock(pi->btree_lock);
+	mutex_unlock(&pi->tree_lock);
 	bs2_dbg("After alloc: %lu free\n", bs2_dev->num_free_blocks);
 
 	if (err) {
@@ -225,7 +225,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 //	int num_free;
 //	bankshot2_transaction_t *trans;
 
-	mutex_lock(pi->btree_lock);
+	mutex_lock(&pi->tree_lock);
 	block = bankshot2_find_data_block(bs2_dev, pi, iblock);
 
 	if (!block) {
@@ -270,7 +270,7 @@ static int bankshot2_find_and_alloc_blocks(struct bankshot2_device *bs2_dev,
 	*data_block = block;
 
 err:
-	mutex_unlock(pi->btree_lock);
+	mutex_unlock(&pi->tree_lock);
 	return err;
 }
 
@@ -376,17 +376,17 @@ static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 pos, size_t count)
 {
 	while(true) {
-		mutex_lock(pi->btree_lock);
+		mutex_lock(&pi->tree_lock);
 		if (bankshot2_extent_being_accessed(bs2_dev, pi, pos, count)
 				== 0) {
 			bankshot2_insert_access_extent(bs2_dev, pi, pos,
 							count);
 			bs2_dbg("Lock extent: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
-			mutex_unlock(pi->btree_lock);
+			mutex_unlock(&pi->tree_lock);
 			break;
 		}
-		mutex_unlock(pi->btree_lock);
+		mutex_unlock(&pi->tree_lock);
 		bs2_info("Waiting on extent: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
 		wait_event_interruptible_timeout(pi->wait_queue, false,
@@ -401,9 +401,9 @@ static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 static void bankshot2_unlock_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 pos, size_t count)
 {
-	mutex_lock(pi->btree_lock);
+	mutex_lock(&pi->tree_lock);
 	bankshot2_remove_access_extent(bs2_dev, pi, pos, count);
-	mutex_unlock(pi->btree_lock);
+	mutex_unlock(&pi->tree_lock);
 	bs2_dbg("Release extent: pi %llu, offset 0x%llx, size %lu\n",
 			pi->i_ino, pos, count);
 	wake_up_interruptible(&pi->wait_queue);
