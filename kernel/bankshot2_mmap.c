@@ -253,11 +253,13 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	}
 
 	BANKSHOT2_START_TIMING(bs2_dev, mmap_t, mmap);
+	mutex_unlock(&pi->tree_lock);
 	data->mmap_addr = bankshot2_mmap(bs2_dev, data->mmap_addr,
 			data->mmap_length,
 			data->write ? PROT_WRITE : PROT_READ,
 			MAP_SHARED | MAP_POPULATE, data->file,
 			data->mmap_offset / PAGE_SIZE, &vma);
+	mutex_lock(&pi->tree_lock);
 	BANKSHOT2_END_TIMING(bs2_dev, mmap_t, mmap);
 
 	if (data->mmap_addr >= (unsigned long)(-64)) {

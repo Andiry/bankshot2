@@ -118,7 +118,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	unsigned long required = 0;
 	u64 block;
 	u64 curr_offset;
-	char *array, *alloc_array;
+	char *array, *alloc_array = NULL;
 	int num_free, i;
 	int err = 0;
 	timing_t alloc, evict, update_phy;
@@ -130,8 +130,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	array = kzalloc(count, GFP_KERNEL);
 	BUG_ON(!array);
-	alloc_array = kzalloc(count, GFP_KERNEL);
-	BUG_ON(!alloc_array);
+	if (bio_interception) {
+		alloc_array = kzalloc(count, GFP_KERNEL);
+		BUG_ON(!alloc_array);
+	}
 
 	bs2_dbg("%s: %llu, %lu\n", __func__, offset, length);
 //	bankshot2_print_tree(bs2_dev, pi);
@@ -144,8 +146,9 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		if (!block) {
 			unallocated++;
 			required++;
-			alloc_array[i] = 0x1;
 			array[i] = 0x1;
+			if (bio_interception)
+				alloc_array[i] = 0x1;
 			curr_offset = (index + i) << bs2_dev->s_blocksize_bits;
 			if ((write == 1) && (user_offset <= curr_offset) &&
 			    (user_offset + req_len >=
@@ -194,7 +197,9 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		}
 	}
 
-	kfree(alloc_array);
+	if (bio_interception)
+		kfree(alloc_array);
+
 	if (err)
 		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
 
