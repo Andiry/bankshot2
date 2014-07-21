@@ -34,6 +34,9 @@ const char *Timingstring[TIMING_NUM] =
 	"evict_cache",
 	"update_physical_tree",
 	"add_physical_extent",
+	"insert_access_tree",
+	"remove_access_tree",
+	"wait_on_access_tree",
 	"fiemap",
 	"bio_to_cache",
 };

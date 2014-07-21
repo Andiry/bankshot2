@@ -108,6 +108,9 @@ enum timing_category {
 	evict_t,
 	update_physical_t,
 	add_physical_t,
+	insert_access_t,
+	remove_access_t,
+	wait_access_t,
 	fiemap_t,
 	bio_cache_t,
 	TIMING_NUM,	// Indicate num of timing

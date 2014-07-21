@@ -380,22 +380,28 @@ out:
 static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 pos, size_t count)
 {
+	timing_t time;
+
 	while(true) {
 		mutex_lock(&pi->tree_lock);
+		BANKSHOT2_START_TIMING(bs2_dev, insert_access_t, time);
 		if (bankshot2_extent_being_accessed(bs2_dev, pi, pos, count)
 				== 0) {
 			bankshot2_insert_access_extent(bs2_dev, pi, pos,
 							count);
 			bs2_dbg("Lock extent: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
+			BANKSHOT2_END_TIMING(bs2_dev, insert_access_t, time);
 			mutex_unlock(&pi->tree_lock);
 			break;
 		}
 		mutex_unlock(&pi->tree_lock);
 		bs2_info("Waiting on extent: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
+		BANKSHOT2_START_TIMING(bs2_dev, wait_access_t, time);
 		wait_event_interruptible_timeout(pi->wait_queue, false,
 					msecs_to_jiffies(1));
+		BANKSHOT2_END_TIMING(bs2_dev, wait_access_t, time);
 		bs2_info("Wakeup and test again: pi %llu, offset 0x%llx, "
 					"size %lu\n", pi->i_ino, pos, count);
 	}
@@ -406,8 +412,14 @@ static void bankshot2_lock_access_extent(struct bankshot2_device *bs2_dev,
 static void bankshot2_unlock_access_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, u64 pos, size_t count)
 {
+	timing_t time;
+
 	mutex_lock(&pi->tree_lock);
+
+	BANKSHOT2_START_TIMING(bs2_dev, remove_access_t, time);
 	bankshot2_remove_access_extent(bs2_dev, pi, pos, count);
+	BANKSHOT2_END_TIMING(bs2_dev, remove_access_t, time);
+
 	mutex_unlock(&pi->tree_lock);
 	bs2_dbg("Release extent: pi %llu, offset 0x%llx, size %lu\n",
 			pi->i_ino, pos, count);
