@@ -596,7 +596,7 @@ next:
 int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		u64 pos, size_t count, u64 b_offset, char *void_array,
-		unsigned long required)
+		unsigned long required, int read)
 {
 	struct file *file;
 	size_t nr_pages, done, transferred = 0;
@@ -652,10 +652,23 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		b_offset = start_b_offset + (first << PAGE_SHIFT);
 		job_offset = pos + (first << PAGE_SHIFT);
 
-		BANKSHOT2_START_TIMING(bs2_dev, vfs_read_t, vfs_read_time);
-		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
-		BANKSHOT2_END_TIMING(bs2_dev, vfs_read_t, vfs_read_time);
+		if (read) {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_read_t,
+						vfs_read_time);
+		} else {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_write_t,
+						vfs_read_time);
+		}
 
+		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
+
+		if (read) {
+			BANKSHOT2_END_TIMING(bs2_dev, vfs_read_read_t,
+						vfs_read_time);
+		} else {
+			BANKSHOT2_END_TIMING(bs2_dev, vfs_read_write_t,
+						vfs_read_time);
+		}
 		if (done >= (unsigned long)(-64)) {
 			bs2_info("vfs read failed, returned %d\n", (int)done);
 			fput(file);
@@ -671,13 +684,23 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 			bs2_dbg("read length unmatch: request %lu, done %lu\n",
 						length << PAGE_SHIFT, done);
 
-		BANKSHOT2_START_TIMING(bs2_dev, vfs_cache_fill_t,
+		if (read) {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_cache_fill_read_t,
 						cache_fill_time);
+		} else {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_cache_fill_write_t,
+						cache_fill_time);
+		}
 		done = do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
 						done, void_array, 1);
-		BANKSHOT2_END_TIMING(bs2_dev, vfs_cache_fill_t,
-						cache_fill_time);
 
+		if (read) {
+			BANKSHOT2_END_TIMING(bs2_dev, vfs_cache_fill_read_t,
+						cache_fill_time);
+		} else {
+			BANKSHOT2_END_TIMING(bs2_dev, vfs_cache_fill_write_t,
+						cache_fill_time);
+		}
 		if (done < PAGE_SIZE) {
 			bs2_info("ERROR: cache filled less than one page!\n");
 			break;

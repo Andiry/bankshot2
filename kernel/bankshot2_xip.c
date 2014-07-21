@@ -452,7 +452,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	/* Copy to cache first if it's not in cache */
 	BANKSHOT2_START_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, data, pos, count, b_offset,
-					void_array, required);
+					void_array, required, 1);
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
 	bs2_dev->bs_read_blocks += required;
 
@@ -564,7 +564,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	/* Copy to cache first if it's not in cache */
 	BANKSHOT2_START_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 	ret = bankshot2_copy_to_cache(bs2_dev, pi, data, pos, count, b_offset,
-					void_array, required);
+					void_array, required, 0);
 	BANKSHOT2_END_TIMING(bs2_dev, bs_read_w_t, bs_read_w);
 	bs2_dev->bs_write_blocks += required;
 
@@ -578,20 +578,6 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 
 		if (bytes > count)
 			bytes = count;
-
-#if 0
-		/* If it's not fully write to whole page,
-		 * copy data to cache first */
-		if (bytes != bs2_dev->blocksize && void_array[i] == 0x1) {
-			ret = bankshot2_copy_to_cache(bs2_dev, pi, pos,
-						PAGE_SIZE, b_offset, &c, 1);
-			if (ret) {
-				kfree(void_array);
-				return ret;
-			}
-		}
-#endif
-
 
 		if (req_len > 0 && ((user_offset >> bs2_dev->s_blocksize_bits)
 					== index)) { // Same page
