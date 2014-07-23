@@ -93,14 +93,24 @@ static int __init bankshot2_init(void)
 	}
 
 	bankshot2_init_mmap(bs2_dev);
-	bs2_info("Bankshot2 initialization succeed.\n");
 
 	ret = bankshot2_init_extents(bs2_dev);
 	if (ret) {
-		bs2_info("Bankshot2 kmem setup failed.\n");
+		bs2_info("Bankshot2 extents init failed.\n");
 		goto block_fail;
 	}
+
+	ret = bankshot2_init_transactions(bs2_dev);
+	if (ret) {
+		bs2_info("Bankshot2 transactions init failed.\n");
+		goto extents_fail;
+	}
+
+	bs2_info("Bankshot2 initialization succeed.\n");
 	return 0;
+
+extents_fail:
+	bankshot2_destroy_extents(bs2_dev);
 
 block_fail:
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
@@ -129,6 +139,7 @@ static void __exit bankshot2_exit(void)
 {
 	bs2_info("Exit Bankshot2.\n");
 	bankshot2_destroy_physical_tree(bs2_dev);
+	bankshot2_destroy_transactions(bs2_dev);
 	bankshot2_destroy_extents(bs2_dev);
 	bankshot2_destroy_job_queue(bs2_dev);
 	blkdev_put(bs2_dev->bs_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);

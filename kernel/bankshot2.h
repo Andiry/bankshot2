@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/blkdev.h>
 #include <linux/cdev.h>
+#include <linux/kthread.h>
 #include <linux/fs.h>
 #include <linux/bio.h>
 #include <linux/highmem.h>
@@ -71,6 +72,39 @@ extern int bio_interception;
 
 #define ALIGN_ADDRESS(addr) ((uint64_t)((addr >= PAGE_SIZE) ? (addr - \
 			(addr % PAGE_SIZE)) : 0))
+
+/* journal.h */
+#define CLINE_SHIFT		(6)
+#define CACHELINE_MASK  (~(CACHELINE_SIZE - 1))
+#define CACHELINE_ALIGN(addr) (((addr)+CACHELINE_SIZE-1) & CACHELINE_MASK)
+
+#define LOGENTRY_SIZE  CACHELINE_SIZE
+#define LESIZE_SHIFT   CLINE_SHIFT
+
+#define MAX_INODE_LENTRIES (2)
+#define MAX_SB_LENTRIES (2)
+/* 1 le for dir entry and 1 le for potentially allocating a new dir block */
+#define MAX_DIRENTRY_LENTRIES   (2)
+/* 2 le for adding or removing the inode from truncate list. used to log
+ * potential changes to inode table's i_next_truncate and i_sum */
+#define MAX_TRUNCATE_LENTRIES (2)
+#define MAX_DATA_PER_LENTRY  48
+/* blocksize * max_btree_height */
+#define MAX_METABLOCK_LENTRIES \
+	((PMFS_DEF_BLOCK_SIZE_4K * 3)/MAX_DATA_PER_LENTRY)
+
+#define MAX_PTRS_PER_LENTRY (MAX_DATA_PER_LENTRY / sizeof(u64))
+
+#define TRANS_RUNNING    1
+#define TRANS_COMMITTED  2
+#define TRANS_ABORTED    3
+
+#define LE_DATA        0
+#define LE_START       1
+#define LE_COMMIT      2
+#define LE_ABORT       4
+
+#define MAX_GEN_ID  ((uint16_t)-1)
 
 /* Default mmap size : 4096 */
 #define MMAP_UNIT	PAGE_SIZE
@@ -420,6 +454,15 @@ struct bankshot2_device {
 	uint64_t bs_sects;
 
 	struct kmem_cache *bs2_extent_slab;
+
+	/* Journaling related structures */
+	struct kmem_cache *bs2_transaction_slab;
+	uint32_t next_transaction_id;
+	void *journal_base_addr;
+	struct mutex journal_mutex;
+	struct task_struct *log_cleaner_thread;
+	wait_queue_head_t log_cleaner_wait;
+	bool redo_log;
 	/*
 	 * Backing store of pages and lock to protect it. This is the contents
 	 * of the block device.
@@ -462,16 +505,27 @@ bankshot2_get_super(struct bankshot2_device *bs2_dev)
 /* If this is part of a read-modify-write of the block,
  * pmfs_memunlock_block() before calling! */
 static inline void *bankshot2_get_block(struct bankshot2_device *bs2_dev,
-					u64 block)
+		u64 block)
 {
 	struct bankshot2_super_block *ps = bankshot2_get_super(bs2_dev);
 
 	return block ? ((void *)ps + block) : NULL;
 }
 
+static inline u64 bankshot2_get_addr_off(struct bankshot2_device *bs2_dev,
+		void *addr)
+{
+	if ((addr <= bs2_dev->virt_addr ) || (addr > bs2_dev->virt_addr +
+			bs2_dev->size)) {
+		bs2_info("ERROR: %s\n", __func__);
+		BUG();
+	}
+	return (u64)(addr - bs2_dev->virt_addr);
+}
+
 static inline u64
 bankshot2_get_block_off(struct bankshot2_device *bs2_dev,
-			unsigned long blocknr, unsigned short btype)
+		unsigned long blocknr, unsigned short btype)
 {
 	return (u64)blocknr << PAGE_SHIFT;
 }
@@ -634,6 +688,37 @@ static inline void memset_nt(void *dest, uint32_t dword, size_t length)
 		: "=D"(dummy1), "=d" (dummy2) : "D" (dest), "a" (qword), "d" (length) : "memory", "rcx");
 }
 
+static inline bankshot2_journal_t *
+bankshot2_get_journal(struct bankshot2_device *bs2_dev)
+{
+	struct bankshot2_super_block *ps = bankshot2_get_super(bs2_dev);
+
+	return (bankshot2_journal_t *)((char *)ps +
+			le64_to_cpu(ps->s_journal_offset));
+}
+
+static inline void PERSISTENT_MARK(void)
+{
+	/* FIXME: TBD */
+}
+
+static inline void PERSISTENT_BARRIER(void)
+{
+	asm volatile ("sfence\n" : : );
+}
+
+static inline void bankshot2_memlock_range(struct bankshot2_device *bs2_dev,
+		void *p, unsigned long len)
+{
+	/* FIXME: TBD */
+}
+
+static inline void bankshot2_memunlock_range(struct bankshot2_device *bs2_dev,
+		void *p, unsigned long len)
+{
+	/* FIXME: TBD */
+}
+
 /* ========================= Interfaces =================================== */
 
 /* bankshot2_char.c */
@@ -783,4 +868,8 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 /* bankshot2_stats.c */
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev);
 void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev);
+
+/* bankshot2_journal.c */
+int bankshot2_init_transactions(struct bankshot2_device *bs2_dev);
+void bankshot2_destroy_transactions(struct bankshot2_device *bs2_dev);
 

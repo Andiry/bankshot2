@@ -5,6 +5,19 @@
 
 #include "bankshot2.h"
 
+inline bankshot2_transaction_t *
+bankshot2_alloc_transaction(struct bankshot2_device *bs2_dev)
+{
+	return (bankshot2_transaction_t *)
+		kmem_cache_alloc(bs2_dev->bs2_transaction_slab, GFP_NOFS);
+}
+
+inline void bankshot2_free_transaction(struct bankshot2_device *bs2_dev,
+		bankshot2_transaction_t *trans)
+{
+	kmem_cache_free(bs2_dev->bs2_transaction_slab, trans);
+}
+
 static void dump_transaction(struct bankshot2_device *bs2_dev,
 		bankshot2_transaction_t *trans)
 {
@@ -371,7 +384,7 @@ static int bankshot2_log_cleaner(void *arg)
 {
 	struct bankshot2_device *bs2_dev = (struct bankshot2_device *)arg;
 
-	bankshot2_dbg_trans("Running log cleaner thread\n");
+	bs2_dbg("Running log cleaner thread\n");
 	for (;;) {
 		log_cleaner_try_sleeping(bs2_dev);
 
@@ -392,11 +405,10 @@ static int bankshot2_journal_cleaner_run(struct bankshot2_device *bs2_dev)
 	init_waitqueue_head(&bs2_dev->log_cleaner_wait);
 
 	bs2_dev->log_cleaner_thread = kthread_run(bankshot2_log_cleaner,
-		bs2_dev, "bankshot2_log_cleaner_0x%llx", bs2_dev->phys_addr);
+		bs2_dev, "bankshot2_log_cleaner_0x%lx", bs2_dev->phys_addr);
 	if (IS_ERR(bs2_dev->log_cleaner_thread)) {
 		/* failure at boot is fatal */
-		bs2_info(bs2_dev, "Failed to start bankshot2 "
-					"log cleaner thread\n");
+		bs2_info("Failed to start bankshot2 log cleaner thread\n");
 		ret = -1;
 	}
 	return ret;
@@ -483,7 +495,7 @@ bankshot2_new_transaction(struct bankshot2_device *bs2_dev, int max_log_entries)
 	if (!bs2_dev->redo_log)
 		max_log_entries++;
 
-	trans = bankshot2_alloc_transaction();
+	trans = bankshot2_alloc_transaction(bs2_dev);
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 	memset(trans, 0, sizeof(*trans));
@@ -548,14 +560,15 @@ again:
 	trans->parent = (bankshot2_transaction_t *)current->journal_info;
 	current->journal_info = trans;
 	return trans;
+
 journal_full:
 	mutex_unlock(&bs2_dev->journal_mutex);
-	bs2_info(bs2_dev, "Journal full. base %llx sz %x head:tail %x:%x "
-		"ncl %x\n",
+	bs2_info("Journal full. base %llx sz %x head:tail %x:%x ncl %x\n",
 		le64_to_cpu(journal->base), le32_to_cpu(journal->size),
 		le32_to_cpu(journal->head), le32_to_cpu(journal->tail),
 		max_log_entries);
-	bankshot2_free_transaction(trans);
+	bankshot2_free_transaction(bs2_dev, trans);
+
 	return ERR_PTR(-EAGAIN);
 }
 
@@ -617,8 +630,7 @@ int bankshot2_add_logentry(struct bankshot2_device *bs2_dev,
 		trans->num_used, le);
 
 	if ((trans->num_used + num_les) > trans->num_entries) {
-		bs2_info(bs2_dev, "Log Entry full. tid %x ne %x tail %x "
-			"size %x\n",
+		bs2_info("Log Entry full. tid %x ne %x tail %x size %x\n",
 			trans->transaction_id, trans->num_entries,
 			trans->num_used, size);
 		dump_transaction(bs2_dev, trans);
@@ -679,7 +691,7 @@ int bankshot2_commit_transaction(struct bankshot2_device *bs2_dev,
 	bs2_dbg("completing transaction for id %d\n", trans->transaction_id);
 
 	current->journal_info = trans->parent;
-	bankshot2_free_transaction(trans);
+	bankshot2_free_transaction(bs2_dev, trans);
 	return 0;
 }
 
@@ -703,7 +715,7 @@ int bankshot2_abort_transaction(struct bankshot2_device *bs2_dev,
 	/* add a abort log entry */
 	bankshot2_add_logentry(bs2_dev, trans, NULL, 0, LE_ABORT);
 	current->journal_info = trans->parent;
-	bankshot2_free_transaction(trans);
+	bankshot2_free_transaction(bs2_dev, trans);
 	return 0;
 }
 
@@ -781,7 +793,7 @@ static int bankshot2_recover_undo_journal(struct bankshot2_device *bs2_dev)
 			}
 		}
 	}
-	bankshot2_forward_journal(bs2_dev, bs2_dev, journal);
+	bankshot2_forward_journal(bs2_dev, journal);
 	PERSISTENT_MARK();
 	PERSISTENT_BARRIER();
 	return 0;
@@ -819,7 +831,7 @@ static int bankshot2_recover_redo_journal(struct bankshot2_device *bs2_dev)
 		if (head == 0)
 			gen_id = next_gen_id(gen_id);
 	}
-	bankshot2_forward_journal(bs2_dev, bs2_dev, journal);
+	bankshot2_forward_journal(bs2_dev, journal);
 	PERSISTENT_MARK();
 	PERSISTENT_BARRIER();
 	return 0;
@@ -842,5 +854,21 @@ int bankshot2_recover_journal(struct bankshot2_device *bs2_dev)
 	else
 		bankshot2_recover_undo_journal(bs2_dev);
 	return 0;
+}
+
+int bankshot2_init_transactions(struct bankshot2_device *bs2_dev)
+{
+	bs2_dev->bs2_transaction_slab = kmem_cache_create(
+					"bankshot2_transaction_slab",
+					sizeof(bankshot2_transaction_t),
+					0, 0, NULL);
+	if (bs2_dev->bs2_transaction_slab == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void bankshot2_destroy_transactions(struct bankshot2_device *bs2_dev)
+{
+	kmem_cache_destroy(bs2_dev->bs2_transaction_slab);
 }
 
