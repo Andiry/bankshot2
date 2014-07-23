@@ -69,6 +69,11 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 	bs2_info("bio to cache size: %llu\n",
 				bs2_dev->bio_cache_size);
 	bs2_info("Fiemap count: %llu\n", bs2_dev->fiemap_count);
+	bs2_info("Bio to backing store: count %llu, total size %llu, "
+		"average size %llu\n", bs2_dev->num_bio,
+		bs2_dev->total_bio_size,
+		bs2_dev->num_bio ?
+		bs2_dev->total_bio_size / bs2_dev->num_bio : 0);
 }
 
 void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
@@ -84,5 +89,7 @@ void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
 	bs2_dev->bs_write_blocks = 0;
 	bs2_dev->bio_cache_size = 0;
 	bs2_dev->fiemap_count = 0;
+	bs2_dev->num_bio = 0;
+	bs2_dev->total_bio_size = 0;
 }
 

@@ -476,6 +476,8 @@ struct bankshot2_device {
 	u64 bs_write_blocks;
 	u64 bio_cache_size;
 	u64 fiemap_count;
+	u64 num_bio;
+	u64 total_bio_size;
 };
 
 extern struct bankshot2_device *bs2_dev;

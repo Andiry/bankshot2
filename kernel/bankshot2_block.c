@@ -128,6 +128,8 @@ void bankshot2_make_cache_request(struct request_queue *q, struct bio *bio)
 	}
 
 out:
+	bs2_dev->num_bio++;
+	bs2_dev->total_bio_size += bio->bi_size;
 	bio->bi_bdev = bs2_dev->bs_bdev;
 	submit_bio(bio_data_dir(bio) ? WRITE : READ, bio);
 
