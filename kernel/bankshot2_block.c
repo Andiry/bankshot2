@@ -222,5 +222,6 @@ void bankshot2_destroy_block(struct bankshot2_device* bs2_dev)
 	blk_cleanup_queue(bs2_dev->queue);
 	bs2_dev->queue = NULL;
 	unregister_blkdev(bs2_dev->major, "bankshot2");
+	bs2_info("%s returns.\n", __func__);
 }
 

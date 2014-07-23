@@ -836,5 +836,6 @@ int bankshot2_init_kmem(struct bankshot2_device *bs2_dev)
 void bankshot2_destroy_kmem(struct bankshot2_device *bs2_dev)
 {
 	kmem_cache_destroy(bs2_dev->bs2_blocknode_cachep);
+	bs2_info("%s returns.\n", __func__);
 }
 

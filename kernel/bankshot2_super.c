@@ -123,13 +123,11 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 		return ret;
 	}
 
-/* FIXME: ignore journal part
 	if (bankshot2_journal_hard_init(bs2_dev, journal_data_start,
 			bs2_dev->jsize) < 0) {
 		bs2_info("Journal hard initialization failed\n");
 		return -EINVAL;
 	}
-*/
 
 	if (bankshot2_init_inode_table(bs2_dev) < 0) {
 		bs2_info("Inode table init failed\n");
@@ -188,4 +186,5 @@ int bankshot2_init_super(struct bankshot2_device *bs2_dev,
 void bankshot2_destroy_super(struct bankshot2_device *bs2_dev)
 {
 	bankshot2_iounmap(bs2_dev);
+	bs2_info("%s returns.\n", __func__);
 }

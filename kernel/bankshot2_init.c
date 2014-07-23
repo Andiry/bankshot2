@@ -137,7 +137,7 @@ check_fail:
 
 static void __exit bankshot2_exit(void)
 {
-	bs2_info("Exit Bankshot2.\n");
+	bs2_info("Exiting Bankshot2...\n");
 	bankshot2_destroy_physical_tree(bs2_dev);
 	bankshot2_destroy_transactions(bs2_dev);
 	bankshot2_destroy_extents(bs2_dev);
@@ -148,6 +148,7 @@ static void __exit bankshot2_exit(void)
 	bankshot2_destroy_char(bs2_dev);
 	bankshot2_destroy_kmem(bs2_dev);
 	kfree(bs2_dev);
+	bs2_info("Exit Bankshot2.\n");
 }
 
 

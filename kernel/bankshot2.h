@@ -872,4 +872,7 @@ void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev);
 /* bankshot2_journal.c */
 int bankshot2_init_transactions(struct bankshot2_device *bs2_dev);
 void bankshot2_destroy_transactions(struct bankshot2_device *bs2_dev);
+int bankshot2_journal_hard_init(struct bankshot2_device *bs2_dev, uint64_t base,
+		uint32_t size);
+int bankshot2_journal_soft_init(struct bankshot2_device *bs2_dev);
 

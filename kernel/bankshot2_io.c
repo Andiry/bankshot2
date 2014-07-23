@@ -174,6 +174,7 @@ void bankshot2_destroy_job_queue(struct bankshot2_device *bs2_dev)
 		bioset_free(bs2_dev->bio_set);
 	if(bs2_dev->job_descriptor_slab)
 		kmem_cache_destroy(bs2_dev->job_descriptor_slab);
+	bs2_info("%s returns.\n", __func__);
 	/* Iterate through the list and destroy jobs */
 }
 

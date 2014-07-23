@@ -718,6 +718,7 @@ void bankshot2_destroy_physical_tree(struct bankshot2_device *bs2_dev)
 	}
 
 //	write_unlock(&pi->extent_tree_lock);
+	bs2_info("%s returns.\n", __func__);
 	return;
 }
 
@@ -931,5 +932,6 @@ void bankshot2_destroy_extents(struct bankshot2_device *bs2_dev)
 	}
 
 	kmem_cache_destroy(bs2_dev->bs2_extent_slab);
+	bs2_info("%s returns.\n", __func__);
 }
 

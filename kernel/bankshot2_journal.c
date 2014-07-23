@@ -411,6 +411,7 @@ static int bankshot2_journal_cleaner_run(struct bankshot2_device *bs2_dev)
 		bs2_info("Failed to start bankshot2 log cleaner thread\n");
 		ret = -1;
 	}
+	bs2_info("Start bankshot2 log cleaner thread.\n");
 	return ret;
 }
 
@@ -460,8 +461,10 @@ static void wakeup_log_cleaner(struct bankshot2_device *bs2_dev)
 
 int bankshot2_journal_uninit(struct bankshot2_device *bs2_dev)
 {
-	if (bs2_dev->log_cleaner_thread)
+	if (bs2_dev->log_cleaner_thread) {
+		bs2_info("Stop bankshot2 log cleaner thread.\n");
 		kthread_stop(bs2_dev->log_cleaner_thread);
+	}
 	return 0;
 }
 
@@ -869,6 +872,8 @@ int bankshot2_init_transactions(struct bankshot2_device *bs2_dev)
 
 void bankshot2_destroy_transactions(struct bankshot2_device *bs2_dev)
 {
+	bankshot2_journal_uninit(bs2_dev);
 	kmem_cache_destroy(bs2_dev->bs2_transaction_slab);
+	bs2_info("%s returns.\n", __func__);
 }
 

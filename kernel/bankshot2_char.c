@@ -320,5 +320,6 @@ void bankshot2_destroy_char(struct bankshot2_device* bs2_dev)
 	unregister_chrdev_region(bs2_dev->chardevnum, 1);
 	cdev_del(&bs2_dev->chardev);
 	class_destroy(bankshot2_chardev_class);
+	bs2_info("%s returns.\n", __func__);
 }
 
