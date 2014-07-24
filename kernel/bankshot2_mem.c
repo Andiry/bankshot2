@@ -331,9 +331,9 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 				/* save the meta-data into the journal before
 				 * modifying */
 				if (new_node == 0 && journal_saved == 0) {
-//					int le_size = (last_index - i + 1) << 3;
-//					bankshot2_add_logentry(bs2_dev, trans, &node[i],
-//						le_size, LE_DATA);
+					int le_size = (last_index - i + 1) << 3;
+					bankshot2_add_logentry(bs2_dev, trans, &node[i],
+						le_size, LE_DATA);
 					journal_saved = 1;
 				}
 //				bankshot2_memunlock_block(bs2_dev, node);
@@ -355,9 +355,9 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 				/* save the meta-data into the journal before
 				 * modifying */
 				if (new_node == 0 && journal_saved == 0) {
-//					int le_size = (last_index - i + 1) << 3;
-//					bankshot2_add_logentry(bs2_dev, trans, &node[i],
-//						le_size, LE_DATA);
+					int le_size = (last_index - i + 1) << 3;
+					bankshot2_add_logentry(bs2_dev, trans, &node[i],
+						le_size, LE_DATA);
 					journal_saved = 1;
 				}
 //				bankshot2_memunlock_block(bs2_dev, node);

@@ -200,12 +200,12 @@ struct bankshot2_inode {
 	__le64	i_blocks;           /* Blocks count */
 
 	/* second 48 bytes */
-//	__le64	i_xattr;            /* Extended attribute block */
+	__le64	i_xattr;            /* Extended attribute block */
 	__le64	i_ino;		    /* Inode number in bankshot2 */
 	__le64	backup_ino;	    /* Inode number in backing store */
 	__le32	i_uid;              /* Owner Uid */
 	__le32	i_gid;              /* Group Id */
-//	__le32	i_generation;       /* File version (for NFS) */
+	__le32	i_generation;       /* File version (for NFS) */
 	__le32	i_atime;            /* Access time */
 	struct inode *inode;	    /* Backing inode */
 	struct rb_root extent_tree; /* Extent tree root */
@@ -872,6 +872,16 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev);
 void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev);
 
 /* bankshot2_journal.c */
+bankshot2_transaction_t *
+bankshot2_new_transaction(struct bankshot2_device *bs2_dev,
+		int max_log_entries);
+int bankshot2_add_logentry(struct bankshot2_device *bs2_dev,
+		bankshot2_transaction_t *trans, void *addr,
+		uint16_t size, u8 type);
+int bankshot2_commit_transaction(struct bankshot2_device *bs2_dev,
+		bankshot2_transaction_t *trans);
+int bankshot2_abort_transaction(struct bankshot2_device *bs2_dev,
+		bankshot2_transaction_t *trans);
 int bankshot2_init_transactions(struct bankshot2_device *bs2_dev);
 void bankshot2_destroy_transactions(struct bankshot2_device *bs2_dev);
 int bankshot2_journal_hard_init(struct bankshot2_device *bs2_dev, uint64_t base,

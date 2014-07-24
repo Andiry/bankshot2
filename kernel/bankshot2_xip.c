@@ -122,6 +122,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	int num_free, i;
 	int err = 0;
 	timing_t alloc, evict, update_phy;
+	bankshot2_transaction_t *trans;
 
 	index = offset >> bs2_dev->s_blocksize_bits;
 	count = length >> bs2_dev->s_blocksize_bits;
@@ -180,11 +181,24 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
 	if (unallocated) {
+		trans = bankshot2_new_transaction(bs2_dev,
+					count / MAX_PTRS_PER_LENTRY + 2);
+		if (IS_ERR(trans)) {
+			bs2_info("%s: trans alloc failed\n", __func__);
+			BUG();
+		}
+
 		BANKSHOT2_START_TIMING(bs2_dev, alloc_t, alloc);
-		err = bankshot2_alloc_blocks(NULL, bs2_dev, pi, index,
+		err = bankshot2_alloc_blocks(trans, bs2_dev, pi, index,
 						count, true);
 		BANKSHOT2_END_TIMING(bs2_dev, alloc_t, alloc);
 
+		if (err) {
+			bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
+			bankshot2_abort_transaction(bs2_dev, trans);
+		}
+
+		bankshot2_commit_transaction(bs2_dev, trans);
 		if (bio_interception) {
 			BANKSHOT2_START_TIMING(bs2_dev, update_physical_t,
 							update_phy);
@@ -199,9 +213,6 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	if (bio_interception)
 		kfree(alloc_array);
-
-	if (err)
-		bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
 
 	/* First add the new mapping, then remove the old mapping */
 	err = bankshot2_mmap_extent(bs2_dev, pi, data, access_extent);

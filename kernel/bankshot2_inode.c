@@ -138,11 +138,11 @@ static int bankshot2_increase_inode_table_size(struct bankshot2_device *bs2_dev)
 	int errval;
 
 	/* 1 log entry for inode-table inode, 1 lentry for inode-table b-tree */
-//	trans = bankshot2_new_transaction(sb, MAX_INODE_LENTRIES);
-//	if (IS_ERR(trans))
-//		return PTR_ERR(trans);
+	trans = bankshot2_new_transaction(bs2_dev, MAX_INODE_LENTRIES);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
-//	bankshot2_add_logentry(sb, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
+	bankshot2_add_logentry(bs2_dev, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
 
 	errval = __bankshot2_alloc_blocks(trans, bs2_dev, pi,
 			le64_to_cpup(&pi->i_size) >> bs2_dev->s_blocksize_bits,
@@ -164,7 +164,7 @@ static int bankshot2_increase_inode_table_size(struct bankshot2_device *bs2_dev)
 	} else
 		bs2_dbg("no space left to inc inode table!\n");
 	/* commit the transaction */
-//	bankshot2_commit_transaction(sb, trans);
+	bankshot2_commit_transaction(bs2_dev, trans);
 	return errval;
 }
 
@@ -275,7 +275,7 @@ retry:
 
 	/* chosen inode is in ino */
 //	inode->i_ino = ino;
-//	bankshot2_add_logentry(sb, trans, pi, sizeof(*pi), LE_DATA);
+	bankshot2_add_logentry(bs2_dev, trans, pi, sizeof(*pi), LE_DATA);
 
 //	bankshot2_memunlock_inode(sb, pi);
 	pi->i_blk_type = BANKSHOT2_DEFAULT_BLOCK_TYPE;
@@ -370,6 +370,7 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 {
 	struct bankshot2_inode *pi;
 	struct inode *inode;
+	bankshot2_transaction_t *trans;
 	u64 ino;
 	int ret;
 
@@ -401,12 +402,20 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		goto found;
 	}
 
-	ret = bankshot2_new_inode(bs2_dev, inode, NULL, &pi, &ino);
+	/* Allocate new inode */
+	trans = bankshot2_new_transaction(bs2_dev, MAX_INODE_LENTRIES * 2 +
+			MAX_DIRENTRY_LENTRIES);
+	if (IS_ERR(trans))
+		return NULL;
+
+	ret = bankshot2_new_inode(bs2_dev, inode, trans, &pi, &ino);
 	if (ret) {
 		bs2_info("Allocate new inode failed %d\n", ret);
+		bankshot2_abort_transaction(bs2_dev, trans);
 		return NULL;
 	}
 
+	bankshot2_commit_transaction(bs2_dev, trans);
 	bs2_info("Allocated new inode %llu\n", ino);
 	data->cache_file_size = 0;
 found:
@@ -421,7 +430,7 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi)
 {
 	unsigned long inode_nr;
-//	bankshot2_transaction_t *trans;
+	bankshot2_transaction_t *trans;
 	int err = 0;
 
 	mutex_lock(&bs2_dev->inode_table_mutex);
@@ -433,25 +442,25 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 
 	inode_nr = pi->i_ino;
 
-//	trans = bankshot2_new_transaction(sb, MAX_INODE_LENTRIES);
-//	if (IS_ERR(trans)) {
-//		err = PTR_ERR(trans);
-//		goto out;
-//	}
+	trans = bankshot2_new_transaction(bs2_dev, MAX_INODE_LENTRIES);
+	if (IS_ERR(trans)) {
+		err = PTR_ERR(trans);
+		goto out;
+	}
 
-//	bankshot2_add_logentry(sb, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
+	bankshot2_add_logentry(bs2_dev, trans, pi, MAX_DATA_PER_LENTRY, LE_DATA);
 
 //	bankshot2_memunlock_inode(sb, pi);
 
 	pi->root = 0;
-	/* pi->i_links_count = 0;
-	pi->i_xattr = 0; */
+//	pi->i_links_count = 0;
+//	pi->i_xattr = 0;
 	pi->start_index = ULONG_MAX;
 	pi->i_size = 0;
 	pi->i_dtime = cpu_to_le32(get_seconds());
 //	bankshot2_memlock_inode(sb, pi);
 
-//	bankshot2_commit_transaction(sb, trans);
+	bankshot2_commit_transaction(bs2_dev, trans);
 
 	/* increment s_free_inodes_count */
 	if (inode_nr < (bs2_dev->s_free_inode_hint))
@@ -471,7 +480,8 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 		   bs2_dev->s_free_inode_hint);
 
 	list_del(&pi->lru_list);
-//out:
+
+out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;
 }
