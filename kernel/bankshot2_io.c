@@ -718,41 +718,77 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
-#if 0
-int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
+static size_t do_fsync_cache_fill(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, char *buf, u64 start_offset,
+		size_t length)
+{
+	unsigned long index;
+	u64 block;
+	void *xmem;
+	size_t ret = 0;
+	int i = 0;
+
+	index = start_offset >> bs2_dev->s_blocksize_bits;
+
+	while(length) {
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("%s: get block failed, index 0x%lx\n",
+					__func__, index);
+			return -EINVAL;
+		}
+		xmem = bankshot2_get_block(bs2_dev, block);
+		memcpy(buf + i * PAGE_SIZE, xmem, PAGE_SIZE);
+		bankshot2_flush_edge_cachelines(
+				index << bs2_dev->s_blocksize_bits,
+				PAGE_SIZE, xmem);
+		index++;
+		i++;
+		if (length < PAGE_SIZE)
+			length = 0;
+		else
+			length -= PAGE_SIZE;
+		ret += PAGE_SIZE;
+	}
+
+	return ret;
+}
+
+/*
+ * Fsync/Fdatasync handler.
+ * FIXME: It's a waste to copy to user buffer first.
+ * FIXME: Need to detect dirty pages.
+ */
+int bankshot2_fsync_to_bs(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		u64 pos, size_t count, u64 b_offset, char *void_array,
-		unsigned long required)
+		loff_t start, loff_t end, int datasync)
 {
 	struct file *file;
 	size_t nr_pages, done, transferred = 0;
 //	uint8_t result;
-	u64 job_offset, start_b_offset;
-	unsigned long start, first, length;
+	unsigned long length;
+	size_t count;
+	off_t start_aligned, end_aligned;
+	loff_t b_offset;
 	char *buf;
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
-	if (required == 0)
+	if (end <= start)
 		return 0;
 
-	if (count > MAX_MMAP_SIZE)
-	{
-		bs2_info("%s: user buf length is not long enough! "
-			"extent length %lu, buf length %u\n",
-			__func__, count, MAX_MMAP_SIZE);
-		return -EINVAL;
-	}
+	buf = data->carrier;
+	if (!buf)
+		return -ENOMEM;
 
-	align_offset_and_len(&b_offset, &count);
-	pos = job_offset = ALIGN_DOWN(pos);
-	start_b_offset = b_offset;
+	start_aligned = ALIGN_DOWN(start);
+	end_aligned = ALIGN_UP(end);
+	count = end_aligned - start_aligned;
 
 	nr_pages = count >> bs2_dev->s_blocksize_bits;
 
-	if (nr_pages == 0 || nr_pages < required)
+	if (nr_pages == 0)
 	{
-		bs2_info("Copy from cache Len is incorrect: %lu, "
-				"required %lu\n", nr_pages, required);
+		bs2_info("Fsync length incorrect\n");
 		return -EINVAL;
 	}
 
@@ -762,14 +798,8 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 	}
 
-	buf = data->carrier;
-	if (!buf) {
-		fput(file);
-		return -ENOMEM;
-	}
-
-	start = first = 0;
-	while(required) {
+	while(count) {
+#if 0
 		length = find_continuous_pages(void_array, nr_pages, start,
 					&first);
 
@@ -781,14 +811,16 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 			fput(file);
 			return -EINVAL;
 		}
+#endif
+		length = MAX_MMAP_SIZE;
+		if (length > count)
+			length = count;
 
-		b_offset = start_b_offset + (first << PAGE_SHIFT);
-		job_offset = pos + (first << PAGE_SHIFT);
+		b_offset = start_aligned;
 
-		do_vfs_cache_fill(bs2_dev, pi, buf, job_offset, pos,
-				length << PAGE_SHIFT, void_array, 0);
+		do_fsync_cache_fill(bs2_dev, pi, buf, start_aligned, length);
 
-		done = vfs_write(file, buf, length << PAGE_SHIFT, &b_offset);
+		done = vfs_write(file, buf, length, &b_offset);
 
 		if (done >= (unsigned long)(-64)) {
 			bs2_info("vfs write failed, returned %d\n", (int)done);
@@ -796,18 +828,22 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 			return -EINVAL;
 		}
 
-		bs2_dbg("vfs write: offset %llu, request %lu, done %lu\n",
-					b_offset, length << PAGE_SHIFT, done);
+		bs2_dbg("vfs write: offset %lu, request %lu, done %lu\n",
+					start_aligned, length, done);
 		if (done <= 0) 
 			break;
 
-		if (done != (length << PAGE_SHIFT))
+		if (done != length)
 			bs2_info("write length unmatch: request %lu, "
-				"done %lu\n", length << PAGE_SHIFT, done);
+				"done %lu\n", length, done);
 
-		required -= (done >> bs2_dev->s_blocksize_bits);
+		if (done < count)
+			count -= done;
+		else
+			count = 0;
+
 		transferred += (done >> bs2_dev->s_blocksize_bits);
-		start = first + (done >> bs2_dev->s_blocksize_bits);
+		start_aligned += done;
 	}
 	/* Wait on the jobs to complete, submit tthe transfer to cache and, free memory for completed jobs*/
 //	do_disk_fill(bs2_dev, &jd_head, NULL);	
@@ -817,7 +853,6 @@ int bankshot2_copy_from_cache(struct bankshot2_device *bs2_dev,
 	fput(file);
 	return 0;
 }
-#endif
 
 static int find_bs_offset(struct inode *inode,
 		struct bankshot2_cache_data *data, u64 job_offset)
