@@ -718,14 +718,13 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
-static size_t do_fsync_cache_fill(struct bankshot2_device *bs2_dev,
+static int do_fsync_cache_fill(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, char *buf, u64 start_offset,
 		size_t length)
 {
 	unsigned long index;
 	u64 block;
 	void *xmem;
-	size_t ret = 0;
 	int i = 0;
 
 	index = start_offset >> bs2_dev->s_blocksize_bits;
@@ -748,10 +747,9 @@ static size_t do_fsync_cache_fill(struct bankshot2_device *bs2_dev,
 			length = 0;
 		else
 			length -= PAGE_SIZE;
-		ret += PAGE_SIZE;
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -771,6 +769,7 @@ int bankshot2_fsync_to_bs(struct bankshot2_device *bs2_dev,
 	off_t start_aligned, end_aligned;
 	loff_t b_offset;
 	char *buf;
+	int ret;
 
 ////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
 	if (end <= start)
@@ -818,7 +817,13 @@ int bankshot2_fsync_to_bs(struct bankshot2_device *bs2_dev,
 
 		b_offset = start_aligned;
 
-		do_fsync_cache_fill(bs2_dev, pi, buf, start_aligned, length);
+		ret = do_fsync_cache_fill(bs2_dev, pi, buf, start_aligned,
+						length);
+		if (ret) {
+			/* Don't write to disk if cache block invalid */
+			done = length;
+			goto next;
+		}
 
 		done = vfs_write(file, buf, length, &b_offset);
 
@@ -836,7 +841,7 @@ int bankshot2_fsync_to_bs(struct bankshot2_device *bs2_dev,
 		if (done != length)
 			bs2_info("write length unmatch: request %lu, "
 				"done %lu\n", length, done);
-
+next:
 		if (done < count)
 			count -= done;
 		else
