@@ -111,7 +111,7 @@ out:
 
 }
 
-static int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
+int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
 					void *arg, struct inode **st_inode)
 {
 	struct file *fileinfo;
@@ -286,7 +286,7 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 
 	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
 	if (ret) {
-		bs2_dbg("Get extent returned %d\n", ret);
+		bs2_info("Get backing inode returned %d\n", ret);
 		return ret;
 	}
 

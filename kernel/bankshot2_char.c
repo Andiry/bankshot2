@@ -223,6 +223,46 @@ out:
 	return 0;
 }
 
+static int bankshot2_ioctl_fsync_data(struct bankshot2_device *bs2_dev,
+		void *arg)
+{
+	struct bankshot2_cache_data _data, *data;
+	struct bankshot2_inode *pi;
+	int ret;
+	u64 ino;
+	struct inode *inode;
+
+	data = &_data;
+
+	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
+	if (ret) {
+		bs2_info("Get backing inode returned %d\n", ret);
+		return ret;
+	}
+
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	ino = data->cache_ino;
+	if (ino == 0) {
+		bs2_info("cache ino invalid\n");
+		return -EINVAL;
+	}
+
+	pi = bankshot2_get_inode(bs2_dev, ino);
+
+	if (!pi || le64_to_cpu(pi->backup_ino) != inode->i_ino) {
+		bs2_info("ERROR: Inode does not match.\n");
+		return -EINVAL;
+	}
+
+	data->file_length = i_size_read(inode);
+
+	ret = bankshot2_fsync_to_bs(bs2_dev, pi, data, 0, data->file_length,
+					data->datasync);
+
+	return ret;
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -271,6 +311,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_GET_DIRTY_INFO:
 		bankshot2_ioctl_get_dirty_info(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_FSYNC_DATA:
+		ret = bankshot2_ioctl_fsync_data(bs2_dev, (void *)arg);
 		break;
 	default:
 		break;

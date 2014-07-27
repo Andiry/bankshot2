@@ -35,6 +35,7 @@ struct bankshot2_cache_data{
 	uint64_t file_length; //total file length in bytes
 	int read;
 	int write;
+	int datasync;
 	unsigned long required;
 	unsigned long mmap_addr; // returned mmap address
 	/* -=-=-= These Entries Must Match struct fiemap_extent -=-=-=- */
@@ -62,3 +63,4 @@ struct bankshot2_cache_data{
 #define BANKSHOT2_IOCTL_GET_CACHE_INFO	0xBCD0000A
 #define BANKSHOT2_IOCTL_CLEAR_TIMING	0xBCD0000B
 #define BANKSHOT2_IOCTL_GET_DIRTY_INFO	0xBCD0000C
+#define BANKSHOT2_IOCTL_FSYNC_DATA	0xBCD0000D
