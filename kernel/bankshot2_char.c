@@ -164,7 +164,7 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
 		pi = bankshot2_get_inode(bs2_dev, i);
 		if (pi && pi->backup_ino) {
 			bs2_info("%d: Pi %llu: size %llu, %llu blocks, "
-				"%u extents\n", i, pi->i_ino, pi->i_size,
+				"%u extents\n", i, pi->backup_ino, pi->i_size,
 				pi->i_blocks, pi->num_extents);
 			if (print_dirty)
 				bankshot2_print_tree(bs2_dev, pi);
