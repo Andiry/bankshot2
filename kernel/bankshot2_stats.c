@@ -39,13 +39,14 @@ const char *Timingstring[TIMING_NUM] =
 	"wait_on_access_tree",
 	"fiemap",
 	"bio_to_cache",
+	"get_cache_inode",
 };
 
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 {
 	int i;
 
-	bs2_info("Bankshot2 kernel timing stats:\n");
+	bs2_info("======== Bankshot2 kernel timing stats: ========\n");
 	for (i = 0; i < TIMING_NUM; i++) {
 		if (measure_timing) {
 			bs2_info("%s: count %llu, timing %llu, average %llu\n",
@@ -62,6 +63,7 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 		}
 	}
 
+	bs2_info("======== Bankshot2 kernel IO stats: ========\n");
 	bs2_info("copy_to_cache for read blocks: %llu\n",
 				bs2_dev->bs_read_blocks);
 	bs2_info("copy_to_cache for write blocks: %llu\n",

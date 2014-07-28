@@ -147,6 +147,7 @@ enum timing_category {
 	wait_access_t,
 	fiemap_t,
 	bio_cache_t,
+	get_inode_t,
 	TIMING_NUM,	// Indicate num of timing
 };
 

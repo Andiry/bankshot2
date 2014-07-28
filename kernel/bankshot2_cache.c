@@ -281,9 +281,11 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 	int ret;
 	u64 st_ino;
 	struct inode *inode;
+	timing_t get_inode_time;
 
 	data = &_data;
 
+	BANKSHOT2_START_TIMING(bs2_dev, get_inode_t, get_inode_time);
 	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
 	if (ret) {
 		bs2_info("Get backing inode returned %d\n", ret);
@@ -304,6 +306,8 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
 
 	bs2_dbg("Cache ino %llu, ret %d\n", data->cache_ino, ret);
+	BANKSHOT2_END_TIMING(bs2_dev, get_inode_t, get_inode_time);
+
 	return ret;
 }
 
