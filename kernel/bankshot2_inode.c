@@ -440,6 +440,41 @@ static int bankshot2_insert_inode_hash_array(struct bankshot2_device *bs2_dev,
 	return 0;
 }
 
+static int bankshot2_remove_inode_hash_array(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi)
+{
+	struct hash_inode *entry;
+	int key, i, j;
+
+	key = pi->backup_ino % HASH_ARRAY_SIZE;
+	entry = &bs2_dev->inode_hash_array[key];
+
+	if (entry->size == 1) {
+		if (entry->ino == pi->i_ino) {
+			entry->count = 0;
+			entry->ino = 0;
+			return 0;
+		}
+
+		goto not_found;
+	}
+
+	for (i = 0; i < entry->count; i++) {
+		if (entry->ino_array[i] == pi->i_ino) {
+			for (j = i; j < entry->count - 1; j++)
+				entry->ino_array[j] = entry->ino_array[j + 1];
+			entry->ino_array[j] = 0;
+			entry->count--;
+			return 0;
+		}
+	}
+
+not_found:
+	bs2_info("Pi ino %llu, backup ino %llu not found!\n",
+			pi->i_ino, pi->backup_ino);
+	return -1;
+}
+
 struct bankshot2_inode *
 bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 			struct bankshot2_cache_data *data, u64 *st_ino)
@@ -559,6 +594,7 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 
 	list_del(&pi->lru_list);
 
+	bankshot2_remove_inode_hash_array(bs2_dev, pi);
 out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;
