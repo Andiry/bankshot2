@@ -91,7 +91,7 @@ static int __init bankshot2_init(void)
 	}
 
 	ret = bankshot2_device_alloc();
-	if (!ret) {
+	if (ret) {
 		bs2_info("Bankshot2 device alloc failed.\n");
 		return -ENOMEM;
 	}
