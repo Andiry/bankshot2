@@ -349,9 +349,12 @@ struct bankshot2_inode *
 bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino)
 {
-	int i;
+	struct hash_inode *entry;
 	struct bankshot2_inode *pi;
+	int key, i;
+	u64 ino;
 
+#if 0
 	for (i = BANKSHOT2_FREE_INODE_HINT_START;
 			i < bs2_dev->s_inodes_count; i++) {
 		pi = bankshot2_get_inode(bs2_dev, i);
@@ -360,8 +363,81 @@ bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 			return pi;
 		}
 	}
+#endif
+
+	key = inode->i_ino % HASH_ARRAY_SIZE;
+	entry = &bs2_dev->inode_hash_array[key];
+	if (entry->count == 0)
+		return NULL;
+
+	if (entry->size == 1) {
+		pi = bankshot2_get_inode(bs2_dev, entry->ino);
+		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
+			*st_ino = entry->ino;
+			return pi;
+		}
+		return NULL;
+	}
+
+	for (i = 0; i < entry->count; i++) {
+		ino = entry->ino_array[i];
+		pi = bankshot2_get_inode(bs2_dev, ino);
+		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
+			*st_ino = ino;
+			return pi;
+		}
+	}
 
 	return NULL;
+}
+
+static int bankshot2_insert_inode_hash_array(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi)
+{
+	struct hash_inode *entry;
+	u64 temp_ino;
+	u64 *new_array;
+	int key, i;
+
+	key = pi->backup_ino % HASH_ARRAY_SIZE;
+	entry = &bs2_dev->inode_hash_array[key];
+
+	/* First insert */
+	if (entry->count == 0) {
+		entry->ino = pi->i_ino;
+		entry->count++;
+		return 0;
+	}
+
+	/* Space in ino_array */
+	if (entry->count < entry->size) {
+		entry->ino_array[entry->count] = pi->i_ino;
+		entry->count++;
+		return 0;
+	}
+
+	/* Move from ino to array, 4 entries */
+	if (entry->size == 1) {
+		temp_ino = entry->ino;
+		entry->ino_array = kzalloc(4 * sizeof(u64), GFP_KERNEL);
+		entry->ino_array[0] = temp_ino;
+		entry->ino_array[1] = pi->i_ino;
+		entry->size = 4;
+		entry->count = 2;
+		return 0;
+	}
+
+	/* Double the array */
+	new_array = kzalloc(entry->size * 2 * sizeof(u64), GFP_KERNEL);
+	for (i = 0; i < entry->count; i++)
+		new_array[i] = entry->ino_array[i];
+	new_array[entry->count] = pi->i_ino;
+	kfree(entry->ino_array);
+	entry->ino_array = new_array;
+	entry->size = entry->size * 2;
+	entry->count++;
+
+	return 0;
 }
 
 struct bankshot2_inode *
@@ -414,6 +490,8 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		bankshot2_abort_transaction(bs2_dev, trans);
 		return NULL;
 	}
+
+	bankshot2_insert_inode_hash_array(bs2_dev, pi);
 
 	bankshot2_commit_transaction(bs2_dev, trans);
 	bs2_info("Allocated new inode %llu\n", ino);

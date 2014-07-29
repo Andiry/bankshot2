@@ -173,6 +173,16 @@ typedef struct timespec timing_t;
 
 /* ========================= Data structures =============================== */
 
+#define HASH_ARRAY_SIZE	1024
+
+struct hash_inode {
+	int size;
+	int count;
+	union {
+		u64 ino;
+		u64 *ino_array;
+	};
+};
 
 /*
  * Structure of an inode in PMFS. Things to keep in mind when modifying it.
@@ -396,15 +406,6 @@ struct job_descriptor{
 
 struct bankshot2_device {
 	int (*mmap)(struct file *file, struct vm_area_struct *vma);
-//	int		brd_number;
-//	int		brd_refcnt;
-//	loff_t		brd_offset;
-//	loff_t		brd_sizelimit;
-//	unsigned	brd_blocksize;
-
-//	struct request_queue	*brd_queue;
-//	struct gendisk		*brd_disk;
-//	struct list_head	brd_list;
 
 	void *virt_addr;
 	uint32_t jsize;
@@ -479,6 +480,8 @@ struct bankshot2_device {
 	u64 fiemap_count;
 	u64 num_bio;
 	u64 total_bio_size;
+
+	struct hash_inode *inode_hash_array;
 };
 
 extern struct bankshot2_device *bs2_dev;

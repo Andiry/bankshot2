@@ -126,6 +126,7 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 {
 	int i;
 	struct bankshot2_inode *pi;
+	struct hash_inode *entry;
 
 	bs2_info("Clear cache.\n");
 	for (i = BANKSHOT2_FREE_INODE_HINT_START;
@@ -141,6 +142,15 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	}
 
 	bs2_dev->s_free_inode_hint = BANKSHOT2_FREE_INODE_HINT_START;
+
+	for (i = 0; i < HASH_ARRAY_SIZE; i++) {
+		entry = &bs2_dev->inode_hash_array[i];
+		if (entry->size > 1)
+			kfree(entry->ino_array);
+		entry->ino = 0;
+		entry->count = 0;
+		entry->size = 1;
+	}
 
 	bankshot2_print_time_stats(bs2_dev);
 	bankshot2_clear_time_stats(bs2_dev);

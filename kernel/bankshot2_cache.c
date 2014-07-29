@@ -294,10 +294,12 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 
-	//FIXME: need a lock here
-
 	data->inode = inode;
+
+	mutex_lock(&bs2_dev->inode_table_mutex);
 	pi = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+
 	if (!pi) {
 		bs2_info("No cache inode found\n");
 		return -EINVAL;

@@ -30,6 +30,47 @@ MODULE_PARM_DESC(backing_dev_name, "Backing store");
 
 struct bankshot2_device *bs2_dev;
 
+static int bankshot2_device_alloc(void)
+{
+	int i;
+
+	bs2_dev = kzalloc(sizeof(struct bankshot2_device), GFP_KERNEL);
+	if (!bs2_dev) {
+		bs2_info("Bankshot2 mem alloc failed.\n");
+		return -ENOMEM;
+	}
+
+	bs2_dev->inode_hash_array =
+		kzalloc(sizeof(struct hash_inode) * HASH_ARRAY_SIZE,
+			GFP_KERNEL);
+
+	if (!bs2_dev->inode_hash_array) {
+		bs2_info("Bankshot2 hash array alloc failed.\n");
+		kfree(bs2_dev);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < HASH_ARRAY_SIZE; i++)
+		bs2_dev->inode_hash_array[i].size = 1;
+
+	return 0;
+}
+
+static int bankshot2_device_free(struct bankshot2_device *bs2_dev)
+{
+	int i;
+
+	for (i = 0; i < HASH_ARRAY_SIZE; i++) {
+		if (bs2_dev->inode_hash_array[i].size > 1)
+			kfree(bs2_dev->inode_hash_array[i].ino_array);
+	}
+
+	kfree(bs2_dev->inode_hash_array);
+	kfree(bs2_dev);
+
+	return 0;
+}
+
 static int __init bankshot2_init(void)
 {
 	int ret;
@@ -49,9 +90,11 @@ static int __init bankshot2_init(void)
 		goto check_fail;
 	}
 
-	bs2_dev = kzalloc(sizeof(struct bankshot2_device), GFP_KERNEL);
-	if (!bs2_dev)
+	ret = bankshot2_device_alloc();
+	if (!ret) {
+		bs2_info("Bankshot2 device alloc failed.\n");
 		return -ENOMEM;
+	}
 
 	ret = bankshot2_init_kmem(bs2_dev);
 	if (ret) {
@@ -128,7 +171,7 @@ char_fail:
 	bankshot2_destroy_kmem(bs2_dev);
 
 kmem_fail:
-	kfree(bs2_dev);
+	bankshot2_device_free(bs2_dev);
 
 check_fail:
 	return ret;
@@ -147,7 +190,7 @@ static void __exit bankshot2_exit(void)
 	bankshot2_destroy_super(bs2_dev);
 	bankshot2_destroy_char(bs2_dev);
 	bankshot2_destroy_kmem(bs2_dev);
-	kfree(bs2_dev);
+	bankshot2_device_free(bs2_dev);
 	bs2_info("Exit Bankshot2.\n");
 }
 
