@@ -56,10 +56,10 @@ for j in range(2):
 
 # add some
 ax.yaxis.labelpad = 30
-ax.set_ylabel('Bandwidth (GB/s)', fontsize = '50')
+ax.set_ylabel('Bandwidth (GB/s)', fontsize = '40')
 #ax.set_xlabel('Error Type', fontsize = '40')
-ax.set_xticks(ind + width*2)
-ax.set_xticklabels(traces, rotation=45)
+ax.set_xticks(ind + width*3)
+ax.set_xticklabels(traces, rotation=45, ha = 'right')
 ax.set_ylim([0, 10])
 ax.set_xlim([0, 9])
 plt.xticks(fontsize = '35')
