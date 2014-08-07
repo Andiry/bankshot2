@@ -7,7 +7,7 @@ rmmod bankshot2
 sleep 1
 
 echo "load bankshot2 kernel module..."
-insmod bankshot2.ko phys_addr=0x100000000 cache_size=0x200000000 backing_dev_name=/dev/sda3 measure_timing=1
+insmod bankshot2.ko phys_addr=0x100000000 cache_size=0x200000000 backing_dev_name=/dev/sda3 measure_timing=0
 #mount -t pmfs -o physaddr=0x100000000,init=2G,backing_dev=/dev/ram0 none /mnt/ramdisk
 
 sleep 1
