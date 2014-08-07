@@ -56,14 +56,16 @@ for j in range(2):
 
 # add some
 ax.yaxis.labelpad = 10
-ax.set_ylabel('Ops per second', fontsize = '20')
+ax.set_ylabel('Ops per second', fontsize = '15')
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width*2)
 ax.set_xticklabels(traces)
 ax.set_ylim([0, 45000])
 ax.set_xlim([0, 4])
-plt.xticks(fontsize = '20')
-plt.yticks(fontsize = '20')
+plt.xticks(fontsize = '15')
+plt.yticks(fontsize = '15')
+ax.xaxis.labelpad = 10
+ax.set_xlabel('Threads', fontsize = '15')
 
-ax.legend((rects[0][0], rects[1][0]), types, loc = "upper left", prop = {'size': 20}, ncol = 1)
+ax.legend((rects[0][0], rects[1][0]), types, loc = "upper left", prop = {'size': 15}, ncol = 1)
 plt.show()
