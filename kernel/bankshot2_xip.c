@@ -673,6 +673,83 @@ out:
 	return ret;
 }
 
+int bankshot2_fsync(struct bankshot2_device *bs2_dev,
+		struct bankshot2_cache_data *data, loff_t start, loff_t end,
+		int datasync)
+{
+	struct file *fileinfo;
+	struct inode *inode;
+	struct bankshot2_inode *pi;
+	loff_t isize;
+	void *xmem;
+	pgoff_t pgoff;
+	loff_t offset;
+	unsigned long nr_flush_bytes;
+	u64 ino, block;
+
+	fileinfo = fget(data->file);
+	if (!fileinfo) {
+		bs2_info("fget failed\n");
+		return -EINVAL;
+	}
+
+	inode = fileinfo->f_dentry->d_inode;
+	if (!inode) {
+		fput(fileinfo);
+		bs2_info("inode get failed %p\n", inode);
+		return -EINVAL;
+	}
+
+	isize = i_size_read(inode);
+	if ((unsigned long)end > (unsigned long)isize)	
+		end = isize;
+
+	if (!isize || (start >= end)) {
+		bs2_info("Fsync region incorrect\n");
+		fput(fileinfo);
+		return -ENODATA;
+	}
+
+	ino = data->cache_ino;
+	pi = bankshot2_get_inode(bs2_dev, ino);
+	if (!pi || le64_to_cpu(pi->backup_ino) != inode->i_ino) {
+		bs2_dbg("Cache inode not found for %llu\n", ino);
+		fput(fileinfo);
+		return -EINVAL;
+	}
+
+	fput(fileinfo);
+	if ((unsigned long)end > (unsigned long)pi->i_size)	
+		end = pi->i_size;
+
+	start = start & CACHELINE_MASK;
+	end = CACHELINE_ALIGN(end);
+
+	do {
+		pgoff = start >> PAGE_SHIFT;
+		offset = start & ~PAGE_MASK;
+
+		nr_flush_bytes = PAGE_CACHE_SIZE - offset;
+		if (nr_flush_bytes > (end - start))
+			nr_flush_bytes = end - start;
+
+		block = bankshot2_find_data_block(bs2_dev, pi, pgoff);
+		if (!block) {
+			bs2_info("%s: get block failed, index 0x%lx\n",
+					__func__, pgoff);
+			goto next;
+		}
+		xmem = bankshot2_get_block(bs2_dev, block);
+		bankshot2_flush_buffer(xmem + offset, nr_flush_bytes, 0);
+next:
+		start += nr_flush_bytes;
+	} while (start < end);
+
+	PERSISTENT_MARK();
+	PERSISTENT_BARRIER();
+	return 0;
+}
+
 #if 0
 static int page_dirty(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, unsigned long pgoff)
