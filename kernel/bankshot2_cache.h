@@ -6,6 +6,18 @@
 /* get extent return value */
 #define	EOF_OR_HOLE	3
 
+/* Default mmap size : 4096 */
+#define MMAP_UNIT	PAGE_SIZE
+#define MAX_MMAP_SIZE	2097152
+
+#define ALIGN_DOWN(addr) ((addr) & ~(MMAP_UNIT - 1))
+#define ALIGN_UP(addr) (((addr) & (MMAP_UNIT - 1)) ? \
+		(ALIGN_DOWN(addr + MMAP_UNIT)) : (addr))
+
+#define ALIGN_DOWN_MMAP(addr) ((addr) & ~(MAX_MMAP_SIZE - 1))
+#define ALIGN_UP_MMAP(addr) (((addr) & (MAX_MMAP_SIZE - 1)) ? \
+		(ALIGN_DOWN_2MB(addr + MAX_MMAP_SIZE)) : (addr))
+
 struct bankshot2_mmap_request {
 	void*	addr;
 	size_t	length;

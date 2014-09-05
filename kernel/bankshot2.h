@@ -106,18 +106,6 @@ extern int bio_interception;
 
 #define MAX_GEN_ID  ((uint16_t)-1)
 
-/* Default mmap size : 4096 */
-#define MMAP_UNIT	PAGE_SIZE
-#define MAX_MMAP_SIZE	2097152
-
-#define ALIGN_DOWN(addr) ((addr) & ~(MMAP_UNIT - 1))
-#define ALIGN_UP(addr) (((addr) & (MMAP_UNIT - 1)) ? \
-		(ALIGN_DOWN(addr + MMAP_UNIT)) : (addr))
-
-#define ALIGN_DOWN_MMAP(addr) ((addr) & ~(MAX_MMAP_SIZE - 1))
-#define ALIGN_UP_MMAP(addr) (((addr) & (MAX_MMAP_SIZE - 1)) ? \
-		(ALIGN_DOWN_2MB(addr + MAX_MMAP_SIZE)) : (addr))
-
 /* ========================= Timing =================================== */
 
 enum timing_category {
