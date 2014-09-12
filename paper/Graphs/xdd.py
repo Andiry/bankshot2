@@ -68,18 +68,18 @@ for j in range(2):
 
 # add some
 #ax.yaxis.labelpad = 20
-ax.set_ylabel('Bandwidth (GB/s)', fontsize = '15')
+ax.set_ylabel('Bandwidth (GB/s)', fontsize = '20')
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width*3)
 ax.set_xticklabels(traces, rotation = 45, ha = 'right')
 ax.set_ylim([0, 23])
 #ax.set_xlim([0, 6])
 plt.xticks(fontsize = '15')
-plt.yticks(fontsize = '15')
+plt.yticks(fontsize = '20')
 
-ax.legend((rects[0][0], rects[1][0]), types, loc = "center left", prop = {'size': 15}, ncol = 1)
+ax.legend((rects[0][0], rects[1][0]), types, loc = "center left", prop = {'size': 20}, ncol = 1)
 #ax.set_title("1 thread", fontsize = '15')
-ax.text(.25, .9, '1 thread', horizontalalignment = 'center', transform=ax.transAxes, fontsize = '15')
+ax.text(.25, .9, '1 thread', horizontalalignment = 'center', transform=ax.transAxes, fontsize = '20')
 
 ax1 = fig.add_subplot(132)
 rects = [[] for i in range(2)]
@@ -96,11 +96,11 @@ ax1.set_xticklabels(traces, rotation = 45, ha = 'right')
 ax1.set_ylim([0, 23])
 #ax1.set_xlim([0, 6])
 plt.xticks(fontsize = '15')
-plt.yticks(fontsize = '15')
+plt.yticks(fontsize = '20')
 
 #ax1.legend((rects[0][0], rects[1][0]), types, loc = "upper right", prop = {'size': 40}, ncol = 1)
 #ax1.set_title("4 threads", fontsize = '15')
-ax1.text(.25, .9, '4 threads', horizontalalignment = 'center', transform=ax1.transAxes, fontsize = '15')
+ax1.text(.25, .9, '4 threads', horizontalalignment = 'center', transform=ax1.transAxes, fontsize = '20')
 
 ax2 = fig.add_subplot(133)
 rects = [[] for i in range(2)]
@@ -117,10 +117,10 @@ ax2.set_xticklabels(traces, rotation = 45, ha = 'right')
 ax2.set_ylim([0, 23])
 ax2.set_xlim([0, 6])
 plt.xticks(fontsize = '15')
-plt.yticks(fontsize = '15')
+plt.yticks(fontsize = '20')
 
 #ax2.legend((rects[0][0], rects[1][0]), types, loc = "upper right", prop = {'size': 40}, ncol = 1)
 #ax2.set_title("16 threads", fontsize = '15')
-ax2.text(.25, .9, '16 threads', horizontalalignment = 'center', transform=ax2.transAxes, fontsize = '15')
+ax2.text(.25, .9, '16 threads', horizontalalignment = 'center', transform=ax2.transAxes, fontsize = '20')
 
 plt.show()
