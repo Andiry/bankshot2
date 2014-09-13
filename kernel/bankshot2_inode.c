@@ -399,6 +399,9 @@ static int bankshot2_insert_inode_hash_array(struct bankshot2_device *bs2_dev,
 	u64 *new_array;
 	int key, i;
 
+	bs2_dbg("Pi %p ino %llu, backup ino %llu insert\n",
+			pi, pi->i_ino, pi->backup_ino);
+
 	key = pi->backup_ino % HASH_ARRAY_SIZE;
 	entry = &bs2_dev->inode_hash_array[key];
 
@@ -470,8 +473,8 @@ static int bankshot2_remove_inode_hash_array(struct bankshot2_device *bs2_dev,
 	}
 
 not_found:
-	bs2_info("Pi ino %llu, backup ino %llu not found!\n",
-			pi->i_ino, pi->backup_ino);
+	bs2_info("Pi %p ino %llu, backup ino %llu not found!\n",
+			pi, pi->i_ino, pi->backup_ino);
 	return -1;
 }
 
