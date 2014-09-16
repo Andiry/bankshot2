@@ -76,8 +76,11 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 	struct bankshot2_inode *victim_pi;
 
 	bs2_info("Reclaim blocks for pi %llu\n", pi->i_ino);
-	victim_pi = list_first_entry(&bs2_dev->pi_lru_list,
+	do {
+		victim_pi = list_first_entry(&bs2_dev->pi_lru_list,
 				struct bankshot2_inode, lru_list);
+		list_move_tail(&victim_pi->lru_list, &bs2_dev->pi_lru_list);
+	} while (victim_pi->i_blocks == 0);
 
 	if (!victim_pi) {
 		bs2_info("ERROR: victim pi not found\n");
@@ -91,12 +94,15 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
 	} else {
 		/* Get lock first */
-		bs2_info("victim pi: %llu\n", victim_pi->i_ino);
+		bs2_info("victim pi: %llu, blocks %llu, extents %u\n",
+				victim_pi->i_ino, victim_pi->i_blocks,
+				victim_pi->num_extents);
 		mutex_lock(&victim_pi->tree_lock);
 		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
 		mutex_unlock(&victim_pi->tree_lock);
 
 		if (*num_free == 0) {
+			bs2_info("No blocks freed. Evict the inode\n");
 			*num_free = victim_pi->i_blocks;
 			bankshot2_evict_inode(bs2_dev, victim_pi);
 		}
@@ -120,6 +126,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 	u64 curr_offset;
 	char *array, *alloc_array = NULL;
 	int num_free, i;
+	unsigned long before_alloc;
 	int err = 0;
 	timing_t alloc, evict, update_phy;
 	bankshot2_transaction_t *trans;
@@ -172,14 +179,15 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bankshot2_reclaim_blocks(bs2_dev, pi, data, &num_free);
 		BANKSHOT2_END_TIMING(bs2_dev, evict_t, evict);
 
-		bs2_info("Freed %d blocks, %lu free, %lu required\n",
-				num_free, bs2_dev->num_free_blocks,
-				unallocated);
+		bs2_info("Freed %d blocks for pi %llu, %lu free, "
+				"%lu required\n", num_free, pi->i_ino,
+				bs2_dev->num_free_blocks, unallocated);
 		if (!num_free)
 			bs2_info("Reclaim blocks failed\n");
 	}
 
 	bs2_dbg("Before alloc: %lu free\n", bs2_dev->num_free_blocks);
+	before_alloc = bs2_dev->num_free_blocks;
 	if (unallocated) {
 		trans = bankshot2_new_transaction(bs2_dev,
 					count / MAX_PTRS_PER_LENTRY + 2);
@@ -195,6 +203,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 		if (err) {
 			bs2_info("[%s:%d] Alloc failed\n", __func__, __LINE__);
+			bs2_info("Request for pi %llu, %lu free, "
+				"%lu before alloc, %lu required\n", pi->i_ino,
+				bs2_dev->num_free_blocks, before_alloc,
+				unallocated);
 			bankshot2_abort_transaction(bs2_dev, trans);
 		}
 
