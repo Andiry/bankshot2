@@ -183,6 +183,10 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		bs2_info("Freed %d blocks for pi %llu, %lu free, "
 				"%lu required\n", num_free, pi->i_ino,
 				bs2_dev->num_free_blocks, unallocated);
+		bs2_info("pi %llu info: backup_ino %llu, %llu blocks, "
+				"%u extents, root %llu\n", pi->i_ino,
+				pi->backup_ino,	pi->i_blocks,
+				pi->num_extents, pi->root);
 		if (!num_free)
 			bs2_info("Reclaim blocks failed\n");
 	}

@@ -496,6 +496,9 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		if (pi && le64_to_cpu(pi->backup_ino) == inode->i_ino) {
 			bs2_dbg("Found cache inode %llu\n", ino);
 			data->cache_file_size = le64_to_cpu(pi->i_size);
+			if (pi->backup_ino == 0)
+				bs2_info("pi %llu backup ino is 0?\n",
+						pi->i_ino);
 			goto found;
 		} else if (!pi) {
 			bs2_info("Try to get ino %llu but cache inode not found"
@@ -532,9 +535,12 @@ bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 	bankshot2_insert_inode_hash_array(bs2_dev, pi);
 
 	bankshot2_commit_transaction(bs2_dev, trans);
-	bs2_info("Allocated new inode %llu\n", ino);
+	bs2_info("Allocated new pi %llu, backup ino %llu\n",
+			ino, pi->backup_ino);
 	data->cache_file_size = 0;
 found:
+	bs2_dbg("Return pi %llu, backup ino %llu\n",
+			ino, pi->backup_ino);
 	*st_ino = ino;
 	data->cache_ino = ino;
 	pi->inode = inode;
@@ -598,6 +604,9 @@ static int bankshot2_free_inode(struct bankshot2_device *bs2_dev,
 	list_del(&pi->lru_list);
 
 	bankshot2_remove_inode_hash_array(bs2_dev, pi);
+	pi->backup_ino = 0;
+	pi->height = 0;
+	pi->i_blocks = 0;
 out:
 	mutex_unlock(&bs2_dev->inode_table_mutex);
 	return err;
