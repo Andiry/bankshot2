@@ -97,9 +97,9 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 		bs2_info("victim pi: %llu, blocks %llu, extents %u\n",
 				victim_pi->i_ino, victim_pi->i_blocks,
 				victim_pi->num_extents);
-		mutex_lock(&victim_pi->tree_lock);
+//		mutex_lock(&victim_pi->tree_lock);
 		bankshot2_evict_extent(bs2_dev, victim_pi, data, num_free);
-		mutex_unlock(&victim_pi->tree_lock);
+//		mutex_unlock(&victim_pi->tree_lock);
 
 		if (*num_free == 0) {
 			bs2_info("No blocks freed. Evict the inode\n");

@@ -306,7 +306,12 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 	unsigned int first_index, last_index;
 	unsigned int flush_bytes;
 
+	if (!trans)
+		bs2_info("ERROR: trans is NULL!\n");
+
 	node = bankshot2_get_block(bs2_dev, le64_to_cpu(block));
+	if (!node)
+		bs2_info("ERROR: Node is NULL!\n");
 
 	node_bits = (height - 1) * meta_bits;
 
@@ -373,8 +378,12 @@ static int recursive_alloc_blocks(bankshot2_transaction_t *trans,
 			last_blk = (i == last_index) ? (last_blocknr &
 				((1 << node_bits) - 1)) : (1 << node_bits) - 1;
 
-			errval = recursive_alloc_blocks(trans, bs2_dev, pi, node[i],
-			height - 1, first_blk, last_blk, new_node, zero);
+			if (!node[i])
+				bs2_info("ERROR3: pi %llu node[i] is NULL!\n",
+					pi->i_ino);
+			errval = recursive_alloc_blocks(trans, bs2_dev, pi,
+					node[i], height - 1, first_blk,
+					last_blk, new_node, zero);
 			if (errval < 0)
 				goto fail;
 		}
@@ -456,8 +465,12 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 					" height\n", __func__, __LINE__);
 				goto fail;
 			}
-			errval = recursive_alloc_blocks(trans, bs2_dev, pi, pi->root,
-			pi->height, first_blocknr, last_blocknr, 1, zero);
+			if (!pi->root)
+				bs2_info("ERROR1: pi %llu root is NULL!\n",
+					pi->i_ino);
+			errval = recursive_alloc_blocks(trans, bs2_dev, pi,
+					pi->root, pi->height, first_blocknr,
+					last_blocknr, 1, zero);
 			if (errval < 0)
 				goto fail;
 		}
@@ -475,8 +488,10 @@ int __bankshot2_alloc_blocks(bankshot2_transaction_t *trans,
 				goto fail;
 			}
 		}
-		errval = recursive_alloc_blocks(trans, bs2_dev, pi, pi->root, height,
-				first_blocknr, last_blocknr, 0, zero);
+		if (!pi->root)
+			bs2_info("ERROR2: pi %llu root is NULL!\n", pi->i_ino);
+		errval = recursive_alloc_blocks(trans, bs2_dev, pi, pi->root,
+				height,	first_blocknr, last_blocknr, 0, zero);
 		if (errval < 0)
 			goto fail;
 	}
