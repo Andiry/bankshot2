@@ -171,6 +171,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 
 	data->required = required;
 
+	mutex_lock(&bs2_dev->alloc_lock);
 	while (bs2_dev->num_free_blocks < unallocated * 2) {
 		bs2_info("Need eviction: %lu free, %lu required\n",
 				bs2_dev->num_free_blocks, unallocated);
@@ -222,6 +223,8 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 							update_phy);
 		}
 	}
+
+	mutex_unlock(&bs2_dev->alloc_lock);
 
 	if (bio_interception)
 		kfree(alloc_array);

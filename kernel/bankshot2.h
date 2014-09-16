@@ -411,6 +411,7 @@ struct bankshot2_device {
 	umode_t	mode;
 	struct list_head block_inuse_head;
 	struct mutex s_lock;
+	struct mutex alloc_lock;
 	struct mutex inode_table_mutex;
 	unsigned int	s_inodes_count;  /* total inodes count (used or free) */
 	unsigned int	s_free_inodes_count;    /* free inodes count */
