@@ -137,7 +137,8 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 
 	pi = bankshot2_get_inode(bs2_dev, st_ino);
 	if (!pi) {
-		bs2_info("Failed to get inode to remove mappings\n");
+		bs2_info("Failed to get inode %llu to remove mappings\n",
+				st_ino);
 		return -EINVAL;
 	}
 
