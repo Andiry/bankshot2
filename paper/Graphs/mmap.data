@@ -1,4 +1,4 @@
-Workloads	Group	read	get_read_buf	
+Workloads	Group	read	mmap
 4K	1	8.739089	4.047928
 8K	1	10.95573	7.882733
 16K	1	10.48231	11.03184
