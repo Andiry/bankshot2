@@ -1,4 +1,4 @@
-Workloads	Group	read	Chell-Direct	get_read_buf
+Workloads	Group	PMFS	Chell-Direct	get_read_buf
 4K	1	407	360	85
 8K	1	683	586	81
 16K	1	1365	1129	81

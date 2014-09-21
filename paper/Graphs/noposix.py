@@ -56,7 +56,7 @@ for j in range(3):
     name = 'rects' + str(j)
 #    rects[j] = ax.bar(ind + width * j, data[j], width, color=color_pattern[j % len(color_pattern)], hatch = hatch_pattern[j % len(hatch_pattern)])
 #    rects[j] = ax.bar(ind + width * (j + 1), data[j], width, color=color_pattern[j], hatch = hatch_pattern[j % len(hatch_pattern)])
-    rects[j] = ax.plot(data[j], color=color_pattern[j], marker = hatch_pattern[j], markersize=20, linestyle=line_pattern[j])
+    rects[j] = ax.plot(data[j], color=color_pattern[j], marker = hatch_pattern[j], markersize=25, linestyle=line_pattern[j])
 
 # add some
 ax.yaxis.labelpad = 40
@@ -74,5 +74,5 @@ ax.set_yscale('log')
 plt.xticks(fontsize = '35')
 plt.yticks(fontsize = '40')
 
-ax.legend((rects[0][0], rects[1][0], rects[2][0]), types, loc = "upper left", prop = {'size': 30}, ncol = 1)
+ax.legend((rects[0][0], rects[1][0], rects[2][0]), types, loc = "upper left", prop = {'size': 35}, ncol = 1)
 plt.show()
