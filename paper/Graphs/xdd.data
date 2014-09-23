@@ -1,4 +1,4 @@
-Workloads	Group	Page cache	Chell	
+Workloads	Group	Page cache	Chell-Cache
 Seq-write	1	1117.788	5709.154
 Seq-mix	1	4749.861	5842.046
 Seq-read	1	5562.412	6189.986

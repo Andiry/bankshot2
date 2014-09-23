@@ -75,7 +75,7 @@ ax.set_xlim([0, 6])
 plt.xticks(fontsize = '20')
 plt.yticks(fontsize = '20')
 
-ax.legend((rects[0][0], rects[1][0]), types, loc = "upper left", prop = {'size': 20}, ncol = 1)
+ax.legend((rects[0][0], rects[1][0]), types, loc = "center left", prop = {'size': 20}, ncol = 1)
 #ax.set_title("Read", fontsize = '20')
 ax.text(.5, .9, 'Read', horizontalalignment = 'center', transform=ax.transAxes, fontsize = '20')
 

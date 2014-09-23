@@ -1,4 +1,4 @@
-Workloads	Group	PMFS	Quill
+Workloads	Group	PMFS	Chell-Direct
 Seq-write	1	5656	6845.154
 Seq-mix	1	6357.861	7018.046
 Seq-read	1	7484.412	7753.986
