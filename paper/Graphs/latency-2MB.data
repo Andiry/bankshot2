@@ -1,0 +1,3 @@
+Workload	Memory copy	mmap()	B-Tree lookup	Lock
+MAP_POPULATE disabled	622	2.6	24.7	63.5
+MAP_POPULATE enabled	310	87.8	24.7	63.4
