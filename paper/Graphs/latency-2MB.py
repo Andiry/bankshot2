@@ -67,7 +67,7 @@ ax.yaxis.labelpad = 30
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width * 2.5)
 ax.set_xticklabels(traces)
-ax.set_ylim([0, 1000])
+ax.set_ylim([0, 850])
 ax.set_xlim([0, 2])
 plt.xticks(fontsize = '35')
 plt.yticks(fontsize = '35')

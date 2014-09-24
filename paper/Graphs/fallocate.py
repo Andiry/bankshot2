@@ -47,8 +47,8 @@ plt.rcParams['ytick.major.pad']='20'
 fig = plt.figure()
 ax = fig.add_subplot(111)
 rects = [[] for i in range(2)]
-color_pattern = ['1','0', '0.7', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
-hatch_pattern = ['\\','|','.','*','+','/', ' ', 'x', ' ', '-'] 
+color_pattern = ['1','0.5', '0.7', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
+hatch_pattern = ['\\','/','.','*','+','/', ' ', 'x', ' ', '-'] 
 for j in range(2):
     name = 'rects' + str(j)
 #    rects[j] = ax.bar(ind + width * j, data[j], width, color=color_pattern[j % len(color_pattern)], hatch = hatch_pattern[j % len(hatch_pattern)])

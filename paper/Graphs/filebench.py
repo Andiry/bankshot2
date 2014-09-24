@@ -26,11 +26,11 @@ for line in f:
 	parts = line.split('\t')
 	if round == 0:
 		i == 1
-	elif parts[1] == '128k':
+	elif parts[1] == '128kB':
 		data128.append(float(parts[3]) / float(parts[2]))
-	elif parts[1] == '512k':
+	elif parts[1] == '512kB':
 		data512.append(float(parts[3]) / float(parts[2]))
-	elif parts[1] == '2m':
+	elif parts[1] == '2MB':
 		data2048.append(float(parts[3]) / float(parts[2]))
 	if round % 3 == 1:
 		types.append(parts[1])
