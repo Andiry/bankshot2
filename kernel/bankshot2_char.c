@@ -325,6 +325,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 	case BANKSHOT2_IOCTL_FSYNC_DATA:
 		ret = bankshot2_ioctl_fsync_data(bs2_dev, (void *)arg);
 		break;
+	case BANKSHOT2_IOCTL_EVICT_INODE:
+		ret = bankshot2_ioctl_evict_cache_inode(bs2_dev, (void *)arg);
+		break;
 	default:
 		break;
 	}
