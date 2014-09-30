@@ -40,6 +40,7 @@ const char *Timingstring[TIMING_NUM] =
 	"fiemap",
 	"bio_to_cache",
 	"get_cache_inode",
+	"evict_cache_inode",
 };
 
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)

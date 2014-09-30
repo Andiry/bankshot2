@@ -806,3 +806,41 @@ int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
 	return ret;
 }
 
+int bankshot2_ioctl_evict_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
+{
+	struct bankshot2_cache_data _data, *data;
+	struct bankshot2_inode *pi;
+	int ret;
+	u64 st_ino;
+	struct inode *inode;
+	timing_t evict_inode_time;
+
+	data = &_data;
+
+	BANKSHOT2_START_TIMING(bs2_dev, evict_inode_t, evict_inode_time);
+	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
+	if (ret) {
+		bs2_info("Get backing inode returned %d\n", ret);
+		return ret;
+	}
+
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	data->inode = inode;
+
+	mutex_lock(&bs2_dev->inode_table_mutex);
+	pi = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+
+	if (!pi) {
+		bs2_info("No cache inode found\n");
+		return -EINVAL;
+	}
+
+	bankshot2_evict_inode(bs2_dev, pi);
+
+	BANKSHOT2_END_TIMING(bs2_dev, evict_inode_t, evict_inode_time);
+
+	return ret;
+}
+

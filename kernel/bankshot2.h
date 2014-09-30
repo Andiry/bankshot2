@@ -136,6 +136,7 @@ enum timing_category {
 	fiemap_t,
 	bio_cache_t,
 	get_inode_t,
+	evict_inode_t,
 	TIMING_NUM,	// Indicate num of timing
 };
 
@@ -775,9 +776,11 @@ u64 bankshot2_find_data_block(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
 u64 bankshot2_find_data_block_verbose(struct bankshot2_device *bs2_dev,
 			struct bankshot2_inode *pi, unsigned long file_blocknr);
-struct bankshot2_inode *bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
+struct bankshot2_inode *
+bankshot2_find_cache_inode(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, u64 *st_ino);
-struct bankshot2_inode *bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
+struct bankshot2_inode *
+bankshot2_check_existing_inodes(struct bankshot2_device *bs2_dev,
 		struct inode *inode, u64 *st_ino);
 int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
@@ -785,6 +788,8 @@ void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
 int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev,
 				void *arg);
+int bankshot2_ioctl_evict_cache_inode(struct bankshot2_device *bs2_dev,
+					void *arg);
 int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
 					void *arg, struct inode **st_inode);
 
