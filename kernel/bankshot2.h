@@ -722,10 +722,6 @@ void bankshot2_destroy_char(struct bankshot2_device *);
 
 /* bankshot2_cache.c */
 int bankshot2_ioctl_cache_data(struct bankshot2_device *, void *);
-int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev,
-				void *arg);
-int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
-					void *arg, struct inode **st_inode);
 int bankshot2_init_cache(struct bankshot2_device *, char *);
 
 /* bankshot2_io.c */
@@ -787,6 +783,10 @@ int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, int num_free);
 void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 				struct bankshot2_inode *pi);
+int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev,
+				void *arg);
+int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
+					void *arg, struct inode **st_inode);
 
 /* bankshot2_super.c */
 int bankshot2_init_super(struct bankshot2_device *,

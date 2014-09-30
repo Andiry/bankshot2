@@ -730,4 +730,79 @@ int bankshot2_reclaim_num_blocks(struct bankshot2_device *bs2_dev,
 		return -ENOSPC;
 }
 
+int bankshot2_get_backing_inode(struct bankshot2_device *bs2_dev,
+					void *arg, struct inode **st_inode)
+{
+	struct file *fileinfo;
+	struct inode *inode;
+	struct bankshot2_cache_data *data;
+
+	data = (struct bankshot2_cache_data *)arg;
+	fileinfo = fget(data->file);
+	if (!fileinfo) {
+		bs2_info("fget failed\n");
+		return -EINVAL;
+	}
+
+	inode = fileinfo->f_dentry->d_inode;
+	if (!inode) {
+		fput(fileinfo);
+		bs2_info("inode get failed %p\n", inode);
+		return -EINVAL;
+	}
+
+	data->read = data->write = 0;
+	if (fileinfo->f_mode & FMODE_READ)
+		data->read = 1;
+	if (fileinfo->f_mode & FMODE_WRITE)
+		data->write = 1;
+
+	//we should invalidate the inode's buffer-cache mappings as well, so we don't get invalid data later
+
+	fput(fileinfo);
+	*st_inode = inode;
+	bs2_dbg("Inode %p permissions: Read %d Write %d\n", *st_inode,
+			data->read, data->write);
+
+	return 0;
+}
+
+int bankshot2_ioctl_get_cache_inode(struct bankshot2_device *bs2_dev, void *arg)
+{
+	struct bankshot2_cache_data _data, *data;
+	struct bankshot2_inode *pi;
+	int ret;
+	u64 st_ino;
+	struct inode *inode;
+	timing_t get_inode_time;
+
+	data = &_data;
+
+	BANKSHOT2_START_TIMING(bs2_dev, get_inode_t, get_inode_time);
+	ret = bankshot2_get_backing_inode(bs2_dev, arg, &inode);
+	if (ret) {
+		bs2_info("Get backing inode returned %d\n", ret);
+		return ret;
+	}
+
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	data->inode = inode;
+
+	mutex_lock(&bs2_dev->inode_table_mutex);
+	pi = bankshot2_find_cache_inode(bs2_dev, data, &st_ino);
+	mutex_unlock(&bs2_dev->inode_table_mutex);
+
+	if (!pi) {
+		bs2_info("No cache inode found\n");
+		return -EINVAL;
+	}
+
+	copy_to_user(arg, data, sizeof(struct bankshot2_cache_data));
+
+	bs2_dbg("Cache ino %llu, ret %d\n", data->cache_ino, ret);
+	BANKSHOT2_END_TIMING(bs2_dev, get_inode_t, get_inode_time);
+
+	return ret;
+}
 
