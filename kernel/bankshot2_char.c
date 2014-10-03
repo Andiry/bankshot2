@@ -273,6 +273,22 @@ static int bankshot2_ioctl_fsync_to_bs(struct bankshot2_device *bs2_dev,
 	return ret;
 }
 
+static int bankshot2_ioctl_fsync_to_cache(struct bankshot2_device *bs2_dev,
+		void *arg)
+{
+	struct bankshot2_cache_data _data, *data;
+	int ret;
+
+	data = &_data;
+
+	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
+
+	ret = bankshot2_fsync(bs2_dev, data, data->offset,
+			data->offset + data->size, data->datasync);
+
+	return ret;
+}
+
 long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -324,6 +340,9 @@ long bankshot2_char_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case BANKSHOT2_IOCTL_FSYNC_TO_BS:
 		ret = bankshot2_ioctl_fsync_to_bs(bs2_dev, (void *)arg);
+		break;
+	case BANKSHOT2_IOCTL_FSYNC_TO_CACHE:
+		ret = bankshot2_ioctl_fsync_to_cache(bs2_dev, (void *)arg);
 		break;
 	case BANKSHOT2_IOCTL_EVICT_INODE:
 		ret = bankshot2_ioctl_evict_cache_inode(bs2_dev, (void *)arg);

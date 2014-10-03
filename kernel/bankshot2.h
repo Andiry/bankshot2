@@ -812,6 +812,9 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 int bankshot2_write_back_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		struct extent_entry *extent);
+int bankshot2_fsync(struct bankshot2_device *bs2_dev,
+		struct bankshot2_cache_data *data, loff_t start, loff_t end,
+		int datasync);
 
 /* bankshot2_extent.c */
 struct extent_entry * bankshot2_find_extent(struct bankshot2_device *bs2_dev,
