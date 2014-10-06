@@ -692,7 +692,7 @@ out:
 	return ret;
 }
 
-int bankshot2_fsync(struct bankshot2_device *bs2_dev,
+int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, loff_t start, loff_t end,
 		int datasync)
 {

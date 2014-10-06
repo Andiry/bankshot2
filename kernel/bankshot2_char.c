@@ -283,7 +283,7 @@ static int bankshot2_ioctl_fsync_to_cache(struct bankshot2_device *bs2_dev,
 
 	copy_from_user(data, arg, sizeof(struct bankshot2_cache_data));
 
-	ret = bankshot2_fsync(bs2_dev, data, data->offset,
+	ret = bankshot2_fsync_to_cache(bs2_dev, data, data->offset,
 			data->offset + data->size, data->datasync);
 
 	return ret;
