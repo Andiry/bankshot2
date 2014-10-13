@@ -153,12 +153,13 @@ static void bankshot2_ioctl_clear_cache(struct bankshot2_device *bs2_dev)
 	}
 
 	bankshot2_print_time_stats(bs2_dev);
-	bankshot2_clear_time_stats(bs2_dev);
+	bankshot2_print_io_stats(bs2_dev);
+	bankshot2_clear_stats(bs2_dev);
 }
 
 static void bankshot2_ioctl_clear_timing(struct bankshot2_device *bs2_dev)
 {
-	bankshot2_clear_time_stats(bs2_dev);
+	bankshot2_clear_stats(bs2_dev);
 }
 
 static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
@@ -185,6 +186,7 @@ static void bankshot2_ioctl_print_cache_info(struct bankshot2_device *bs2_dev,
 
 	bankshot2_print_physical_tree(bs2_dev);
 	bankshot2_print_time_stats(bs2_dev);
+	bankshot2_print_io_stats(bs2_dev);
 }
 
 static int bankshot2_ioctl_get_dirty_info(struct bankshot2_device *bs2_dev,

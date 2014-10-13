@@ -63,7 +63,10 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 				bs2_dev->countstats[i]);
 		}
 	}
+}
 
+void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev)
+{
 	bs2_info("======== Bankshot2 kernel IO stats: ========\n");
 	bs2_info("copy_to_cache for read blocks: %llu\n",
 				bs2_dev->bs_read_blocks);
@@ -79,7 +82,7 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 		bs2_dev->total_bio_size / bs2_dev->num_bio : 0);
 }
 
-void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev)
+void bankshot2_clear_stats(struct bankshot2_device *bs2_dev)
 {
 	int i;
 

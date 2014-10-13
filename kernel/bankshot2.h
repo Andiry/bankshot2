@@ -875,7 +875,8 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 
 /* bankshot2_stats.c */
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev);
-void bankshot2_clear_time_stats(struct bankshot2_device *bs2_dev);
+void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev);
+void bankshot2_clear_stats(struct bankshot2_device *bs2_dev);
 
 /* bankshot2_journal.c */
 bankshot2_transaction_t *
