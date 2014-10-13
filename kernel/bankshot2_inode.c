@@ -406,7 +406,7 @@ static int bankshot2_insert_inode_hash_array(struct bankshot2_device *bs2_dev,
 	entry = &bs2_dev->inode_hash_array[key];
 
 	/* First insert */
-	if (entry->count == 0) {
+	if (entry->count == 0 && entry->size == 1) {
 		entry->ino = pi->i_ino;
 		entry->count++;
 		return 0;
