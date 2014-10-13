@@ -335,7 +335,7 @@ struct bankshot2_blocknode {
 
 #define STATUS(flag)	((uint8_t)(1 << flag))
 
-struct cache_stats{
+struct cache_stats {
 	atomic_t hitcount;
 	atomic_t misscount;
 	atomic_t dirtycount;
@@ -355,6 +355,9 @@ struct cache_stats{
 	uint64_t async_cleaned_blocks;
 	int async_triggered;
 	atomic_t sync_eviction_triggered;
+
+	unsigned int inode_alloc;
+	unsigned int inode_evict;
 	
 };
 

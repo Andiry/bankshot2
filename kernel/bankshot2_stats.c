@@ -67,6 +67,11 @@ void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev)
 
 void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev)
 {
+	int i;
+	int num_pi = 0;
+	unsigned long allocated_blocks = 0;
+	struct bankshot2_inode *pi;
+
 	bs2_info("======== Bankshot2 kernel IO stats: ========\n");
 	bs2_info("copy_to_cache for read blocks: %llu\n",
 				bs2_dev->bs_read_blocks);
@@ -80,6 +85,23 @@ void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev)
 		bs2_dev->total_bio_size,
 		bs2_dev->num_bio ?
 		bs2_dev->total_bio_size / bs2_dev->num_bio : 0);
+
+	for (i = BANKSHOT2_FREE_INODE_HINT_START;
+			i < bs2_dev->s_inodes_count; i++) {
+		pi = bankshot2_get_inode(bs2_dev, i);
+		if (pi && pi->backup_ino) {
+			num_pi++;
+			allocated_blocks += pi->i_blocks;
+		}
+	}
+
+	bs2_info("Total %d Pi, s_inodes_count %u, s_inodes_used_count %u, "
+		"s_free_inodes_count %u\n", num_pi, bs2_dev->s_inodes_count,
+		bs2_dev->s_inodes_used_count, bs2_dev->s_free_inodes_count);
+
+	bs2_info("Allocated %lu blocks, bankshot2 has %lu blocks, "
+		"free blocks %lu\n", allocated_blocks, bs2_dev->block_end,
+		bs2_dev->num_free_blocks);
 }
 
 void bankshot2_clear_stats(struct bankshot2_device *bs2_dev)
