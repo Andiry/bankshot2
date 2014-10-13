@@ -293,6 +293,7 @@ retry:
 	pi->num_access_extents = 0;
 	INIT_LIST_HEAD(&pi->lru_list);
 	list_add_tail(&pi->lru_list, &bs2_dev->pi_lru_list);
+	bs2_dev->cache_stats.inode_alloc++;
 
 //	bankshot2_memlock_inode(sb, pi);
 
@@ -673,6 +674,7 @@ void bankshot2_evict_inode(struct bankshot2_device *bs2_dev,
 
 	bankshot2_free_inode_subtree(bs2_dev, root, height, btype,
 					last_blocknr);
+	bs2_dev->cache_stats.inode_evict++;
 }
 
 #if 0

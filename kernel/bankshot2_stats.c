@@ -102,6 +102,10 @@ void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev)
 	bs2_info("Allocated %lu blocks, bankshot2 has %lu blocks, "
 		"free blocks %lu\n", allocated_blocks, bs2_dev->block_end,
 		bs2_dev->num_free_blocks);
+
+	bs2_info("Inode alloc %u, evict %u\n",
+		bs2_dev->cache_stats.inode_alloc,
+		bs2_dev->cache_stats.inode_evict);
 }
 
 void bankshot2_clear_stats(struct bankshot2_device *bs2_dev)
