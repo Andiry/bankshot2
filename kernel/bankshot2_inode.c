@@ -840,6 +840,7 @@ int bankshot2_ioctl_evict_cache_inode(struct bankshot2_device *bs2_dev, void *ar
 	}
 
 	bankshot2_evict_inode(bs2_dev, pi);
+	bs2_dev->cache_stats.inode_ioctl_evict++;
 
 	BANKSHOT2_END_TIMING(bs2_dev, evict_inode_t, evict_inode_time);
 

@@ -103,9 +103,10 @@ void bankshot2_print_io_stats(struct bankshot2_device *bs2_dev)
 		"free blocks %lu\n", allocated_blocks, bs2_dev->block_end,
 		bs2_dev->num_free_blocks);
 
-	bs2_info("Inode alloc %u, evict %u\n",
+	bs2_info("Inode alloc %u, evict %u, ioctl evict %u\n",
 		bs2_dev->cache_stats.inode_alloc,
-		bs2_dev->cache_stats.inode_evict);
+		bs2_dev->cache_stats.inode_evict,
+		bs2_dev->cache_stats.inode_ioctl_evict);
 }
 
 void bankshot2_clear_stats(struct bankshot2_device *bs2_dev)
@@ -123,5 +124,7 @@ void bankshot2_clear_stats(struct bankshot2_device *bs2_dev)
 	bs2_dev->fiemap_count = 0;
 	bs2_dev->num_bio = 0;
 	bs2_dev->total_bio_size = 0;
+
+	memset(&bs2_dev->cache_stats, 0, sizeof(struct cache_stats));
 }
 

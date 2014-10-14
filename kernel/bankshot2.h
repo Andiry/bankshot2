@@ -358,6 +358,7 @@ struct cache_stats {
 
 	unsigned int inode_alloc;
 	unsigned int inode_evict;
+	unsigned int inode_ioctl_evict;
 	
 };
 
