@@ -267,10 +267,8 @@ static int bankshot2_ioctl_fsync_to_bs(struct bankshot2_device *bs2_dev,
 		return -EINVAL;
 	}
 
-	data->file_length = i_size_read(inode);
-
-	ret = bankshot2_fsync_to_bs(bs2_dev, pi, data, 0, data->file_length,
-					data->datasync);
+	ret = bankshot2_fsync_to_bs(bs2_dev, pi, data, data->offset,
+			data->offset + data->size, data->datasync);
 
 	return ret;
 }
