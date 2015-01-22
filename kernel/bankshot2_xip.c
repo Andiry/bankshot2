@@ -696,16 +696,17 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 		struct bankshot2_cache_data *data, loff_t start, loff_t end,
 		int datasync)
 {
-	struct file *fileinfo;
-	struct inode *inode;
+//	struct file *fileinfo;
+//	struct inode *inode;
 	struct bankshot2_inode *pi;
-	loff_t isize;
+//	loff_t isize;
 	void *xmem;
 	pgoff_t pgoff;
 	loff_t offset;
 	unsigned long nr_flush_bytes;
 	u64 ino, block;
 
+#if 0
 	fileinfo = fget(data->file);
 	if (!fileinfo) {
 		bs2_info("fget failed\n");
@@ -728,7 +729,6 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 		fput(fileinfo);
 		return -ENODATA;
 	}
-
 	ino = data->cache_ino;
 	pi = bankshot2_get_inode(bs2_dev, ino);
 	if (!pi || le64_to_cpu(pi->backup_ino) != inode->i_ino) {
@@ -738,6 +738,15 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 	}
 
 	fput(fileinfo);
+#endif
+
+	ino = data->cache_ino;
+	pi = bankshot2_get_inode(bs2_dev, ino);
+	if (!pi) {
+		bs2_dbg("Cache inode not found for %llu\n", ino);
+		return -EINVAL;
+	}
+
 	if ((unsigned long)end > (unsigned long)pi->i_size)	
 		end = pi->i_size;
 
