@@ -763,16 +763,16 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 
 		block = bankshot2_find_data_block(bs2_dev, pi, pgoff);
 		if (!block) {
-			bs2_info("%s: get block failed, index 0x%lx\n",
+			bs2_dbg("%s: get block failed, index 0x%lx\n",
 					__func__, pgoff);
-			goto next;
+			goto out;
 		}
 		xmem = bankshot2_get_block(bs2_dev, block);
 		bankshot2_flush_buffer(xmem + offset, nr_flush_bytes, 0);
-next:
 		start += nr_flush_bytes;
 	} while (start < end);
 
+out:
 	PERSISTENT_MARK();
 	PERSISTENT_BARRIER();
 	return 0;
