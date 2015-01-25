@@ -138,6 +138,7 @@ enum timing_category {
 	bio_cache_t,
 	get_inode_t,
 	evict_inode_t,
+	fsync_t,
 	TIMING_NUM,	// Indicate num of timing
 };
 

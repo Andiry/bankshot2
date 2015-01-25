@@ -705,6 +705,7 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 	loff_t offset;
 	unsigned long nr_flush_bytes;
 	u64 ino, block;
+	timing_t fsync_time;
 
 #if 0
 	fileinfo = fget(data->file);
@@ -753,6 +754,7 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 	start = start & CACHELINE_MASK;
 	end = CACHELINE_ALIGN(end);
 
+	BANKSHOT2_START_TIMING(bs2_dev, fsync_t, fsync_time);
 	do {
 		pgoff = start >> PAGE_SHIFT;
 		offset = start & ~PAGE_MASK;
@@ -775,6 +777,7 @@ int bankshot2_fsync_to_cache(struct bankshot2_device *bs2_dev,
 out:
 	PERSISTENT_MARK();
 	PERSISTENT_BARRIER();
+	BANKSHOT2_END_TIMING(bs2_dev, fsync_t, fsync_time);
 	return 0;
 }
 
