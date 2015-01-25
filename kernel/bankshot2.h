@@ -476,6 +476,7 @@ struct bankshot2_device {
 	u64 fiemap_count;
 	u64 num_bio;
 	u64 total_bio_size;
+	int mmap_hit;
 
 	struct hash_inode *inode_hash_array;
 };

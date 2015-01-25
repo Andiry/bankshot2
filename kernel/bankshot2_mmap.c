@@ -250,6 +250,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 
 	if (ret == 2) {
 		/* It's already mmaped */
+		bs2_dev->mmap_hit++;
 		return 0;
 	}
 
