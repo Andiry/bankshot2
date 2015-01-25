@@ -661,6 +661,28 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 						vfs_read_time);
 		}
 
+		/* If the extent is mmaped and writeable,
+		 * directly read to mmap address
+		 */
+		if (data->write && data->mmap_addr) {
+			done = vfs_read(file,
+				(char *)(data->mmap_addr + (job_offset - pos)),
+				length << PAGE_SHIFT, &b_offset);
+			if (done >= (unsigned long)(-64)) {
+				bs2_info("vfs read failed, returned %d\n",
+						(int)done);
+				bs2_info("mmap addr 0x%lx, mmap pos 0x%llx, "
+					"offset 0x%llx, length %lu pages, "
+					"file offset 0x%llx, read %d, "
+					"read prot %d, write prot %d\n",
+				 	data->mmap_addr, pos, job_offset,
+					length, b_offset, read,
+					data->read, data->write);
+				return -EINVAL;
+			}
+			goto update_length;
+		}
+
 		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
 
 		if (read) {
@@ -702,6 +724,8 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 			BANKSHOT2_END_TIMING(bs2_dev, vfs_cache_fill_write_t,
 						cache_fill_time);
 		}
+
+update_length:
 		if (done < PAGE_SIZE) {
 			bs2_info("ERROR: cache filled less than one page!\n");
 			break;
