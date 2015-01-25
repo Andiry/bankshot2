@@ -27,6 +27,7 @@ const char *Timingstring[TIMING_NUM] =
 	"vfs_read_for_write",
 	"vfs_cache_fill_for_read",
 	"vfs_cache_fill_for_write",
+	"vfs_fill_mmap_directly",
 	"copy_from_cache",
 	"copy_to_user",
 	"copy_from_user",

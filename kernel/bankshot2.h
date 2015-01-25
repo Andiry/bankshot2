@@ -123,6 +123,7 @@ enum timing_category {
 	vfs_read_write_t,
 	vfs_cache_fill_read_t,
 	vfs_cache_fill_write_t,
+	vfs_fill_mmap_t,
 	bs_write_t,
 	copy_to_user_t,
 	copy_from_user_t,
