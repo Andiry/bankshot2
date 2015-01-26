@@ -116,7 +116,8 @@ static int bankshot2_reclaim_blocks(struct bankshot2_device *bs2_dev,
 static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
 		char **void_array, u64 offset, size_t length, u64 user_offset,
-		size_t req_len,	struct extent_entry **access_extent, int write)
+		size_t req_len,	struct extent_entry **access_extent, int write,
+		int *mmaped)
 {
 	unsigned long index;
 	unsigned long count;
@@ -234,7 +235,7 @@ static int bankshot2_prealloc_blocks(struct bankshot2_device *bs2_dev,
 		kfree(alloc_array);
 
 	/* First add the new mapping, then remove the old mapping */
-	err = bankshot2_mmap_extent(bs2_dev, pi, data, access_extent);
+	err = bankshot2_mmap_extent(bs2_dev, pi, data, access_extent, mmaped);
 	if (err)
 		bs2_info("bankshot2_mmap_extent failed: %d\n", err);
 
@@ -479,6 +480,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
 	timing_t bs_read_r, copy_user_time;
+	int mmaped = 0;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count, &b_offset);
 
@@ -490,11 +492,14 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count, user_offset, req_len,
-					&access_extent, 0);
+					&access_extent, 0, &mmaped);
 	if (ret < 0)
 		goto out;
 
 	required = ret;
+
+	if (mmaped == 1)
+		goto fill_cache;
 
 	/* Copy to cache first if it's not in cache */
 	BANKSHOT2_START_TIMING(bs2_dev, bs_read_r_t, bs_read_r);
@@ -506,6 +511,7 @@ int bankshot2_xip_file_read(struct bankshot2_device *bs2_dev,
 	if (ret)
 		goto out;
 
+fill_cache:
 	/* Now copy to user buffer */
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
@@ -588,6 +594,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	unsigned long required;
 	struct extent_entry *access_extent = NULL;
 	timing_t bs_read_w, copy_user_time;
+	int mmaped = 0;
 
 	bankshot2_decide_mmap_extent(bs2_dev, pi, data, &pos, &count,
 					&b_offset);
@@ -600,11 +607,14 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	/* Pre-allocate the blocks we need */
 	ret = bankshot2_prealloc_blocks(bs2_dev, pi, data, &void_array,
 					pos, count, user_offset, req_len,
-					&access_extent, 1);
+					&access_extent, 1, &mmaped);
 	if (ret < 0)
 		goto out;
 
 	required = ret;
+
+	if (mmaped == 1)
+		goto fill_cache;
 
 //	start_index = pos >> bs2_dev->s_blocksize_bits;
 
@@ -618,6 +628,7 @@ ssize_t bankshot2_xip_file_write(struct bankshot2_device *bs2_dev,
 	if (ret)
 		goto out;
 
+fill_cache:
 	do {
 		offset = pos & (bs2_dev->blocksize - 1); /* Within page */
 		index = pos >> bs2_dev->s_blocksize_bits;

@@ -878,7 +878,7 @@ int bankshot2_ioctl_remove_mappings(struct bankshot2_device *bs2_dev,
 			void *arg);
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		struct extent_entry **access_extent);
+		struct extent_entry **access_extent, int *mmaped);
 
 /* bankshot2_stats.c */
 void bankshot2_print_time_stats(struct bankshot2_device *bs2_dev);

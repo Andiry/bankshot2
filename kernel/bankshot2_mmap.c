@@ -217,7 +217,7 @@ not_mmaped:
 
 int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, struct bankshot2_cache_data *data,
-		struct extent_entry **access_extent)
+		struct extent_entry **access_extent, int *mmaped)
 {
 	struct vm_area_struct *vma = NULL;
 	struct file *file = fget(data->file);
@@ -251,6 +251,7 @@ int bankshot2_mmap_extent(struct bankshot2_device *bs2_dev,
 	if (ret == 2) {
 		/* It's already mmaped */
 		bs2_dev->mmap_hit++;
+		*mmaped = 1;
 		return 0;
 	}
 
