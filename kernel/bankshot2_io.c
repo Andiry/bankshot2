@@ -543,6 +543,78 @@ static unsigned long find_continuous_pages(char *void_array, size_t nr_pages,
 	return (last - *first + 1);	
 }
 
+#if 0
+static unsigned long
+find_continuous_cache_pages(struct bankshot2_device *bs2_dev,
+		struct bankshot2_inode *pi, char *void_array, u64 pos,
+		size_t nr_pages, unsigned long start, unsigned long *first,
+		char **xmem)
+{
+	unsigned long i = start;
+	unsigned long last = 0;
+	unsigned long index;
+	u64 job_offset;
+	u64 block;
+	char *start_xmem, *prev_xmem, *new_xmem;
+
+	while(i < nr_pages) {
+		if (void_array[i] == 0x1)
+			break;
+		i++;
+	}
+
+	if (i < nr_pages)
+		*first = i;
+	else
+		return 0;
+
+	// Get the start xmem address
+	job_offset = pos + (*first << PAGE_SHIFT);
+	index = job_offset >> bs2_dev->s_blocksize_bits;
+	block = bankshot2_find_data_block(bs2_dev, pi, index);
+	if (!block) {
+		bs2_info("%s: get block failed, index 0x%lx\n",
+			__func__, index);
+		return -EINVAL;
+	}
+	start_xmem = (char *)bankshot2_get_block(bs2_dev, block);
+	prev_xmem = start_xmem;
+	last = *first;
+	i++;
+
+	while(i < nr_pages) {
+		if (void_array[i] == 0)
+			break;
+		job_offset = pos + (i << PAGE_SHIFT);
+		index = job_offset >> bs2_dev->s_blocksize_bits;
+		block = bankshot2_find_data_block(bs2_dev, pi, index);
+		if (!block) {
+			bs2_info("%s: get block failed, index 0x%lx\n",
+				__func__, index);
+			return -EINVAL;
+		}
+		new_xmem = (char *)bankshot2_get_block(bs2_dev, block);
+		if (new_xmem != prev_xmem + PAGE_SIZE) {
+			// Not contiguous
+			break;
+		}
+		prev_xmem = new_xmem;
+		
+		last = i;
+		i++;
+	}
+
+	if (last < *first) {
+		bs2_info("%s: last smaller than first, first %lu, last %lu\n",
+				__func__, *first, last);
+		return 0;
+	}
+
+	*xmem = start_xmem;
+	return (last - *first + 1);	
+}
+#endif
+
 static size_t do_vfs_cache_fill(struct bankshot2_device *bs2_dev,
 		struct bankshot2_inode *pi, char *buf, u64 job_offset,
 		u64 start_offset, size_t done, char* void_array, int read)
@@ -605,9 +677,9 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 	unsigned long start, first, length;
 	u64 job_offset, start_b_offset;
 	char *buf;
+//	char *xmem = NULL;
 	timing_t vfs_read_time, cache_fill_time, mmap_fill_time;
-
-////	BEE3_INFO("Copy to cache, %llu block %llu -> %llu / %llu", b_offset, (b_offset - 49152)/(1024 * 1024), c_offset, c_offset/(PAGE_SIZE * 256));
+//	mm_segment_t old_fs;
 
 	if (required == 0)
 		return 0;
@@ -639,9 +711,13 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 
 	start = first = 0;
 	while(required) {
-		length = find_continuous_pages(void_array, nr_pages, start,
-						&first);
+		//FIXME: Copy to xmem directly may result in uncontigupus pages
+#if 0
+		length = find_continuous_cache_pages(bs2_dev, pi, void_array, pos,
+						nr_pages, start, &first, &xmem);
 
+		if (length < required)
+			bs2_info("length: %lu, required %lu\n", length, required);
 		if (length == 0 || length > required) {
 			bs2_info("ERROR: Consecutive pages get error, "
 				"required %lu, start %lu, first %lu, "
@@ -653,13 +729,31 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 		b_offset = start_b_offset + (first << PAGE_SHIFT);
 		job_offset = pos + (first << PAGE_SHIFT);
 
-		if (read) {
-			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_read_t,
-						vfs_read_time);
-		} else {
-			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_write_t,
-						vfs_read_time);
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		done = vfs_read(file, xmem, length << PAGE_SHIFT, &b_offset);
+		set_fs(old_fs);
+		if (done >= (unsigned long)(-64)) {
+			bs2_info("vfs read failed, returned %d\n", (int)done);
+			fput(file);
+			return -EINVAL;
 		}
+
+		goto update_length;
+#endif
+		length = find_continuous_pages(void_array, nr_pages,
+						start, &first);
+
+		if (length == 0 || length > required) {
+			bs2_info("ERROR: Consecutive pages get error, "
+				"required %lu, start %lu, first %lu, "
+				"length %lu\n", required, start, first, length);
+			fput(file);
+			return -EINVAL;
+		}
+
+		b_offset = start_b_offset + (first << PAGE_SHIFT);
+		job_offset = pos + (first << PAGE_SHIFT);
 
 		/* If the extent is mmaped and writeable,
 		 * directly read to mmap address
@@ -685,6 +779,14 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 				return -EINVAL;
 			}
 			goto update_length;
+		}
+
+		if (read) {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_read_t,
+						vfs_read_time);
+		} else {
+			BANKSHOT2_START_TIMING(bs2_dev, vfs_read_write_t,
+						vfs_read_time);
 		}
 
 		done = vfs_read(file, buf, length << PAGE_SHIFT, &b_offset);
@@ -731,7 +833,7 @@ int bankshot2_copy_to_cache(struct bankshot2_device *bs2_dev,
 
 update_length:
 		if (done < PAGE_SIZE) {
-			bs2_info("ERROR: cache filled less than one page!\n");
+			bs2_info("ERROR: cache filled less than one page! %zu\n", done);
 			break;
 		}
 
