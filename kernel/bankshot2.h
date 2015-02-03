@@ -142,7 +142,7 @@ enum timing_category {
 	TIMING_NUM,	// Indicate num of timing
 };
 
-extern const char *Timingsting[TIMING_NUM];
+extern const char *Timingstring[TIMING_NUM];
 
 extern int measure_timing;
 
