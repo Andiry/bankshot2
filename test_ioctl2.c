@@ -28,14 +28,21 @@ struct write_request {
 	size_t len;
 };
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	int fd1;
 	struct write_request packet;
-	off_t offset = 0;
-	size_t len = 4096;
+	off_t offset;
+	size_t len;
 	char* buf = malloc(4096);
 
+	if (argc != 3) {
+		printf("Usage: ./test_ioctl2 offset size\n");
+		return 0;
+	}
+
+	offset = atol(argv[1]);
+	len = atol(argv[2]);
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	packet.offset = offset;
 	packet.len = len;
