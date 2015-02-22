@@ -47,8 +47,9 @@ plt.rcParams['ytick.major.pad']='20'
 fig = plt.figure()
 ax = fig.add_subplot(111)
 rects = [[] for i in range(2)]
-color_pattern = ['1','0', '0.7', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
-hatch_pattern = ['\\','|','.','*','+','/', ' ', 'x', ' ', '-'] 
+#color_pattern = ['1','0', '0.7', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
+color_pattern = ['c','b', '0.7', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
+hatch_pattern = ['\\','x','.','*','+','/', ' ', 'x', ' ', '-'] 
 for j in range(2):
     name = 'rects' + str(j)
 #    rects[j] = ax.bar(ind + width * j, data[j], width, color=color_pattern[j % len(color_pattern)], hatch = hatch_pattern[j % len(hatch_pattern)])
@@ -60,7 +61,7 @@ ax.set_ylabel('Bandwidth (GB/s)', fontsize = '40')
 #ax.set_xlabel('Error Type', fontsize = '40')
 ax.set_xticks(ind + width*3)
 ax.set_xticklabels(traces, rotation=45, ha = 'right')
-ax.set_ylim([0, 10])
+ax.set_ylim([0, 11])
 ax.set_xlim([0, 9])
 plt.xticks(fontsize = '35')
 plt.yticks(fontsize = '40')

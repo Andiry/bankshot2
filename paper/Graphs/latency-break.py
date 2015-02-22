@@ -50,7 +50,7 @@ plt.rcParams['ytick.major.pad']='20'
 fig = plt.figure()
 ax = fig.add_subplot(111)
 rects = [[] for i in range(3)]
-color_pattern = ['1','0', '0.6', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
+color_pattern = ['c','0', '#eeefff', '0.6', '0.3','0.6','0.9', '0.2', '0.5', '0.8', '0.1', '0.4','0.7', '1'] #light and contrasting colors
 hatch_pattern = ['\\','|','/','*','+','/', ' ', 'x', ' ', '-'] 
 
 name = 'rects' + str(j)

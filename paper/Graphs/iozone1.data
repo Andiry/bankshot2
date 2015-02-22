@@ -1,4 +1,4 @@
-Workloads	Group	Page cache	Chell-Cache
+Workloads	Group	Page cache	Chell
 Write	1	5177.089	7145.928
 Re-write	1	5191.573	7408.733
 Read	1	6800.301	9490.084
