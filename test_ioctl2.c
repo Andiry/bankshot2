@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 	off_t offset;
 	size_t len;
 	char* buf = malloc(4096);
+	int i;
 
 	if (argc != 3) {
 		printf("Usage: ./test_ioctl2 offset size\n");
@@ -48,7 +49,8 @@ int main(int argc, char *argv[])
 	packet.len = len;
 	packet.buf = buf;
 
-	ioctl(fd1, PMFS_COW_WRITE, &packet);
+	for (i = 0; i < 135; i++)
+		ioctl(fd1, PMFS_COW_WRITE, &packet);
 
 	close(fd1);
 	free(buf);

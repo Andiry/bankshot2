@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -8,7 +9,7 @@
 #include <malloc.h>
 #include <time.h>
 
-#define PMFS_PRINT_LOG	0xBCD00013
+#define PMFS_COW_WRITE	0xBCD00012
 
 struct extent_entry {
 	off_t offset;
@@ -31,12 +32,27 @@ struct write_request {
 int main(int argc, char *argv[])
 {
 	int fd1;
+	off_t offset;
+	size_t size, ret;
+	char* buf;
+//	int i;
 
-	fd1 = open("/mnt/ramdisk/test1", O_RDWR, 0640);
+	if (argc != 3) {
+		printf("Usage: ./test_write offset size\n");
+		return 0;
+	}
 
-	ioctl(fd1, PMFS_PRINT_LOG, &fd1);
+	offset = atol(argv[1]);
+	size = atol(argv[2]);
+	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
+
+	buf = malloc(size);
+	memset(buf, '0', size);
+//	for (i = 0; i < 135; i++)
+	ret = pwrite(fd1, buf, size, offset);
 
 	close(fd1);
+	free(buf);
 
 	return 0;
 }
