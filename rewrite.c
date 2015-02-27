@@ -34,22 +34,24 @@ int main(int argc, char *argv[])
 	struct write_request packet;
 	off_t offset;
 	size_t len;
+	unsigned long count;
 	char* buf = malloc(4096);
 	int i;
 
-	if (argc != 3) {
-		printf("Usage: ./test_ioctl2 offset size\n");
+	if (argc != 4) {
+		printf("Usage: ./rewrite offset size count\n");
 		return 0;
 	}
 
 	offset = atol(argv[1]);
 	len = atol(argv[2]);
+	count = atol(argv[3]);
 	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 	packet.offset = offset;
 	packet.len = len;
 	packet.buf = buf;
 
-	for (i = 0; i < 135; i++)
+	for (i = 0; i < count; i++)
 		ioctl(fd1, PMFS_COW_WRITE, &packet);
 
 	close(fd1);
