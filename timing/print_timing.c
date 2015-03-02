@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 	int fd;
 	int print_dirty = 0;
 
-	fd = open("/mnt/ramdisk/test1", O_RDWR);
+	fd = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 
 	ioctl(fd, PMFS_PRINT_TIMING, &print_dirty);
 

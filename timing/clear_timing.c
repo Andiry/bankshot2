@@ -14,7 +14,7 @@ int main(void)
 {
 	int fd;
 
-	fd = open("/mnt/ramdisk/test1", O_RDWR);
+	fd = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 
 	ioctl(fd, PMFS_CLEAR_STATS, &fd);
 
