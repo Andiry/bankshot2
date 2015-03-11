@@ -1,3 +1,3 @@
-Workload	Memory copy	B-Tree lookup	Lock
+Workload	Memory copy	B-Tree lookup	Others
 Read	296	27	67
 Write	394	27	111
