@@ -1,0 +1,10 @@
+Workloads	Group	Page cache	Chell
+fileserver	128kB	32452	29065
+webserver	128kB	58541.13	51145.76
+varmail	128kB	13567.861	35484.62
+fileserver	512kB	17124.36	22322.56
+webserver	512kB	29549.35	30842.88
+varmail	512kB	4217.861	25700.05
+fileserver	2MB	6069	11230.2
+webserver	2MB	11288.84	14107.65
+varmail	2MB	5306.861	30309.65
