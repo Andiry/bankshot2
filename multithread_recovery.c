@@ -33,8 +33,10 @@ int main(int argc, char *argv[])
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	ioctl(fd1, PMFS_TEST_MULTITHREAD_RECOVERY, &multithread);
 	clock_gettime(CLOCK_MONOTONIC, &end);
-	printf("%s recovery time: %lu\n", multithread ?
-		"Multithread" : "Singlethread", end.tv_nsec - start.tv_nsec);
+	printf("%s recovery time: %lu\n",
+		multithread ?	"Multithread" : "Singlethread",
+		1e9 * (end.tv_sec - start.tv_sec) +
+		end.tv_nsec - start.tv_nsec);
 
 	close(fd1);
 
