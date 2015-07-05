@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 {
 	int fd1;
 
-	fd1 = open("/mnt/ramdisk/test1", O_RDWR, 0640);
+	fd1 = open("/mnt/ramdisk/test1", O_RDWR | O_CREAT, 0640);
 
 	ioctl(fd1, PMFS_PRINT_LOG_BLOCKNODE, &fd1);
 
